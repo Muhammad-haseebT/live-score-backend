@@ -6,4 +6,8 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface AccountInterface extends JpaRepository<Account,Integer> {
+
+    public Account findByAridAndPassword(String Arid,String Password);
+
+    Account findByArid(String arid);
 }
