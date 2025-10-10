@@ -42,6 +42,7 @@ public class AccountService {
             return ResponseEntity.badRequest().body(Map.of("error", "Already Exists"));
         }
         System.out.println(a.getArid().toUpperCase());
+        a.setArid(a.getArid().toUpperCase());
         ai.save(a);
         return ResponseEntity.ok("Added");
     }
