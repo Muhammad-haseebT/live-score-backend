@@ -58,6 +58,7 @@ public class AccountService {
 
         System.out.println(a.getArid().toUpperCase());
         a.setArid(a.getArid().toUpperCase());
+        a.setRole("user");
         ai.save(a);
 
         response.put("success", true);
