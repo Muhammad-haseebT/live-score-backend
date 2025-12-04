@@ -1,6 +1,7 @@
 package com.livescore.backend.Service;
 
 import com.livescore.backend.Entity.Account;
+import com.livescore.backend.Entity.Season;
 import com.livescore.backend.Interface.AccountInterface;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -83,5 +84,10 @@ public class AccountService {
         }
         return ResponseEntity.badRequest().body("Account not found");
 
+    }
+
+    public ResponseEntity<?> getSeasons(Account a) {
+        Account acc=ai.findByArid(a.getArid());
+        return ResponseEntity.ok(acc.getSeasons());
     }
 }

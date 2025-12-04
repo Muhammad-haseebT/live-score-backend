@@ -1,5 +1,7 @@
 package com.livescore.backend.Entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.Data;
 import java.util.List;
@@ -14,8 +16,10 @@ public class Account {
     String arid;
     String password;
     String role;
+    @JsonManagedReference
     @OneToMany(mappedBy = "account", cascade = CascadeType.ALL)
     private List<Season> seasons;
     @OneToMany(mappedBy = "scorer", cascade = CascadeType.ALL)
     private List<Match> scoredMatches;
 }
+

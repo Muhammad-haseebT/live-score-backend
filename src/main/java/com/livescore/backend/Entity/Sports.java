@@ -4,22 +4,24 @@ import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.Data;
+
 import java.util.List;
 
 @Entity
 @Data
-public class Season {
+public class Sports {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    int sid;
+    int Sportsid;
+    @Column(unique = true)
     String name;
 
     @JsonBackReference
     @ManyToOne
-    @JoinColumn(name = "aid")
-    Account account;
+    @JoinColumn(name = "sid")
+    Season season;
 
-    @JsonManagedReference
-    @OneToMany(mappedBy = "season", cascade = CascadeType.ALL)
-    List<Sports> sports;
+
+    @OneToMany(mappedBy = "sports", cascade = CascadeType.ALL)
+    List<Tournament> tournaments;
 }

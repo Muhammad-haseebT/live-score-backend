@@ -3,10 +3,7 @@ package com.livescore.backend.Controller;
 import com.livescore.backend.Entity.Season;
 import com.livescore.backend.Service.SeasonService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -23,5 +20,14 @@ public class SeasonController {
     @GetMapping("/season")
     public List<Season> getAllSeasons() {
         return seasonService.getAllSeasons();
+    }
+
+    @GetMapping("season/{id}")
+    public Season getSeasonById(@PathVariable int id) {
+        return seasonService.getSeasonById(id);
+    }
+    @DeleteMapping("season/{id}")
+    public void deleteSeason(@PathVariable int id) {
+        seasonService.deleteSeason(id);
     }
 }

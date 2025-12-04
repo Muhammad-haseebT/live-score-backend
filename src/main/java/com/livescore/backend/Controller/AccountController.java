@@ -32,6 +32,11 @@ public class AccountController {
     public ResponseEntity<?> updateAcc(@RequestBody Account a) {
         return as.update(a);
     }
+
+    @GetMapping("/acc/getSeasons")
+    public ResponseEntity<?> getSeasons(@RequestBody Account a) {
+        return as.getSeasons(a);
+    }
     
 
 
