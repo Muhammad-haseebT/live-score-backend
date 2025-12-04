@@ -26,11 +26,11 @@ public class Tournament {
     Season season;
 
     @OneToMany(mappedBy = "tournament", cascade = CascadeType.ALL)
-    private List<Team> teams;
+    List<Team> teams;
 
     @OneToMany(mappedBy = "tournament", cascade = CascadeType.ALL)
-    private List<Match> matches;
+    List<Match> matches;
 
     @OneToMany(mappedBy = "tournament", cascade = CascadeType.ALL)
-    private List<Stats> statsList; // generic Stats table (tournament-level)
+    List<Stats> statsList;
 }
