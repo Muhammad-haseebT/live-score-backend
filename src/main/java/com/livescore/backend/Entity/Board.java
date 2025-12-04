@@ -17,10 +17,8 @@ public class Board {
     @ManyToOne
     @JoinColumn(name = "winnerteamid")
     Team winnerTeam;
-
     @ManyToOne
     @JoinColumn(name = "loserteamid")
     Team loserTeam;
-
     Integer pts;
 }

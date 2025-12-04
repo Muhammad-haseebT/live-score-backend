@@ -9,13 +9,9 @@ public class Media {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     Integer mid;
-
-
     @ManyToOne
     @JoinColumn(name = "parentid")
     Tournament tournament;
-
-
     @ManyToOne
     @JoinColumn(name = "childid")
     Match match;
