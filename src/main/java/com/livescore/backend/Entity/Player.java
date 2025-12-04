@@ -8,7 +8,7 @@ import lombok.Data;
 public class Player {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    Integer pid;
+    int pid;
 
     String name;
     String aridno;

@@ -8,7 +8,7 @@ import lombok.Data;
 public class Board {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    Integer bid;
+    int bid;
 
     @ManyToOne
     @JoinColumn(name = "mtid")
@@ -20,5 +20,5 @@ public class Board {
     @ManyToOne
     @JoinColumn(name = "loserteamid")
     Team loserTeam;
-    Integer pts;
+    int pts;
 }

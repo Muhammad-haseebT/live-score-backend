@@ -8,17 +8,17 @@ import lombok.Data;
 public class CricketStats {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    Integer stid;
+    int stid;
 
     @ManyToOne
     @JoinColumn(name = "mtid")
     Match match;
 
-    Integer runs;
-    Integer teamid;
+    int runs;
+    int teamid;
     Double nrr;
     String result;
-    Integer points;
-    Integer wickets;
+    int points;
+    int wickets;
     Double overs;
 }

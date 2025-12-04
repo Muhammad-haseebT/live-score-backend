@@ -9,7 +9,7 @@ import java.util.List;
 public class Team {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    Integer tmid;
+    int tmid;
 
     String name;
     String logo;

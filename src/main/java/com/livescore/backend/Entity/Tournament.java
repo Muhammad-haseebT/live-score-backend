@@ -10,7 +10,7 @@ import java.util.List;
 public class Tournament {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    Integer tid;
+    int tid;
 
     String name;
     String sport;

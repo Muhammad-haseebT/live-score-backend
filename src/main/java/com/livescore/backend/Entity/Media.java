@@ -8,7 +8,7 @@ import lombok.Data;
 public class Media {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    Integer mid;
+    int mid;
     @ManyToOne
     @JoinColumn(name = "parentid")
     Tournament tournament;

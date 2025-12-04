@@ -8,7 +8,7 @@ import lombok.Data;
 public class SetsGamesResults {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    Integer sgrid;
+    int sgrid;
 
     @ManyToOne
     @JoinColumn(name = "mtid")
@@ -22,5 +22,5 @@ public class SetsGamesResults {
     @JoinColumn(name = "loserteamid")
     Team loserTeam;
 
-    Integer pts;
+    int pts;
 }

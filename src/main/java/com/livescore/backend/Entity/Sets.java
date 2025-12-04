@@ -8,7 +8,7 @@ import lombok.Data;
 public class Sets {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    Integer stid;
+    int stid;
 
     @ManyToOne
     @JoinColumn(name = "mtid")
@@ -22,5 +22,5 @@ public class Sets {
     @JoinColumn(name = "loserteamid")
     Team loserTeam;
 
-    Integer pts;
+    int pts;
 }

@@ -1,4 +1,10 @@
 package com.livescore.backend.Interface;
 
-public interface TournamentInterface {
+import com.livescore.backend.Entity.Account;
+import com.livescore.backend.Entity.Tournament;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+@Repository
+public interface TournamentInterface extends JpaRepository<Tournament,Integer> {
 }

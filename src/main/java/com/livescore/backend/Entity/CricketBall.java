@@ -8,14 +8,14 @@ import lombok.Data;
 public class CricketBall {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    Integer ballid;
+    int ballid;
 
     @ManyToOne
     @JoinColumn(name = "inningsid")
     CricketInnings innings;
 
-    Integer overnumber;
-    Integer ballnumber;
+    int overnumber;
+    int ballnumber;
 
     @ManyToOne
     @JoinColumn(name = "batsmanid")
@@ -25,8 +25,8 @@ public class CricketBall {
     @JoinColumn(name = "bowlerid")
     Player bowler;
 
-    Integer runs;
-    Integer extra;
+    int runs;
+    int extra;
     String extratype;
     String dismissletype;
 

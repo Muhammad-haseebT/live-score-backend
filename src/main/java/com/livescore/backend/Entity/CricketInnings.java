@@ -10,13 +10,13 @@ import java.util.List;
 public class CricketInnings {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    Integer inningsid;
+    int inningsid;
 
     @ManyToOne
     @JoinColumn(name = "mtid")
     Match match;
 
-    Integer extras;
+    int extras;
 
     @ManyToOne
     @JoinColumn(name = "batsmanid")
@@ -26,8 +26,8 @@ public class CricketInnings {
     @JoinColumn(name = "bowlerid")
     Player bowler;
 
-    Integer runs;
-    Integer wicket;
+    int runs;
+    int wicket;
     Double over;
     String stats;
     @OneToMany(mappedBy = "innings", cascade = CascadeType.ALL)

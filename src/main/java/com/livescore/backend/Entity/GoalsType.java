@@ -8,7 +8,7 @@ import lombok.Data;
 public class GoalsType {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    Integer gid;
+    int gid;
 
     @ManyToOne
     @JoinColumn(name = "mtid")
@@ -23,8 +23,8 @@ public class GoalsType {
     Player assist;
 
     String game;
-    Integer yellow;
-    Integer red;
-    Integer foul;
-    Integer score;
+    int yellow;
+    int red;
+    int foul;
+    int score;
 }
