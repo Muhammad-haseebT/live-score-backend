@@ -5,10 +5,7 @@ import com.livescore.backend.Service.AccountService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 
 @RestController
@@ -30,6 +27,12 @@ public class AccountController {
     public ResponseEntity<?> getAcc() {
         return as.get();
     }
+
+    @PutMapping("/acc/update")
+    public ResponseEntity<?> updateAcc(@RequestBody Account a) {
+        return as.update(a);
+    }
+    
 
 
 }

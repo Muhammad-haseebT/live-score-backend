@@ -17,7 +17,12 @@ public class Account {
     String password;
     String role;
 
-    // One Account can have many Organizations
     @OneToMany(mappedBy = "account", cascade = CascadeType.ALL)
     List<Organization> organizations;
+
+    @OneToMany(mappedBy = "account", cascade = CascadeType.ALL)
+    private List<Season> seasons;
+
+    @OneToMany(mappedBy = "scorer", cascade = CascadeType.ALL)
+    private List<Match> scoredMatches;
 }

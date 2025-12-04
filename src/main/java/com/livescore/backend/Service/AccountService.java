@@ -18,7 +18,7 @@ public class AccountService {
     public ResponseEntity<?> check(Account a) {
         Map<String, Object> response = new HashMap<>();
 
-        if(ai.findByAridAndPassword(a.getArid().toUpperCase(), a.getPassword())==null){
+        if (ai.findByAridAndPassword(a.getArid().toUpperCase(), a.getPassword()) == null) {
             response.put("success", false);
             response.put("message", "Invalid ARID or Password");
             return ResponseEntity.badRequest().body(response);
@@ -45,8 +45,7 @@ public class AccountService {
             response.put("success", false);
             response.put("message", "Password must be at least 8 characters long and contain at least one letter, one number, and one special character");
             return ResponseEntity.badRequest().body(response);
-        }
-        else if (!Pattern.matches("(?i)^\\d{4}-arid-\\d{4}$", a.getArid())) {
+        } else if (!Pattern.matches("(?i)^\\d{4}-arid-\\d{4}$", a.getArid())) {
             response.put("success", false);
             response.put("message", "Arid must be in this format YYYY-ARID-XXXX");
             return ResponseEntity.badRequest().body(response);
@@ -68,5 +67,21 @@ public class AccountService {
 
     public ResponseEntity<?> get() {
         return ResponseEntity.ok(ai.findAll());
+    }
+
+    public ResponseEntity<?> update(Account a) {
+        if (a != null) {
+            Account oldAccount = ai.findById(a.getAid()).orElse(null);
+            if (oldAccount != null) {
+                oldAccount.setArid(a.getArid());
+                oldAccount.setPassword(a.getPassword());
+                ai.save(oldAccount);
+                return ResponseEntity.ok("Updated");
+            } else {
+                return ResponseEntity.badRequest().body("Account not found");
+            }
+        }
+        return ResponseEntity.badRequest().body("Account not found");
+
     }
 }
