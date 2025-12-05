@@ -8,14 +8,15 @@ import lombok.Data;
 public class PtsTable {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    int ptsid;
+    int id;
 
     @OneToOne
-    @JoinColumn(name = "tmid")
+    @JoinColumn(name = "team_id")
     Team team;
 
     int matches;
     int points;
     int wins;
     int loss;
+    double nrr;
 }

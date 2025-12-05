@@ -10,26 +10,14 @@ import java.util.List;
 public class CricketInnings {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    int inningsid;
+    int id;
 
     @ManyToOne
-    @JoinColumn(name = "mtid")
+    @JoinColumn(name = "match_id")
     Match match;
 
-    int extras;
-
     @ManyToOne
-    @JoinColumn(name = "batsmanid")
-    Player batsman;
+    @JoinColumn(name = "team_id")
+    Team team;
 
-    @ManyToOne
-    @JoinColumn(name = "bowlerid")
-    Player bowler;
-
-    int runs;
-    int wicket;
-    Double over;
-    String stats;
-    @OneToMany(mappedBy = "innings", cascade = CascadeType.ALL)
-    List<CricketBall> balls;
 }

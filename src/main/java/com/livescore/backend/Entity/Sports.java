@@ -10,16 +10,14 @@ import java.util.List;
 @Entity
 @Data
 public class Sports {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    int Sportsid;
-    @Column(unique = true)
+    int id;
+
+    @Column(unique = true, nullable = false)
     String name;
 
-    @JsonBackReference
-    @ManyToOne
-    @JoinColumn(name = "sid")
-    Season season;
 
 
     @OneToMany(mappedBy = "sports", cascade = CascadeType.ALL)

@@ -8,18 +8,18 @@ import lombok.Data;
 public class GoalsType {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    int gid;
+    int id;
 
     @ManyToOne
-    @JoinColumn(name = "mtid")
+    @JoinColumn(name = "match_id")
     Match match;
 
     @ManyToOne
-    @JoinColumn(name = "playerid")
+    @JoinColumn(name = "player_id")
     Player player;
 
     @ManyToOne
-    @JoinColumn(name = "assistid")
+    @JoinColumn(name = "assist_id")
     Player assist;
 
     String game;

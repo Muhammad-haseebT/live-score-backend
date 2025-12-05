@@ -11,28 +11,38 @@ import java.util.List;
 public class Match {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    Integer mtid;
+    int id;
 
     @ManyToOne
-    @JoinColumn(name = "tid")
+    @JoinColumn(name = "tournament_id")
     Tournament tournament;
 
     @ManyToOne
-    @JoinColumn(name = "team1id")
+    @JoinColumn(name = "team1_id")
     Team team1;
 
     @ManyToOne
-    @JoinColumn(name = "team2id")
+    @JoinColumn(name = "team2_id")
     Team team2;
 
     @ManyToOne
-    @JoinColumn(name = "scorerid")
+    @JoinColumn(name = "scorer_id")
     Account scorer;
 
     String status;
     String venue;
     LocalDate date;
     LocalTime time;
+
+    @ManyToOne
+    @JoinColumn(name = "tossWinner_id")
+    Team team;
+
+    String decision;
+
+    @ManyToOne
+    @JoinColumn(name = "winner_id")
+    Team winner;
 
     @OneToMany(mappedBy = "match", cascade = CascadeType.ALL)
     List<Sets> sets;
@@ -49,8 +59,6 @@ public class Match {
     @OneToMany(mappedBy = "match", cascade = CascadeType.ALL)
     List<CricketInnings> cricketInnings;
 
-    @OneToMany(mappedBy = "match", cascade = CascadeType.ALL)
-    List<CricketStats> cricketStats;
 
     @OneToMany(mappedBy = "match", cascade = CascadeType.ALL)
     List<Media> mediaList;

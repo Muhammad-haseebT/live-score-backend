@@ -11,7 +11,7 @@ import java.util.List;
 public class Account {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    int Aid;
+    int userName;
     @Column(unique = true)
     String arid;
     String password;
@@ -21,5 +21,9 @@ public class Account {
     private List<Season> seasons;
     @OneToMany(mappedBy = "scorer", cascade = CascadeType.ALL)
     private List<Match> scoredMatches;
+
+    @JsonManagedReference
+    @OneToMany(mappedBy = "account", cascade = CascadeType.ALL)
+    private List<Tournament> tournaments;
 }
 

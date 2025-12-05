@@ -8,17 +8,17 @@ import lombok.Data;
 public class Board {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    int bid;
+    int id;
 
     @ManyToOne
-    @JoinColumn(name = "mtid")
+    @JoinColumn(name = "match_id")
     Match match;
 
     @ManyToOne
-    @JoinColumn(name = "winnerteamid")
+    @JoinColumn(name = "winnerTeam_id")
     Team winnerTeam;
     @ManyToOne
-    @JoinColumn(name = "loserteamid")
+    @JoinColumn(name = "loserTeam_id")
     Team loserTeam;
     int pts;
 }

@@ -8,29 +8,35 @@ import lombok.Data;
 public class CricketBall {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    int ballid;
+    int id;
 
     @ManyToOne
-    @JoinColumn(name = "inningsid")
+    @JoinColumn(name = "innings_id")
     CricketInnings innings;
 
-    int overnumber;
-    int ballnumber;
+    @ManyToOne
+    @JoinColumn(name = "media_id")
+    Media media;
+
+    String comment;
+
+    int overNumber;
+    int ballNumber;
 
     @ManyToOne
-    @JoinColumn(name = "batsmanid")
+    @JoinColumn(name = "batsman_id")
     Player batsman;
 
     @ManyToOne
-    @JoinColumn(name = "bowlerid")
+    @JoinColumn(name = "bowler_id")
     Player bowler;
 
     int runs;
     int extra;
-    String extratype;
-    String dismissletype;
+    String extraType;
+    String dismissleType;
 
     @ManyToOne
-    @JoinColumn(name = "fielderid")
+    @JoinColumn(name = "fielder_id")
     Player fielder;
 }

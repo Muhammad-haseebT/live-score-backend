@@ -8,14 +8,10 @@ import lombok.Data;
 public class Media {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    int mid;
+    int id;
     @ManyToOne
-    @JoinColumn(name = "parentid")
-    Tournament tournament;
-    @ManyToOne
-    @JoinColumn(name = "childid")
+    @JoinColumn(name = "match_id")
     Match match;
-
     String url;
     String filetype;
 }

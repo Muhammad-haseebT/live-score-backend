@@ -4,6 +4,8 @@ import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.Data;
+
+import java.time.LocalDate;
 import java.util.List;
 
 @Entity
@@ -11,15 +13,26 @@ import java.util.List;
 public class Season {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    int sid;
+    int id;
     String name;
+
+
+    LocalDate createdAt;
+
+    @PrePersist
+    void prePersist() {
+        createdAt = LocalDate.now();
+    }
 
     @JsonBackReference
     @ManyToOne
-    @JoinColumn(name = "aid")
+    @JoinColumn(name = "account_id")
     Account account;
 
-    @JsonManagedReference
+
     @OneToMany(mappedBy = "season", cascade = CascadeType.ALL)
-    List<Sports> sports;
+    @JsonManagedReference
+    List<Tournament> tournaments;
+
+
 }

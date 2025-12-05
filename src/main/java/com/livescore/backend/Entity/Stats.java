@@ -8,16 +8,16 @@ import lombok.Data;
 public class Stats {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    int statsId;
+    int id;
 
-    Double strikerate;
+    Double strikeRate;
     int highest;
     int wickets;
     int runs;
     int points;
-    int notout;
+    int notOut;
 
     @ManyToOne
-    @JoinColumn(name = "tid")
+    @JoinColumn(name = "tournament_id")
     Tournament tournament;
 }
