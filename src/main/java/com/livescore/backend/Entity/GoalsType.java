@@ -1,5 +1,6 @@
 package com.livescore.backend.Entity;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 import lombok.Data;
 
@@ -8,23 +9,28 @@ import lombok.Data;
 public class GoalsType {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    int id;
+    private Long id;
+
 
     @ManyToOne
     @JoinColumn(name = "match_id")
-    Match match;
+    @JsonBackReference
+    private Match match;
+
 
     @ManyToOne
     @JoinColumn(name = "player_id")
-    Player player;
+    private Player player;
+
 
     @ManyToOne
     @JoinColumn(name = "assist_id")
-    Player assist;
+    private Player assist;
 
-    String game;
-    int yellow;
-    int red;
-    int foul;
-    int score;
+
+    private int minute;
+    private int goal;
+    private int foul;
+    private int yellow;
+    private int red;
 }

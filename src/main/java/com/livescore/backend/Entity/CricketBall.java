@@ -1,5 +1,6 @@
 package com.livescore.backend.Entity;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 import lombok.Data;
 
@@ -8,35 +9,59 @@ import lombok.Data;
 public class CricketBall {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    int id;
+    private Long id;
+
 
     @ManyToOne
     @JoinColumn(name = "innings_id")
-    CricketInnings innings;
+    @JsonBackReference
+    private CricketInnings innings;
 
-    @ManyToOne
-    @JoinColumn(name = "media_id")
-    Media media;
-
-    String comment;
-
-    int overNumber;
-    int ballNumber;
 
     @ManyToOne
     @JoinColumn(name = "batsman_id")
-    Player batsman;
+    private Player batsman;
+
 
     @ManyToOne
     @JoinColumn(name = "bowler_id")
-    Player bowler;
+    private Player bowler;
 
-    int runs;
-    int extra;
-    String extraType;
-    String dismissleType;
 
     @ManyToOne
     @JoinColumn(name = "fielder_id")
-    Player fielder;
+    private Player fielder;
+
+
+    @Column
+    private int overNumber;
+
+
+    @Column
+    private int ballNumber;
+
+
+    @Column
+    private int runs;
+
+
+    @Column
+    private int extra;
+
+
+    @Column
+    private String extraType;
+
+
+    @Column
+    private String dismissalType;
+
+
+    @Column
+    private String comment;
+
+
+    @ManyToOne
+    @JoinColumn(name = "media_id")
+    private Media media;
 }

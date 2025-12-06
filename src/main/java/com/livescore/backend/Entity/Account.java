@@ -11,19 +11,33 @@ import java.util.List;
 public class Account {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    int userName;
-    @Column(unique = true)
-    String arid;
-    String password;
-    String role;
-    @JsonManagedReference
-    @OneToMany(mappedBy = "account", cascade = CascadeType.ALL)
-    private List<Season> seasons;
-    @OneToMany(mappedBy = "scorer", cascade = CascadeType.ALL)
-    private List<Match> scoredMatches;
+    private Long id;
 
-    @JsonManagedReference
+
+    @Column(unique = true, nullable = false)
+    private String username;
+
+
+    @Column(nullable = false)
+    private String password;
+
+
+    @Column(nullable = false)
+    private String role;
+
+
     @OneToMany(mappedBy = "account", cascade = CascadeType.ALL)
-    private List<Tournament> tournaments;
+    @JsonManagedReference
+    private List<Season> seasonsCreated;
+
+
+    @OneToMany(mappedBy = "organizer", cascade = CascadeType.ALL)
+    @JsonManagedReference
+    private List<Tournament> tournamentsCreated;
+
+
+    @OneToMany(mappedBy = "scorer", cascade = CascadeType.ALL)
+    @JsonManagedReference
+    private List<Match> scoredMatches;
 }
 

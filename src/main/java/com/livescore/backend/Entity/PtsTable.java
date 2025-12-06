@@ -8,15 +8,23 @@ import lombok.Data;
 public class PtsTable {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    int id;
+    private Long id;
+
+
+    @ManyToOne
+    @JoinColumn(name = "tournament_id")
+    private Tournament tournament;
+
 
     @OneToOne
     @JoinColumn(name = "team_id")
-    Team team;
+    private Team team;
 
-    int matches;
-    int points;
-    int wins;
-    int loss;
-    double nrr;
+
+    private int played;
+    private int wins;
+    private int losses;
+    private int draws;
+    private int points;
+    private double nrr;
 }

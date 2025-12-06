@@ -1,5 +1,6 @@
 package com.livescore.backend.Entity;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 import lombok.Data;
 
@@ -8,10 +9,19 @@ import lombok.Data;
 public class Media {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    int id;
+    private Long id;
+
+
     @ManyToOne
     @JoinColumn(name = "match_id")
-    Match match;
-    String url;
-    String filetype;
+    @JsonBackReference
+    private Match match;
+
+
+    @Column(nullable = false)
+    private String url;
+
+
+    @Column(nullable = false)
+    private String fileType; // image/video/pdf etc.
 }

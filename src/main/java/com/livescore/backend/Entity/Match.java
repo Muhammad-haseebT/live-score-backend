@@ -1,5 +1,6 @@
 package com.livescore.backend.Entity;
 
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.Data;
 import java.time.LocalDate;
@@ -11,55 +12,69 @@ import java.util.List;
 public class Match {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    int id;
+    private Long id;
+
 
     @ManyToOne
     @JoinColumn(name = "tournament_id")
-    Tournament tournament;
+    private Tournament tournament;
+
 
     @ManyToOne
     @JoinColumn(name = "team1_id")
-    Team team1;
+    private Team team1;
+
 
     @ManyToOne
     @JoinColumn(name = "team2_id")
-    Team team2;
+    private Team team2;
+
 
     @ManyToOne
     @JoinColumn(name = "scorer_id")
-    Account scorer;
+    private Account scorer;
 
-    String status;
-    String venue;
-    LocalDate date;
-    LocalTime time;
+
+    private String status; // UPCOMING / LIVE / FINISHED
+    private String venue;
+    private LocalDate date;
+    private LocalTime time;
+
 
     @ManyToOne
-    @JoinColumn(name = "tossWinner_id")
-    Team team;
+    @JoinColumn(name = "toss_winner_id")
+    private Team tossWinner;
 
-    String decision;
+
+    private String decision;
+
 
     @ManyToOne
-    @JoinColumn(name = "winner_id")
-    Team winner;
-
-    @OneToMany(mappedBy = "match", cascade = CascadeType.ALL)
-    List<Sets> sets;
-
-    @OneToMany(mappedBy = "match", cascade = CascadeType.ALL)
-    List<SetsGamesResults> setsGamesResults;
-
-    @OneToMany(mappedBy = "match", cascade = CascadeType.ALL)
-    List<Board> boards;
-
-    @OneToMany(mappedBy = "match", cascade = CascadeType.ALL)
-    List<GoalsType> goals;
-
-    @OneToMany(mappedBy = "match", cascade = CascadeType.ALL)
-    List<CricketInnings> cricketInnings;
+    @JoinColumn(name = "winner_team_id")
+    private Team winnerTeam;
 
 
     @OneToMany(mappedBy = "match", cascade = CascadeType.ALL)
-    List<Media> mediaList;
+    @JsonManagedReference
+    private List<CricketInnings> cricketInnings;
+
+
+    @OneToMany(mappedBy = "match", cascade = CascadeType.ALL)
+    @JsonManagedReference
+    private List<GoalsType> footballEvents;
+
+
+    @OneToMany(mappedBy = "match", cascade = CascadeType.ALL)
+    @JsonManagedReference
+    private List<MatchSets> matchSets;
+
+
+    @OneToMany(mappedBy = "match", cascade = CascadeType.ALL)
+    @JsonManagedReference
+    private List<Board> boards;
+
+
+    @OneToMany(mappedBy = "match", cascade = CascadeType.ALL)
+    @JsonManagedReference
+    private List<Media> mediaList;
 }

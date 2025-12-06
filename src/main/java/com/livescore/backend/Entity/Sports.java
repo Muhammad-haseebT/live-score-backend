@@ -6,20 +6,18 @@ import jakarta.persistence.*;
 import lombok.Data;
 
 import java.util.List;
-
 @Entity
 @Data
 public class Sports {
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    int id;
+    private Long id;
+
 
     @Column(unique = true, nullable = false)
-    String name;
+    private String name;
 
-
-
-    @OneToMany(mappedBy = "sports", cascade = CascadeType.ALL)
-    List<Tournament> tournaments;
+    @OneToMany(mappedBy = "sport", cascade = CascadeType.ALL)
+    @JsonManagedReference
+    private List<Tournament> tournaments;
 }

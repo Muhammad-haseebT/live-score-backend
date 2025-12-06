@@ -3,24 +3,30 @@ package com.livescore.backend.Entity;
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 import lombok.Data;
+import java.util.List;
 
 @Entity
 @Data
 public class Player {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    int id;
+    private Long id;
 
-    String name;
 
     @ManyToOne
     @JoinColumn(name = "account_id")
-    Account account;
-    String role;
+    private Account account;
 
+
+    @Column(nullable = false)
+    private String name;
+
+
+    @Column(nullable = false)
+    private String playerRole;
+
+
+    @OneToMany(mappedBy = "player", cascade = CascadeType.ALL)
     @JsonBackReference
-    @ManyToOne
-    @JoinColumn(name = "team_id")
-
-    Team team;
+    private List<PlayerTeam> playerTeams;
 }

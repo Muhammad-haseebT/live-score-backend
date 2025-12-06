@@ -12,42 +12,55 @@ import java.util.List;
 public class Tournament {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    int id;
+    private Long id;
 
-    String name;
 
-    LocalDate startdate;
-    LocalDate enddate;
+    @Column(nullable = false)
+    private String name;
 
-    String playerType;
-    String tournamentType;
-    String tournamentStage;
 
-    @JsonBackReference
+    private LocalDate startDate;
+    private LocalDate endDate;
+
+
+    private String playerType;
+    private String tournamentType;
+    private String tournamentStage;
+
+
     @ManyToOne
     @JoinColumn(name = "organizer_id")
-    Account account;
+    @JsonBackReference
+    private Account organizer;
 
-    @OneToMany(mappedBy = "tournament", cascade = CascadeType.ALL)
-    List<Media> mediaList;
 
     @ManyToOne
     @JoinColumn(name = "sports_id")
-    Sports sports;
+    private Sports sport;
 
-    @JsonManagedReference
-    @OneToMany(mappedBy = "tournament", cascade = CascadeType.ALL)
-    List<Team> teams;
-
-    @OneToMany(mappedBy = "tournament", cascade = CascadeType.ALL)
-    List<Match> matches;
-
-    @OneToMany(mappedBy = "tournament", cascade = CascadeType.ALL)
-    List<Stats> statsList;
 
     @ManyToOne
     @JoinColumn(name = "season_id")
     @JsonBackReference
-    Season season;
+    private Season season;
 
+
+    @OneToMany(mappedBy = "tournament", cascade = CascadeType.ALL)
+    @JsonManagedReference
+    private List<Team> teams;
+
+
+    @OneToMany(mappedBy = "tournament", cascade = CascadeType.ALL)
+    @JsonManagedReference
+    private List<Match> matches;
+
+
+    @OneToMany(mappedBy = "tournament", cascade = CascadeType.ALL)
+    @JsonManagedReference
+    private List<Stats> stats;
+
+
+    @OneToMany(mappedBy = "tournament", cascade = CascadeType.ALL)
+    @JsonManagedReference
+    private List<Media> media;
 }

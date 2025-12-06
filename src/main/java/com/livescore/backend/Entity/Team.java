@@ -8,23 +8,31 @@ import java.util.List;
 
 @Entity
 @Data
+
 public class Team {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    int id;
+    private Long id;
 
-    String name;
-    String logo;
 
-    @JsonBackReference
+    @Column(nullable = false)
+    private String name;
+
+
+    private String logo;
+
+
     @ManyToOne
     @JoinColumn(name = "tournament_id")
-    Tournament tournament;
+    @JsonBackReference
+    private Tournament tournament;
 
-    @JsonManagedReference
+
     @OneToMany(mappedBy = "team", cascade = CascadeType.ALL)
-    List<Player> players;
+    @JsonManagedReference
+    private List<PlayerTeam> playerTeams;
+
 
     @OneToOne(mappedBy = "team", cascade = CascadeType.ALL)
-    PtsTable ptsTable;
+    private PtsTable pointsTableEntry;
 }

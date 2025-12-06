@@ -13,26 +13,36 @@ import java.util.List;
 public class Season {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    int id;
-    String name;
+    private Long id;
 
 
-    LocalDate createdAt;
+    @Column(nullable = false)
+    private String name;
+
+
+    private LocalDate createdAt;
+
 
     @PrePersist
     void prePersist() {
         createdAt = LocalDate.now();
     }
 
-    @JsonBackReference
+
     @ManyToOne
     @JoinColumn(name = "account_id")
-    Account account;
+    @JsonBackReference
+    private Account account;
+
+
+    @ManyToMany
+    @JoinTable(name = "season_sports",
+            joinColumns = @JoinColumn(name = "season_id"),
+            inverseJoinColumns = @JoinColumn(name = "sports_id"))
+    private List<Sports> sportsOffered;
 
 
     @OneToMany(mappedBy = "season", cascade = CascadeType.ALL)
     @JsonManagedReference
-    List<Tournament> tournaments;
-
-
+    private List<Tournament> tournaments;
 }
