@@ -6,6 +6,7 @@ import jakarta.persistence.*;
 import lombok.Data;
 
 import java.util.List;
+
 @Entity
 @Data
 public class Sports {
@@ -13,11 +14,11 @@ public class Sports {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-
     @Column(unique = true, nullable = false)
     private String name;
 
+
     @OneToMany(mappedBy = "sport", cascade = CascadeType.ALL)
-    @JsonManagedReference
+    @JsonManagedReference("sport-tournaments")
     private List<Tournament> tournaments;
 }

@@ -5,34 +5,35 @@ import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.Data;
 import java.util.List;
-
+// Team.java
 @Entity
 @Data
-
 public class Team {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-
     @Column(nullable = false)
     private String name;
 
-
-    private String logo;
-
-
     @ManyToOne
     @JoinColumn(name = "tournament_id")
-    @JsonBackReference
+    @JsonBackReference("tournament-teams")
     private Tournament tournament;
 
 
     @OneToMany(mappedBy = "team", cascade = CascadeType.ALL)
-    @JsonManagedReference
-    private List<PlayerTeam> playerTeams;
+    @JsonManagedReference("team-playerTeams")
+    private List<PlayerRequest> playerRequests;
 
 
     @OneToOne(mappedBy = "team", cascade = CascadeType.ALL)
+    @JsonManagedReference("team-pointsTableEntry")
     private PtsTable pointsTableEntry;
+
+    private String status;
+    @PrePersist
+    public void prePersist() {
+        this.status = "draft";
+    }
 }

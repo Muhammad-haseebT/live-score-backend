@@ -1,10 +1,14 @@
 package com.livescore.backend.Entity;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Entity
 @Data
+@NoArgsConstructor
 public class PtsTable {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -13,13 +17,13 @@ public class PtsTable {
 
     @ManyToOne
     @JoinColumn(name = "tournament_id")
+    @JsonIgnore // avoid large nested objects
     private Tournament tournament;
-
 
     @OneToOne
     @JoinColumn(name = "team_id")
+    @JsonBackReference("team-pointsTableEntry")
     private Team team;
-
 
     private int played;
     private int wins;
@@ -27,4 +31,19 @@ public class PtsTable {
     private int draws;
     private int points;
     private double nrr;
+    @PrePersist
+    public void prePersist() {
+        this.played = 0;
+        this.wins = 0;
+        this.losses = 0;
+        this.draws = 0;
+        this.points = 0;
+        this.nrr = 0.0;
+    }
+
+
+    public PtsTable(Team team, Tournament tournament) {
+        this.team = team;
+        this.tournament = tournament;
+    }
 }

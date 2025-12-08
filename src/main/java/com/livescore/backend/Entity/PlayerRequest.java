@@ -1,0 +1,39 @@
+package com.livescore.backend.Entity;
+
+import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import jakarta.persistence.*;
+import lombok.Data;
+// PlayerTeam.java
+@Entity
+@Data
+public class PlayerRequest {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    // PlayerTeam -> Player (many-to-one)
+    @ManyToOne
+    @JoinColumn(name = "player_id", nullable = false)
+    @JsonBackReference("player-playerTeams")
+    private Player player;
+
+    // PlayerTeam -> Team (many-to-one)
+    @ManyToOne
+    @JoinColumn(name = "team_id", nullable = false)
+    @JsonBackReference("team-playerTeams")
+    private Team team;
+
+    // PlayerTeam -> Tournament (many-to-one)
+    @ManyToOne
+    @JoinColumn(name = "tournament_id", nullable = false)
+    @JsonIgnore // avoid nesting tournament -> teams -> playerTeams cycles
+    private Tournament tournament;
+
+    private String status;
+
+    @PrePersist
+    public void prePersist() {
+        this.status = "pending";
+    }
+}

@@ -1,5 +1,7 @@
 package com.livescore.backend.Entity;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.Data;
@@ -14,67 +16,76 @@ public class Match {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-
+    // Match -> Tournament
     @ManyToOne
     @JoinColumn(name = "tournament_id")
+    @JsonBackReference("tournament-matches")
     private Tournament tournament;
 
 
     @ManyToOne
     @JoinColumn(name = "team1_id")
+    @JsonIgnore // no backref list for team -> matches by side; avoid cycles
     private Team team1;
-
 
     @ManyToOne
     @JoinColumn(name = "team2_id")
+    @JsonIgnore
     private Team team2;
 
-
+    // Match -> Scorer (Account)
     @ManyToOne
     @JoinColumn(name = "scorer_id")
+    @JsonBackReference("account-scoredMatches")
     private Account scorer;
-
 
     private String status; // UPCOMING / LIVE / FINISHED
     private String venue;
     private LocalDate date;
     private LocalTime time;
 
+    @PrePersist
+    public void prePersist() {
+        this.status = "upcoming";
+    }
+
 
     @ManyToOne
     @JoinColumn(name = "toss_winner_id")
+    @JsonIgnore
     private Team tossWinner;
-
+    private int overs;
+    private int sets;
 
     private String decision;
 
-
     @ManyToOne
     @JoinColumn(name = "winner_team_id")
+    @JsonIgnore
     private Team winnerTeam;
 
-
+    // Match -> CricketInnings
     @OneToMany(mappedBy = "match", cascade = CascadeType.ALL)
-    @JsonManagedReference
+    @JsonManagedReference("match-innings")
     private List<CricketInnings> cricketInnings;
 
-
+    // Match -> GoalsType (football events)
     @OneToMany(mappedBy = "match", cascade = CascadeType.ALL)
-    @JsonManagedReference
+    @JsonManagedReference("match-goals")
     private List<GoalsType> footballEvents;
 
-
+    // Match -> MatchSets (set-based sports)
     @OneToMany(mappedBy = "match", cascade = CascadeType.ALL)
-    @JsonManagedReference
+    @JsonManagedReference("match-sets")
     private List<MatchSets> matchSets;
 
-
+    // Match -> Board (board games)
     @OneToMany(mappedBy = "match", cascade = CascadeType.ALL)
-    @JsonManagedReference
+    @JsonManagedReference("match-boards")
     private List<Board> boards;
 
-
+    // Match -> Media
     @OneToMany(mappedBy = "match", cascade = CascadeType.ALL)
-    @JsonManagedReference
+    @JsonManagedReference("match-media")
     private List<Media> mediaList;
 }

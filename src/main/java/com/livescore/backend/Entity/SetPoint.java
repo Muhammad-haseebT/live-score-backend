@@ -3,7 +3,7 @@ package com.livescore.backend.Entity;
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 import lombok.Data;
-
+// SetPoint.java
 @Entity
 @Data
 public class SetPoint {
@@ -11,17 +11,17 @@ public class SetPoint {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-
+    // SetPoint -> MatchSets
     @ManyToOne
     @JoinColumn(name = "match_set_id")
-    @JsonBackReference
+    @JsonBackReference("matchSet-points")
     private MatchSets matchSet;
 
-
+    // SetPoint -> Team
     @ManyToOne
     @JoinColumn(name = "team_id")
+    @JsonBackReference("team-points")
     private Team team;
-
 
     @Column(nullable = false)
     private String pointType; // normal / ace / serviceError etc.
