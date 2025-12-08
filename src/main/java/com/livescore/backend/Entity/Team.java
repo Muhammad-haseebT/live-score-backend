@@ -16,6 +16,7 @@ public class Team {
     @Column(nullable = false)
     private String name;
 
+
     @ManyToOne
     @JoinColumn(name = "tournament_id")
     @JsonBackReference("tournament-teams")
@@ -25,6 +26,10 @@ public class Team {
     @OneToMany(mappedBy = "team", cascade = CascadeType.ALL)
     @JsonManagedReference("team-playerTeams")
     private List<PlayerRequest> playerRequests;
+    //players
+    @OneToMany(mappedBy = "team", cascade = CascadeType.ALL)
+    @JsonManagedReference("team-players")
+    private List<Player> players;
 
 
     @OneToOne(mappedBy = "team", cascade = CascadeType.ALL)

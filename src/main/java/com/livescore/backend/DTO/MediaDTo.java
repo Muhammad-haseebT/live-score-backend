@@ -9,5 +9,4 @@ import java.io.File;
 public class MediaDTo {
     private Long id;
     private Long matchId;
-
 }

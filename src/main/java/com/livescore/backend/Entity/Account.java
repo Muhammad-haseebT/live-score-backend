@@ -4,6 +4,9 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.Data;
+
+import java.beans.Encoder;
+import java.util.Base64;
 import java.util.List;
 
 // Account.java
@@ -21,6 +24,8 @@ public class Account {
 
     @Column(nullable = false)
     private String password;
+
+
 
     @Column(nullable = false)
     private String role;

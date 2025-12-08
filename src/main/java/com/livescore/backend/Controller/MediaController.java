@@ -38,16 +38,18 @@ public class MediaController {
         return mediaService.getAllMedia();
     }
 
-    @PutMapping("/media/{id}")
-    public ResponseEntity<?> updateMedia(
-            @PathVariable Long id,
-            @RequestPart("file") MultipartFile file,
-            @RequestPart("media") MediaDTo media) throws IOException {
-        return mediaService.updateMedia(id, file, media);
-    }
 
     @DeleteMapping("/media/{id}")
     public ResponseEntity<?> deleteMedia(@PathVariable Long id) {
         return mediaService.deleteMedia(id);
     }
+
+    //get media by match id(send files from path to api caller)
+    @GetMapping("media/match/{id}")
+    public ResponseEntity<?> getMediaByMatchId(@PathVariable Long id) {
+        return mediaService.getMediaByMatchId(id);
+    }
+
+
+
 }

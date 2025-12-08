@@ -1,11 +1,13 @@
 package com.livescore.backend.Service;
 
+import com.livescore.backend.DTO.accountDTO;
 import com.livescore.backend.Entity.Account;
 import com.livescore.backend.Interface.AccountInterface;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
+import java.util.Base64;
 import java.util.List;
 
 @Service
@@ -28,6 +30,7 @@ public class AccountService {
         }
 
         account.setUsername(account.getUsername().toLowerCase());
+        account.setPassword(Base64.getEncoder().encodeToString(account.getPassword().getBytes()));
 
         return ResponseEntity.ok(accountInterface.save(account));
     }
@@ -66,9 +69,15 @@ public class AccountService {
         }
     }
 
-    public ResponseEntity<?> loginAccount(Account account) {
+    public ResponseEntity<?> loginAccount(accountDTO account) {
         if(accountInterface.existsByUsername(account.getUsername())){
-            return ResponseEntity.ok(accountInterface.findByUsernameAndPassword(account.getUsername(), account.getPassword()));
+            Account ac=accountInterface.findByUsername(account.getUsername());
+            if(ac.getPassword().equals(Base64.getEncoder().encodeToString(account.getPassword().getBytes()))){
+                return ResponseEntity.ok(ac);
+            }else{
+                return ResponseEntity.badRequest().body("Invalid password");
+            }
+
         }else{
             return ResponseEntity.notFound().build();
         }

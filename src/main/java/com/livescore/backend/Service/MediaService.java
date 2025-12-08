@@ -13,8 +13,10 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Map;
-import java.util.Optional;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.*;
 
 @Service
 
@@ -25,6 +27,7 @@ public class MediaService {
     private MatchInterface matchInterface;
     @Autowired
     private TournamentInterface tournamentInterface;
+    private String path = "C:\\Users\\HP\\OneDrive\\Desktop\\media\\";
 
     public ResponseEntity<?> createMedia(MultipartFile f, MediaDTo media) throws IOException {
 
@@ -48,11 +51,22 @@ public class MediaService {
                     Map.of("error", "Match not found with ID: " + media.getMatchId())
             );
         }
+        //save file in folder
+        String fileName = f.getOriginalFilename();
+        String filePath = path + fileName;
+        File file = new File(filePath);
+        //if file already exist than do nothing
+        if(file.exists()){
+            return ResponseEntity.badRequest().body(
+                    Map.of("error", "File already exists")
+            );
+        }
+        f.transferTo(file);
 
-        // Create media entity
+
         Media mediaEntity = new Media();
-        mediaEntity.setFileData(f.getBytes());
-        mediaEntity.setFileType(f.getContentType()); // Use content type from file
+        mediaEntity.setFileUrl(filePath);
+        mediaEntity.setFileType(f.getContentType());
         mediaEntity.setMatch(matchOpt.get());
 
         // Save and return
@@ -76,17 +90,7 @@ public class MediaService {
         return ResponseEntity.ok(mediaInterface.findAll());
     }
 
-    public ResponseEntity<?> updateMedia(Long id, MultipartFile f, MediaDTo media) throws IOException {
-        return mediaInterface.findById(id).map(mediaEntity -> {
-            try {
-                mediaEntity.setFileData(f.getBytes());
-                mediaEntity.setFileType(getFileExtension(f.getOriginalFilename()));
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-            return ResponseEntity.ok(mediaInterface.save(mediaEntity));
-        }).orElse(ResponseEntity.notFound().build());
-    }
+
 
     public ResponseEntity<?> deleteMedia(Long id) {
         if(mediaInterface.existsById(id)){
@@ -100,4 +104,35 @@ public class MediaService {
         if (filename == null || !filename.contains(".")) return "unknown";
         return filename.substring(filename.lastIndexOf('.') + 1);
     }
+
+    public ResponseEntity<?> getMediaByMatchId(Long matchId) {
+    List<Media> mediaList = mediaInterface.findByMatchId(matchId);
+
+    List<Map<String, Object>> response = new ArrayList<>();
+
+    for (Media m : mediaList) {
+
+        try {
+            // Read file from disk
+            Path filePath = Paths.get(m.getFileUrl()); // <-- Your saved path field
+            byte[] fileBytes = Files.readAllBytes(filePath);
+
+            Map<String, Object> mediaMap = new HashMap<>();
+            mediaMap.put("id", m.getId());
+            mediaMap.put("fileType", m.getFileType());
+            mediaMap.put("fileName", filePath.getFileName().toString());
+            mediaMap.put("data", Base64.getEncoder().encodeToString(fileBytes));
+
+            response.add(mediaMap);
+
+        } catch (IOException e) {
+            return ResponseEntity.status(500).body("Failed to read file: " + m.getFileUrl());
+        }
+    }
+
+    return ResponseEntity.ok(response);
+}
+
+
+
 }

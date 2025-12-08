@@ -25,6 +25,7 @@ public class Stats {
 
     @ManyToOne
     @JoinColumn(name = "sport_type_id")
+    @JsonIgnore
     private Sports sportType;
 
 

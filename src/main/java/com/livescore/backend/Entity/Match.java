@@ -87,5 +87,6 @@ public class Match {
     // Match -> Media
     @OneToMany(mappedBy = "match", cascade = CascadeType.ALL)
     @JsonManagedReference("match-media")
+    @JsonIgnore
     private List<Media> mediaList;
 }

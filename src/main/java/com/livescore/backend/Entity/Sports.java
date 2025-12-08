@@ -1,6 +1,7 @@
 package com.livescore.backend.Entity;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.Data;
@@ -20,5 +21,6 @@ public class Sports {
 
     @OneToMany(mappedBy = "sport", cascade = CascadeType.ALL)
     @JsonManagedReference("sport-tournaments")
+    @JsonIgnore
     private List<Tournament> tournaments;
 }

@@ -1,5 +1,6 @@
 package com.livescore.backend.Controller;
 
+import com.livescore.backend.DTO.accountDTO;
 import com.livescore.backend.Entity.Account;
 import com.livescore.backend.Service.AccountService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,7 +21,7 @@ public class AccountController {
     }
 
     @PostMapping("/account/login")
-    public ResponseEntity<?> loginAccount(@RequestBody Account account) {
+    public ResponseEntity<?> loginAccount(@RequestBody accountDTO account) {
         return accountService.loginAccount(account);
     }
 

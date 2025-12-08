@@ -19,10 +19,11 @@ public class Media {
     @JsonBackReference("match-media")
     private Match match;
 
-    @Lob
-    @Column(name = "file_data", columnDefinition = "bytea", nullable = false)
-    private byte[] fileData;
+
+    private String fileUrl;
 
     @Column(nullable = false)
     private String fileType;
+
+
 }

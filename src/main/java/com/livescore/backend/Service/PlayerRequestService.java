@@ -100,6 +100,10 @@ public class PlayerRequestService {
         }
         playerRequest.setStatus("approved");
         playerRequestInterface.save(playerRequest);
+        Player player=playerRequest.getPlayer();
+        player.setTeam(playerRequest.getTeam());
+        playerInterface.save(player);
+
         statsService.createStats(playerRequest.getPlayer().getId(),playerRequest.getTournament().getId());
         return ResponseEntity.ok().build();
     }
