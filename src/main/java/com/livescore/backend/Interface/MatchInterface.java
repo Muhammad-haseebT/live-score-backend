@@ -8,6 +8,7 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.List;
 
 @Repository
 public interface MatchInterface extends JpaRepository<Match,Long> {
@@ -18,7 +19,8 @@ public interface MatchInterface extends JpaRepository<Match,Long> {
 
 
 
-    Object findByStatus(String status);
+    List<Match> findByStatus(String status);
+
 
 
     Object findByDate(LocalDate date);

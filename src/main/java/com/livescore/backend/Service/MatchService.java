@@ -8,9 +8,12 @@ import com.livescore.backend.Interface.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -124,17 +127,42 @@ public class MatchService {
 
 
     public ResponseEntity<?> getAllMatches() {
-        return ResponseEntity.ok().body(matchInterface.findAll());
+
+        List<Match> matches=matchInterface.findAll();
+        List<MatchDTO> matchDTOs=new ArrayList<>();
+        for(Match match:matches){
+            MatchDTO matchDTO=new MatchDTO();
+            matchDTO.setId(match.getId());
+            matchDTO.setTournamentId(match.getTournament().getId());
+            matchDTO.setTournamentName(match.getTournament().getName());
+            matchDTO.setTeam1Id(match.getTeam1().getId());
+            matchDTO.setTeam1Name(match.getTeam1().getName());
+            matchDTO.setTeam2Id(match.getTeam2().getId());
+            matchDTO.setTeam2Name(match.getTeam2().getName());
+
+            matchDTO.setStatus(match.getStatus());
+            matchDTO.setVenue(match.getVenue());
+            matchDTO.setDate(match.getDate());
+            matchDTO.setTime(match.getTime());
+
+
+            matchDTOs.add(matchDTO);
+        }
+
+        return ResponseEntity.ok().body(matchDTOs);
     }
+
+
+
+
     public ResponseEntity<?> getMatchesByTournament(Long tournamentId) {
         return ResponseEntity.ok().body(matchInterface.findByTournamentId(tournamentId));
     }
     public ResponseEntity<?> getMatchesByTeam(Long teamId) {
         return ResponseEntity.ok().body(matchInterface.findByTeam1IdOrTeam2Id(teamId, teamId));
     }
-    public ResponseEntity<?> getMatchesByStatus(String status) {
-        return ResponseEntity.ok().body(matchInterface.findByStatus(status));
-    }
+
+
     public ResponseEntity<?> getMatchesByDate(LocalDate date) {
         return ResponseEntity.ok().body(matchInterface.findByDate(date));
     }
@@ -205,4 +233,28 @@ public class MatchService {
         matchInterface.save(match);
         return ResponseEntity.ok().body("Match abandoned successfully");
     }
+
+
+
+    public ResponseEntity<?> getMatchesByStatus(String status) {
+        List<Match> matches = matchInterface.findByStatus(status); // only matches with given status
+        List<MatchDTO> matchDTOs = new ArrayList<>();
+        for (Match match : matches) {
+            MatchDTO matchDTO = new MatchDTO();
+            matchDTO.setId(match.getId());
+            matchDTO.setTournamentId(match.getTournament().getId());
+            matchDTO.setTournamentName(match.getTournament().getName());
+            matchDTO.setTeam1Id(match.getTeam1().getId());
+            matchDTO.setTeam1Name(match.getTeam1().getName());
+            matchDTO.setTeam2Id(match.getTeam2().getId());
+            matchDTO.setTeam2Name(match.getTeam2().getName());
+            matchDTO.setStatus(match.getStatus());
+            matchDTO.setVenue(match.getVenue());
+            matchDTO.setDate(match.getDate());
+            matchDTO.setTime(match.getTime());
+            matchDTOs.add(matchDTO);
+        }
+        return ResponseEntity.ok(matchDTOs);
+    }
+
 }

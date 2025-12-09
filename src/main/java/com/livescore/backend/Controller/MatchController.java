@@ -1,5 +1,7 @@
 package com.livescore.backend.Controller;
 import com.livescore.backend.DTO.MatchDTO;
+import com.livescore.backend.Entity.Match;
+import com.livescore.backend.Interface.MatchInterface;
 import com.livescore.backend.Service.MatchService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -7,11 +9,14 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.List;
 
 @RestController
 public class MatchController {
     @Autowired
     private MatchService matchService;
+    @Autowired
+    private MatchInterface matchInterface;
 
     @PostMapping("/match")
     public ResponseEntity<?> createMatch(@RequestBody MatchDTO matchDTO) {
@@ -52,6 +57,7 @@ public class MatchController {
     public ResponseEntity<?> getMatchesByStatus(@PathVariable String status) {
         return matchService.getMatchesByStatus(status);
     }
+
 
     @GetMapping("/match/date/{date}")
     public ResponseEntity<?> getMatchesByDate(@PathVariable LocalDate date) {

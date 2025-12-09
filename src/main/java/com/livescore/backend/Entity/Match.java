@@ -25,7 +25,7 @@ public class Match {
 
     @ManyToOne
     @JoinColumn(name = "team1_id")
-    @JsonIgnore // no backref list for team -> matches by side; avoid cycles
+    @JsonIgnore
     private Team team1;
 
     @ManyToOne
