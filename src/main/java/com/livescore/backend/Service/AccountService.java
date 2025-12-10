@@ -75,10 +75,12 @@ public class AccountService {
             if(ac.getPassword().equals(Base64.getEncoder().encodeToString(account.getPassword().getBytes()))){
                 return ResponseEntity.ok(ac);
             }else{
+                System.out.println(account.getUsername()+account.getPassword());
                 return ResponseEntity.badRequest().body("Invalid password");
             }
 
         }else{
+            System.out.println(account.getUsername()+account.getPassword());
             return ResponseEntity.notFound().build();
         }
     }
