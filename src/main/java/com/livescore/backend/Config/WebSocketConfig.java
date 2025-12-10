@@ -12,16 +12,14 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
-        // Client yahin connect karega
-        registry.addEndpoint("/live-score")   // URL jahan client connect hoga
-                .setAllowedOriginPatterns("*");
+        registry.addEndpoint("/ws")        // front-end connects here
+                .setAllowedOriginPatterns("*")
+                .withSockJS();             // optional (remove if you want pure ws)
     }
+
     @Override
     public void configureMessageBroker(MessageBrokerRegistry registry) {
-        // Ye topic prefix hai jahan server messages broadcast karega
-        registry.enableSimpleBroker("/topic");
-
-        // Ye prefix hai jahan se client message bhejega, map hota @MessageMapping
-        registry.setApplicationDestinationPrefixes("/app");
+        registry.enableSimpleBroker("/topic"); // client SUBSCRIBES here
+        registry.setApplicationDestinationPrefixes("/app"); // client SENDS here
     }
 }

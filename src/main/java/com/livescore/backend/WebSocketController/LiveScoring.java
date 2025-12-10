@@ -6,9 +6,11 @@ import org.springframework.stereotype.Controller;
 
 @Controller
 public class LiveScoring {
-    @MessageMapping("/live-score")
-    @SendTo("/topic/live-score")
-    public String liveScore(String message) {
-        return message;
+
+    @MessageMapping("/send")                // client SENDS to: /app/send
+    @SendTo("/topic/live")                 // client SUBSCRIBES to: /topic/live
+    public String broadcast(String msg) {
+        return msg;
     }
 }
+
