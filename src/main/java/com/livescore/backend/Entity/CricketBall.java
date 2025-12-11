@@ -5,7 +5,6 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Data;
 
-
 @Entity
 @Data
 public class CricketBall {
@@ -33,15 +32,30 @@ public class CricketBall {
     @JsonIgnore
     private Player fielder;
 
-    private Integer  overNumber;
-    private Integer  ballNumber;
-    private Integer  runs;
-    private Integer  extra;
-    private String extraType;
-    private String dismissalType;
+    @ManyToOne
+    @JoinColumn(name = "out_batsman_id")
+    @JsonIgnore
+    private Player outBatsman;
+
+    private Integer overNumber;
+    private Integer ballNumber;
+
+    private Integer runs;          // OFF-BAT runs
+    private Integer extra;         // extra runs
+    private String extraType;      // wide/no-ball/leg-bye/etc
+    private String dismissalType;  // bowled/runout/lbw/etc
+
+    private Boolean legalDelivery = true; // NEW
+    private Boolean isFour = false;       // NEW
+    private Boolean isSix = false;        // NEW
+
     private String comment;
 
-    // optional media - one-way JSON
+    @ManyToOne
+    @JoinColumn(name = "out_player_id")
+    @JsonIgnore
+    public Player outPlayer;
+
     @ManyToOne
     @JoinColumn(name = "media_id")
     @JsonIgnore
