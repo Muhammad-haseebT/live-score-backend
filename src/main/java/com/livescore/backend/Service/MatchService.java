@@ -1,6 +1,7 @@
 package com.livescore.backend.Service;
 
 import com.livescore.backend.DTO.MatchDTO;
+import com.livescore.backend.Entity.CricketInnings;
 import com.livescore.backend.Entity.Match;
 import com.livescore.backend.Entity.Player;
 import com.livescore.backend.Entity.Sports;
@@ -36,6 +37,9 @@ public class MatchService {
     private PlayerInterface playerInterface;
     @Autowired
     private PlayerRequestInterface playerRequestInterface;
+    @Autowired
+    private CricketInningsInterface cricketInningsRepo;
+
 
     public ResponseEntity<?> createMatch(MatchDTO matchDTO) {
         if (accountInterface.getById(matchDTO.getScorerId()) == null) {
@@ -171,7 +175,7 @@ public class MatchService {
     }
 
     public ResponseEntity<?> startMatch(Long id,MatchDTO m) {
-        Match match = matchInterface.getById(id);
+        Match match = matchInterface.findById(id).orElse(null);
         if (match == null) {
             return ResponseEntity.badRequest().body("Match with id " + id + " does not exist");
         }
@@ -186,6 +190,18 @@ public class MatchService {
                 ||s.getName().equalsIgnoreCase("Tabletennis")) {
             match.setSets(m.getSets());
         }
+        CricketInnings innings = new CricketInnings();
+        innings.setMatch(match);
+        innings.setNo(1);
+        if(match.getDecision().equalsIgnoreCase("bat")){
+            innings.setTeam(teamInterface.findById(m.getTossWinnerId()).orElse(null));
+        }else{
+            innings.setTeam(teamInterface.findById(m.getTeam1Id()==m.getTossWinnerId()?m.getTeam2Id():m.getTeam1Id()).orElse(null));
+        }
+        cricketInningsRepo.save(innings);
+
+        match.setDecision(m.getDecision());
+        match.setTossWinner(teamInterface.findById(m.getTossWinnerId()).orElse(null));
         matchInterface.save(match);
         return ResponseEntity.ok().body("Match started successfully");
     }

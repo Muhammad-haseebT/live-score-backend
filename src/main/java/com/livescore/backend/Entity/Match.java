@@ -23,6 +23,7 @@ public class Match {
     private Tournament tournament;
 
 
+
     @ManyToOne
     @JoinColumn(name = "team1_id")
     @JsonIgnore
@@ -54,6 +55,7 @@ public class Match {
     @JoinColumn(name = "toss_winner_id")
     @JsonIgnore
     private Team tossWinner;
+
     private int overs;
     private int sets;
 
@@ -89,4 +91,9 @@ public class Match {
     @JsonManagedReference("match-media")
     @JsonIgnore
     private List<Media> mediaList;
+
+    @OneToMany(mappedBy = "match", cascade = CascadeType.ALL)
+    @JsonManagedReference("match-balls")
+    @JsonIgnore
+    private List<CricketBall> cricketBalls;
 }

@@ -14,6 +14,7 @@ public class CricketInnings {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+    private int no;//1 or 2
 
     // CricketInnings -> Match (many-to-one)
     @ManyToOne

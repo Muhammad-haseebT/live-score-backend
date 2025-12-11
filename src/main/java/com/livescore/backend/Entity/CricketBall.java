@@ -2,6 +2,7 @@ package com.livescore.backend.Entity;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import jakarta.annotation.Nullable;
 import jakarta.persistence.*;
 import lombok.Data;
 
@@ -16,6 +17,11 @@ public class CricketBall {
     @JoinColumn(name = "innings_id")
     @JsonBackReference("innings-balls")
     private CricketInnings innings;
+
+    @ManyToOne
+    @JoinColumn(name = "match_id")
+    @JsonBackReference("match-balls")
+    private Match match;
 
     @ManyToOne
     @JoinColumn(name = "batsman_id")

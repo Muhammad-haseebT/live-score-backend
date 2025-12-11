@@ -4,12 +4,12 @@ import lombok.Data;
 
 @Data
 public class ScoreDTO {
-    private Long runs;
-    private Long overs;
-    private Long wickets;
-    private Long balls;
+    private int runs;
+    private int overs;
+    private int wickets;
+    private int balls;
     private String status;
-    private Long target;
+    private int target;
      // RUN, BOUNDARY, SIX, EXTRA, WICKET
     private String event;       // 1,2,3,4,6,WIDE,NO_BALL,LBW etc.
     private Long teamId;
@@ -18,7 +18,7 @@ public class ScoreDTO {
     private Long bowlerId;
     private Long fielderId;
           // runs off bat
-    private Integer extra;       // number of extra runs
+    private int extra;       // number of extra runs
     private String extraType;    // wide, no-ball, bye, leg-bye
     private String eventType;    // wide, no-ball, bye, leg-bye
 
@@ -31,6 +31,10 @@ public class ScoreDTO {
     private int extrasThisBall;
     private boolean isFour;
     private boolean isSix;
+    private boolean firstInnings=true;
+    private String comment;
+    private Long mediaId;
+
 }
 
 

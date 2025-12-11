@@ -1,25 +1,23 @@
 package com.livescore.backend.Config;
 
+import com.livescore.backend.WebSocketController.LiveScoringHandler;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.messaging.simp.config.MessageBrokerRegistry;
-import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
-import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
-import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
+import org.springframework.web.socket.config.annotation.*;
+
 
 @Configuration
-@EnableWebSocketMessageBroker
-public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
+@EnableWebSocket
+public class WebSocketConfig implements WebSocketConfigurer {
 
-    @Override
-    public void registerStompEndpoints(StompEndpointRegistry registry) {
-        registry.addEndpoint("/ws")        // front-end connects here
-                .setAllowedOriginPatterns("*")
-                .withSockJS();             // optional (remove if you want pure ws)
+    private final LiveScoringHandler liveScoringHandler;
+
+    public WebSocketConfig(LiveScoringHandler liveScoringHandler) {
+        this.liveScoringHandler = liveScoringHandler;
     }
 
     @Override
-    public void configureMessageBroker(MessageBrokerRegistry registry) {
-        registry.enableSimpleBroker("/topic"); // client SUBSCRIBES here
-        registry.setApplicationDestinationPrefixes("/app"); // client SENDS here
+    public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
+        registry.addHandler(liveScoringHandler, "/ws")
+                .setAllowedOriginPatterns("*"); // CORS
     }
 }

@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.Arrays;
 import java.util.List;
 
 @Repository
@@ -35,5 +36,9 @@ public interface CricketBallInterface extends JpaRepository<CricketBall, Long> {
     """)
     List<CricketBall> findFielderBalls(@Param("tournamentId") Long tournamentId,
                                        @Param("playerId") Long playerId);
+
+    List<CricketBall> findByMatchId(Long matchId);
+
+    List<CricketBall> findByMatch_IdAndInnings_Id(Long matchId, Long id);
 }
 
