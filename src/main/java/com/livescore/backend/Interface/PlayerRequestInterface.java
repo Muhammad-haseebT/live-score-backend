@@ -13,8 +13,17 @@ import java.util.List;
 public interface PlayerRequestInterface extends JpaRepository<PlayerRequest,Long> {
         @Query("SELECT pr.player FROM PlayerRequest pr WHERE pr.team.id = :teamId AND pr.status = 'approved'")
         List<Player> findApprovedPlayersByTeamId(@Param("teamId") Long teamId);
+    @Query("""
+SELECT pr
+FROM PlayerRequest pr
+WHERE pr.player.id = :playerId
+AND pr.tournament.id = :tournamentId
+AND pr.status = 'APPROVED'
+""")
+    PlayerRequest findExistingRequest(Long playerId, Long tournamentId);
 
-    }
+
+}
 
 
 

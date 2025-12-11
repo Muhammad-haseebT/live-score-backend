@@ -14,6 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.Map;
 
 @Service
@@ -52,6 +53,15 @@ public class PlayerRequestService {
                     Map.of("error", "Player, Team or Tournament not found")
             );
         }
+
+        PlayerRequest existing = playerRequestInterface.findExistingRequest(playerRequest.getPlayerId(), playerRequest.getTournamentId());
+
+        if (existing != null) {
+            return ResponseEntity.badRequest().body(
+                    Map.of("error", "Player already belongs to a team in this tournament")
+            );
+        }
+
         PlayerRequest playerRequest1=new PlayerRequest();
         playerRequest1.setPlayer(player);
         playerRequest1.setTeam(team);
@@ -98,7 +108,18 @@ public class PlayerRequestService {
         if(playerRequest==null){
             return ResponseEntity.notFound().build();
         }
-        playerRequest.setStatus("approved");
+        if(playerRequest.getStatus().equals("APPROVED")){
+            return ResponseEntity.badRequest().body("Player already approved");
+        }
+        PlayerRequest existing = playerRequestInterface.findExistingRequest(playerRequest.getPlayer().getId(), playerRequest.getTournament().getId());
+
+        if (existing != null) {
+            return ResponseEntity.badRequest().body(
+                    Map.of("error", "Player already belongs to a team in this tournament")
+            );
+        }
+
+        playerRequest.setStatus("APPROVED");
         playerRequestInterface.save(playerRequest);
         Player player=playerRequest.getPlayer();
         player.setTeam(playerRequest.getTeam());

@@ -64,6 +64,14 @@ public class TournamentService {
         if(tournamentInterface.existsById(id)){
             Tournament tournament1=tournamentInterface.findById(id).get();
             tournament1.setName(tournament.getName());
+            tournament1.setOrganizer(accountInterface.findByUsername(tournament.getUsername()));
+            tournament1.setSeason(seasonInterface.findById(tournament.getSeasonId()).get());
+            tournament1.setSport(sportsInterface.findById(tournament.getSportsId()).get());
+            tournament1.setStartDate(tournament.getStartDate());
+            tournament1.setEndDate(tournament.getEndDate());
+            tournament1.setPlayerType(tournament.getPlayerType());
+            tournament1.setTournamentType(tournament.getTournamentType());
+            tournament1.setTournamentStage(tournament.getTournamentStage());
             return ResponseEntity.ok(tournamentInterface.save(tournament1));
         }else{
             return ResponseEntity.notFound().build();

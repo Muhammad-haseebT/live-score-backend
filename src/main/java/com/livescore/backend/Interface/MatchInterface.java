@@ -26,7 +26,7 @@ public interface MatchInterface extends JpaRepository<Match,Long> {
     Object findByDate(LocalDate date);
 
     @Query("SELECT m FROM Match m WHERE m.time = :time")
-    Object findByTime(@Param("time") LocalTime time);
+    List<Match> findByTime(@Param("time") LocalTime time);
 
 
 
