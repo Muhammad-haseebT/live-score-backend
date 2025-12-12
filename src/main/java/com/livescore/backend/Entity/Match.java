@@ -16,7 +16,7 @@ public class Match {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // Match -> Tournament
+
     @ManyToOne
     @JoinColumn(name = "tournament_id")
     @JsonBackReference("tournament-matches")
@@ -34,7 +34,7 @@ public class Match {
     @JsonIgnore
     private Team team2;
 
-    // Match -> Scorer (Account)
+
     @ManyToOne
     @JoinColumn(name = "scorer_id")
     @JsonBackReference("account-scoredMatches")

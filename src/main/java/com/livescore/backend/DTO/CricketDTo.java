@@ -18,8 +18,4 @@ public class CricketDTo {
     public  String eventType;
     public String event;
 
-
-
-
-
 }

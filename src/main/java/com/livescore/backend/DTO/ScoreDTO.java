@@ -11,7 +11,7 @@ public class ScoreDTO {
     private String status;
     private int target;
      // RUN, BOUNDARY, SIX, EXTRA, WICKET
-    private String event;       // 1,2,3,4,6,WIDE,NO_BALL,LBW etc.
+    private String event;       // 1,2,3,4,6,WIDE,NO_BALL,LBWetc
     private Long teamId;
     private Long matchId;
     private Long batsmanId;
@@ -20,7 +20,7 @@ public class ScoreDTO {
           // runs off bat
     private int extra;       // number of extra runs
     private String extraType;    // wide, no-ball, bye, leg-bye
-    private String eventType;    // wide, no-ball, bye, leg-bye
+    private String eventType;    // wide, no-ball, bye, leg-bye, boundry
 
     private String dismissalType; // catch, bowled, runout, stumped, lbw, hit-wicket, retired
     private Boolean isLegal;
