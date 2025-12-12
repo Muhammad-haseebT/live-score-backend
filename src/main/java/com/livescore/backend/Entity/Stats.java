@@ -4,7 +4,6 @@ import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Data;
-
 @Entity
 @Data
 public class Stats {
@@ -22,43 +21,53 @@ public class Stats {
     @JsonIgnore
     private Player player;
 
-
     @ManyToOne
     @JoinColumn(name = "sport_type_id")
     @JsonIgnore
     private Sports sportType;
 
-
     // Cricket fields
     private Integer runs;
     private Integer wickets;
-    private Integer strikeRate;
     private Integer highest;
     private Integer notOut;
+    private Integer strikeRate; // you can compute this when needed
+
+    // new fields for precision
+    private Integer ballsFaced;      // batsman
+    private Integer ballsBowled;     // bowler (legal deliveries)
+    private Integer runsConceded;    // bowler
+    private Integer fours;
+    private Integer sixes;
 
     private Integer points;
 
-
+    // football fields...
     private Integer goals;
     private Integer assists;
     private Integer fouls;
     private Integer yellowCards;
     private Integer redCards;
+
     @PrePersist
     public void prePersist() {
-        runs=0;
-        wickets=0;
-        strikeRate=0;
-        highest=0;
-        notOut=0;
-        points=0;
-        goals=0;
-        assists=0;
-        fouls=0;
-        yellowCards=0;
-        redCards=0;
-
+        if (runs == null) runs = 0;
+        if (wickets == null) wickets = 0;
+        if (strikeRate == null) strikeRate = 0;
+        if (highest == null) highest = 0;
+        if (notOut == null) notOut = 0;
+        if (points == null) points = 0;
+        if (goals == null) goals = 0;
+        if (assists == null) assists = 0;
+        if (fouls == null) fouls = 0;
+        if (yellowCards == null) yellowCards = 0;
+        if (redCards == null) redCards = 0;
+        if (ballsFaced == null) ballsFaced = 0;
+        if (ballsBowled == null) ballsBowled = 0;
+        if (runsConceded == null) runsConceded = 0;
+        if (fours == null) fours = 0;
+        if (sixes == null) sixes = 0;
     }
-
 }
+
 

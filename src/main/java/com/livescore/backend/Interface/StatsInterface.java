@@ -12,4 +12,8 @@ import java.util.Optional;
 public interface StatsInterface extends JpaRepository<Stats,Long> {
     @Query("SELECT s FROM Stats s WHERE s.player.id = :playerId AND s.tournament.id = :tournamentId")
     Optional<Stats> findByPlayerIdAndTournamentId(@Param("playerId") Long playerId, @Param("tournamentId") Long tournamentId);
+
+    @Query("SELECT s FROM Stats s WHERE s.tournament.id = :tournamentId AND s.player.id = :playerId")
+    Optional<Stats> findByTournamentIdAndPlayerId(@Param("tournamentId") Long tournamentId, @Param("playerId") Long playerId);
+
 }

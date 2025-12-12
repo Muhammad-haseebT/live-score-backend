@@ -1,11 +1,18 @@
 package com.livescore.backend.Service;
 
+import com.livescore.backend.DTO.BallDTO;
+import com.livescore.backend.DTO.InningsDTO;
+import com.livescore.backend.DTO.MatchScorecardDTO;
+import com.livescore.backend.DTO.PlayerStatsDTO;
 import com.livescore.backend.Entity.*;
 import com.livescore.backend.Interface.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -22,6 +29,10 @@ public class StatsService {
     private CricketBallInterface cricketBallInterface;
     @Autowired
     private GoalsTypeInterface goalsTypeInterface;
+    @Autowired
+    private MatchInterface matchRepo;
+    @Autowired
+    private CricketInningsInterface cricketInningsRepo;
 
     @Autowired
     private TournamentInterface tournamentInterface;
@@ -205,6 +216,241 @@ public class StatsService {
         }
         statsInterface.delete(stats);
         return ResponseEntity.ok().build();
+    }
+    @Transactional
+    public void updateTournamentStats(CricketBall ball) {
+        if (ball == null) return;
+        Match match = ball.getMatch();
+        if (match == null || match.getTournament() == null) return;
+        Tournament tournament = match.getTournament();
+
+        // --- Batsman updates ---
+        Player batsman = ball.getBatsman();
+        if (batsman != null) {
+            Stats batStats = statsInterface.findByTournamentIdAndPlayerId(tournament.getId(), batsman.getId())
+                    .orElseGet(() -> {
+                        Stats s = new Stats();
+                        s.setTournament(tournament);
+                        s.setPlayer(batsman);
+                        s.setSportType(match.getTournament().getSport()); // adjust getter
+                        return s;
+                    });
+            // runs off bat
+            int runs = (ball.getRuns() == null ? 0 : ball.getRuns());
+            batStats.setRuns(batStats.getRuns() + runs);
+
+            // balls faced only increment on legal delivery where this player was batsman
+            if (Boolean.TRUE.equals(ball.getLegalDelivery())) {
+                batStats.setBallsFaced(batStats.getBallsFaced() + 1);
+            }
+
+            // boundaries
+            if (Boolean.TRUE.equals(ball.getIsFour())) batStats.setFours(batStats.getFours() + 1);
+            if (Boolean.TRUE.equals(ball.getIsSix())) batStats.setSixes(batStats.getSixes() + 1);
+
+            // highest: we need to track runs by innings for highest; easier is to recompute highest on demand
+            if (runs > batStats.getHighest()) batStats.setHighest(runs); // this only compares single-ball not innings — optional improvement: compute innings totals separately
+
+            statsInterface.save(batStats);
+        }
+
+        // --- Bowler updates ---
+        Player bowler = ball.getBowler();
+        if (bowler != null) {
+            Stats bowlStats = statsInterface.findByTournamentIdAndPlayerId(tournament.getId(), bowler.getId())
+                    .orElseGet(() -> {
+                        Stats s = new Stats();
+                        s.setTournament(tournament);
+                        s.setPlayer(bowler);
+                        s.setSportType(match.getTournament().getSport());
+                        return s;
+                    });
+
+            int runsConcededThisBall = (ball.getRuns() == null ? 0 : ball.getRuns()) + (ball.getExtra() == null ? 0 : ball.getExtra());
+            bowlStats.setRunsConceded(bowlStats.getRunsConceded() + runsConcededThisBall);
+
+            // legal delivery -> counts as ball bowled
+            if (Boolean.TRUE.equals(ball.getLegalDelivery())) {
+                bowlStats.setBallsBowled(bowlStats.getBallsBowled() + 1);
+            }
+
+            // wicket credited to bowler? exclude runout as bowler wicket unless rules say otherwise
+            String dismissal = ball.getDismissalType();
+            if (dismissal != null) {
+                String d = dismissal.toLowerCase();
+                // credit these to bowler
+                if (d.equals("bowled") || d.equals("caught") || d.equals("lbw") || d.equals("stumped") || d.equals("hit-wicket")) {
+                    bowlStats.setWickets(bowlStats.getWickets() + 1);
+                }
+            }
+
+            statsInterface.save(bowlStats);
+        }
+    }
+
+
+    public MatchScorecardDTO getMatchScorecard(Long matchId) {
+        Match match = matchRepo.findById(matchId).orElseThrow(() -> new RuntimeException("Match not found"));
+        MatchScorecardDTO dto = new MatchScorecardDTO();
+        dto.matchId = matchId;
+        dto.status = match.getStatus();
+
+        // find innings 1 and 2
+        CricketInnings inn1 = cricketInningsRepo.findByMatchIdAndNo(matchId, 1);
+        if (inn1 != null) dto.firstInnings = buildInningsDTO(inn1);
+        CricketInnings inn2 = cricketInningsRepo.findByMatchIdAndNo(matchId, 2);
+        if (inn2 != null) dto.secondInnings = buildInningsDTO(inn2);
+
+        return dto;
+    }
+
+    private InningsDTO buildInningsDTO(CricketInnings innings) {
+        InningsDTO d = new InningsDTO();
+        d.inningsId = innings.getId();
+        d.teamId = innings.getTeam() == null ? null : innings.getTeam().getId();
+        d.teamName = innings.getTeam() == null ? null : innings.getTeam().getName();
+
+        List<CricketBall> balls = cricketBallInterface.findByMatch_IdAndInnings_Id(innings.getMatch().getId(), innings.getId());
+        d.totalRuns = balls.stream().mapToInt(b -> (b.getRuns()==null?0:b.getRuns()) + (b.getExtra()==null?0:b.getExtra())).sum();
+        d.extras = balls.stream().mapToInt(b -> b.getExtra()==null?0:b.getExtra()).sum();
+        d.wickets = (int) balls.stream().filter(b -> b.getDismissalType() != null && !b.getDismissalType().toLowerCase().contains("none")).count();
+        int legalBalls = (int) balls.stream().filter(b -> Boolean.TRUE.equals(b.getLegalDelivery())).count();
+        d.totalBalls = legalBalls;
+        d.oversString = formatOvers(legalBalls);
+
+        // optional ball list (map to BallDTO)
+        d.balls = balls.stream().map(b -> {
+            BallDTO bd = new BallDTO();
+            bd.id = b.getId();
+            bd.overNumber = b.getOverNumber();
+            bd.ballNumber = b.getBallNumber();
+            bd.batsmanId = b.getBatsman() == null ? null : b.getBatsman().getId();
+            bd.bowlerId = b.getBowler() == null ? null : b.getBowler().getId();
+            bd.runs = b.getRuns();
+            bd.extra = b.getExtra();
+            bd.extraType = b.getExtraType();
+            bd.dismissalType = b.getDismissalType();
+            bd.fielderId = b.getFielder() == null ? null : b.getFielder().getId();
+            bd.mediaId = b.getMedia() == null ? null : b.getMedia().getId();
+            return bd;
+        }).collect(Collectors.toList());
+
+        return d;
+    }
+
+    private String formatOvers(int legalBalls) {
+        int overs = legalBalls / 6;
+        int ballsRem = legalBalls % 6;
+        return overs + "." + ballsRem;
+    }
+
+
+    public PlayerStatsDTO getPlayerTournamentStats(Long playerId, Long tournamentId, Long matchId) {
+        Player p = playerInterface.findById(playerId).orElseThrow();
+        PlayerStatsDTO dto = new PlayerStatsDTO();
+        dto.playerId = playerId;
+        dto.playerName = p.getName();
+
+        // BATTING: aggregate batsman balls in tournament or optional match
+        List<CricketBall> batsmanBalls = (matchId != null)
+                ? cricketBallInterface.findByBatsmanIdAndMatchId(playerId, matchId)
+                : cricketBallInterface.findBatsmanBallsByTournamentAndPlayer(tournamentId, playerId);
+
+        int runs = batsmanBalls.stream().mapToInt(b -> b.getRuns()==null?0:b.getRuns()).sum();
+        int ballsFaced = (int) batsmanBalls.stream().filter(b -> Boolean.TRUE.equals(b.getLegalDelivery())).count(); // exclude wides/no-balls for balls faced
+
+        int fours = (int) batsmanBalls.stream().filter(b -> Boolean.TRUE.equals(b.getIsFour())).count();
+        int sixes = (int) batsmanBalls.stream().filter(b -> Boolean.TRUE.equals(b.getIsSix())).count();
+        Map<Long,Integer> runsPerInnings = batsmanBalls.stream()
+                .filter(b -> b.getInnings() != null)
+                .collect(Collectors.groupingBy(b -> b.getInnings().getId(), Collectors.summingInt(b -> b.getRuns()==null?0:b.getRuns())));
+        int highest = runsPerInnings.values().stream().mapToInt(Integer::intValue).max().orElse(0);
+
+        // notOut (count innings where player batted and has no dismissal recorded)
+        Set<Long> inningsWithBalls = batsmanBalls.stream().filter(b -> b.getInnings()!=null).map(b -> b.getInnings().getId()).collect(Collectors.toSet());
+        Set<Long> inningsWhereOut = batsmanBalls.stream().filter(b -> b.getDismissalType()!=null && b.getInnings()!=null).map(b -> b.getInnings().getId()).collect(Collectors.toSet());
+        int notOut = (int) inningsWithBalls.stream().filter(id -> !inningsWhereOut.contains(id)).count();
+
+        dto.runs = runs;
+        dto.ballsFaced = ballsFaced;
+        dto.fours = fours;
+        dto.sixes = sixes;
+        dto.highest = highest;
+        dto.notOut = notOut;
+        dto.strikeRate = (ballsFaced == 0) ? 0.0 : roundTo2((double) runs * 100.0 / (double) ballsFaced);
+
+        // BOWLING
+        List<CricketBall> bowlerBalls = (matchId != null)
+                ? cricketBallInterface.findByBowlerIdAndMatchId(playerId, matchId)
+                : cricketBallInterface.findBowlerBallsByTournamentAndPlayer(tournamentId, playerId);
+
+        int runsConceded = bowlerBalls.stream().mapToInt(b -> {
+            int r = b.getRuns()==null?0:b.getRuns();
+            int ex = b.getExtra()==null?0:b.getExtra();
+            String et = b.getExtraType();
+            if (et != null) {
+                String e = et.toLowerCase();
+                if (e.contains("wide") || e.contains("no") || e.contains("noball") || e.contains("nb")) return r + ex;
+            }
+            return r;
+        }).sum();
+
+        int ballsBowled = (int) bowlerBalls.stream().filter(b -> Boolean.TRUE.equals(b.getLegalDelivery())).count();
+        int wickets = (int) bowlerBalls.stream()
+                .filter(b -> b.getDismissalType()!=null)
+                .filter(b -> {
+                    String dt = b.getDismissalType().toLowerCase();
+                    return dt.contains("bowled") || dt.contains("lbw") || dt.contains("stumped") || dt.contains("caught") || dt.contains("hit wicket") || dt.contains("hitwicket");
+                }).count();
+
+        dto.wickets = wickets;
+        dto.ballsBowled = ballsBowled;
+        dto.runsConceded = runsConceded;
+        dto.economy = (ballsBowled == 0) ? Double.POSITIVE_INFINITY : roundTo2((double) runsConceded * 6.0 / (double) ballsBowled);
+        dto.bowlingAverage = (wickets == 0) ? Double.POSITIVE_INFINITY : roundTo2((double) runsConceded / (double) wickets);
+
+        // If matchId provided and match is active, compute CRR & RRR from match context
+        if (matchId != null) {
+            Match match = matchRepo.findById(matchId).orElse(null);
+            if (match != null) {
+                // find current innings (if player is batting team, compute CRR)
+                CricketInnings innings = cricketInningsRepo.findByMatchIdAndNo(matchId, 1); // your logic might pick proper innings
+                // For simplicity compute CRR as batting player's team innings if they batted this match:
+                if (innings != null) {
+                    List<CricketBall> inningsBalls = cricketBallInterface.findByMatch_IdAndInnings_Id(matchId, innings.getId());
+                    int inningsRuns = inningsBalls.stream().mapToInt(b -> (b.getRuns()==null?0:b.getRuns()) + (b.getExtra()==null?0:b.getExtra())).sum();
+                    int inningsBallsLegal = (int) inningsBalls.stream().filter(b -> Boolean.TRUE.equals(b.getLegalDelivery())).count();
+                    double crr = (inningsBallsLegal == 0) ? 0.0 : inningsRuns * 6.0 / inningsBallsLegal;
+                    dto.currentRunRate = roundTo2(crr);
+                }
+                // Required run rate only meaningful if this player is on chasing team and second innings exists
+                CricketInnings second = cricketInningsRepo.findByMatchIdAndNo(matchId, 2);
+                if (second != null) {
+                    // get target
+                    List<CricketBall> firstBalls = cricketBallInterface.findByMatch_IdAndInnings_Id(matchId, innings.getId());
+                    int firstRuns = firstBalls.stream().mapToInt(b -> (b.getRuns()==null?0:b.getRuns()) + (b.getExtra()==null?0:b.getExtra())).sum();
+                    int totalTarget = firstRuns + 1;
+                    // second innings so far
+                    List<CricketBall> secondBalls = cricketBallInterface.findByMatch_IdAndInnings_Id(matchId, second.getId());
+                    int secondRuns = secondBalls.stream().mapToInt(b -> (b.getRuns()==null?0:b.getRuns()) + (b.getExtra()==null?0:b.getExtra())).sum();
+                    int remainingRuns = totalTarget - secondRuns;
+                    int legalBallsSecond = (int) secondBalls.stream().filter(b -> Boolean.TRUE.equals(b.getLegalDelivery())).count();
+                    int maxBalls = match.getOvers() * 6;
+                    int remainingBalls = maxBalls - legalBallsSecond;
+                    if (remainingRuns <= 0) dto.requiredRunRate = 0.0;
+                    else if (remainingBalls <= 0) dto.requiredRunRate = Double.POSITIVE_INFINITY;
+                    else dto.requiredRunRate = roundTo2( (double) remainingRuns * 6.0 / (double) remainingBalls );
+                }
+            }
+        }
+
+        return dto;
+    }
+
+    private double roundTo2(double val) {
+        if (Double.isInfinite(val) || Double.isNaN(val)) return val;
+        BigDecimal bd = BigDecimal.valueOf(val).setScale(2, RoundingMode.HALF_UP);
+        return bd.doubleValue();
     }
 
 }

@@ -65,6 +65,22 @@ public class Match {
     @JoinColumn(name = "winner_team_id")
     @JsonIgnore
     private Team winnerTeam;
+    // in Match.java
+    @ManyToOne
+    @JoinColumn(name = "man_of_match_id")
+    @JsonIgnore
+    private Player manOfMatch;
+
+    @ManyToOne
+    @JoinColumn(name = "best_batsman_id")
+    @JsonIgnore
+    private Player bestBatsman;
+
+    @ManyToOne
+    @JoinColumn(name = "best_bowler_id")
+    @JsonIgnore
+    private Player bestBowler;
+
 
     // Match -> CricketInnings
     @OneToMany(mappedBy = "match", cascade = CascadeType.ALL)

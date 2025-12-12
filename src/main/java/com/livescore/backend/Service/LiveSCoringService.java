@@ -7,8 +7,11 @@ import com.livescore.backend.Entity.Match;
 import com.livescore.backend.Interface.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class LiveSCoringService {
@@ -22,44 +25,72 @@ public class LiveSCoringService {
     private MatchInterface matchRepo;
     @Autowired
     private TeamInterface teamRepo;
+    @Autowired
+    private StatsService statsService;
+    @Autowired
+    private AwardService awardService;
 
-
+    @Transactional
     public ScoreDTO scoring(ScoreDTO s){
 
 
         Match m=matchRepo.findById(s.getMatchId()).orElseThrow();
-        if(s.getOvers()==m.getOvers()&&s.getBalls()==6&&s.isFirstInnings()){
-            s.setStatus("end");
 
+
+        CricketInnings currentInnings = cricketInningsRepo.findById(s.getInningsId()).orElse(null);
+        if (currentInnings == null) throw new RuntimeException("Innings not found");
+
+
+        long legalBallsSoFar = cricketBallInterface.countLegalBallsByInningsId(currentInnings.getId());
+
+        int maxBallsPerInnings = m.getOvers() * 6;
+
+
+        boolean thisBallIsLegalCandidate = true;
+
+
+        if (s.isFirstInnings() && legalBallsSoFar >= maxBallsPerInnings) {
+            s.setStatus("end"); // innings done
         }
-        else if(s.getOvers()==m.getOvers()&&s.getBalls()==6&&!s.isFirstInnings()){
+        else if(!s.isFirstInnings() && legalBallsSoFar >= maxBallsPerInnings){
             if(s.getTarget()==0){
                 s.setStatus("draw");
             }
             else if(s.getTarget()<0){
                 m.setWinnerTeam(teamRepo.findById(s.getTeamId()).orElseThrow());
+                s.setStatus("end Match");
             }else{
                 m.setWinnerTeam(teamRepo.findById(m.getTeam1().getId()==s.getTeamId()?m.getTeam2().getId():m.getTeam1().getId()).orElse(null));
+                s.setStatus("end Match");
             }
+            awardService.computeMatchAwards(s.getMatchId());
             matchRepo.save(m);
-
-            CricketInnings i=cricketInningsRepo.findByMatchIdAndNo(s.getMatchId(),1);
-            List<CricketBall> balls = cricketBallInterface.findByMatch_IdAndInnings_Id(s.getMatchId(),i.getId());
-            int runs = balls.stream().mapToInt(CricketBall::getRuns).sum();
-            s.setTarget(runs);
         }
+
+
+
+
+
+
+
+
+
+
+
 
         if(s.getStatus().equalsIgnoreCase("end")){
 
             CricketInnings c=cricketInningsRepo.findByMatchIdAndNo(s.getMatchId(),1);
             List<CricketBall> balls = cricketBallInterface.findByMatch_IdAndInnings_Id(s.getMatchId(),c.getId());
-            int runs = balls.stream().mapToInt(CricketBall::getRuns).sum();
+            int runs = balls.stream()
+                    .mapToInt(b -> (b.getRuns() == null ? 0 : b.getRuns()) + (b.getExtra() == null ? 0 : b.getExtra()))
+                    .sum();
             s.setTarget(runs);
             //empty innings create with same match id but innings n=2;
             CricketInnings innings = new CricketInnings();
             innings.setMatch(matchRepo.findById(s.getMatchId()).orElseThrow());
             innings.setNo(2);
-            innings.setTeam(c.getTeam()==c.getMatch().getTeam1()?c.getMatch().getTeam2():c.getMatch().getTeam1());
+            innings.setTeam(c.getTeam().getId()==c.getMatch().getTeam1().getId()?c.getMatch().getTeam2():c.getMatch().getTeam1());
             cricketInningsRepo.save(innings);
             s.setInningsId(innings.getId());
             s.setStatus("endFirst");
@@ -88,9 +119,10 @@ public class LiveSCoringService {
         ball.setBatsman(playerRepo.findById(s.getBatsmanId()).orElse(null));
         ball.setBowler(playerRepo.findById(s.getBowlerId()).orElse(null));
         ball.setFielder(playerRepo.findById(s.getFielderId()).orElse(null));
+        ball.setMatch(matchRepo.findById(s.getMatchId()).orElseThrow());
         ball.setOverNumber(s.getOvers());
         ball.setBallNumber(s.getBalls());
-
+        if (s.getEventType() == null) throw new RuntimeException("eventType required");
         switch (s.getEventType().toLowerCase()) {
 
             case "run":
@@ -184,6 +216,8 @@ public class LiveSCoringService {
         }
 
         cricketBallInterface.save(ball);
+        statsService.updateTournamentStats(ball);
+
 
         return s;
     }
@@ -195,4 +229,6 @@ public class LiveSCoringService {
             s.setBalls(0);
         }
     }
+
+
 }
