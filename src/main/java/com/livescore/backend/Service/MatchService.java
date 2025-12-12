@@ -143,12 +143,20 @@ public class MatchService {
             matchDTO.setTeam1Name(match.getTeam1().getName());
             matchDTO.setTeam2Id(match.getTeam2().getId());
             matchDTO.setTeam2Name(match.getTeam2().getName());
-
+            matchDTO.setScorerId(match.getScorer().getId());
             matchDTO.setStatus(match.getStatus());
             matchDTO.setVenue(match.getVenue());
             matchDTO.setDate(match.getDate());
             matchDTO.setTime(match.getTime());
-
+            matchDTO.setDecision(match.getDecision());
+            matchDTO.setOvers(match.getOvers());
+            matchDTO.setSets(match.getSets());
+            matchDTO.setSportId(match.getTournament().getSport().getId());
+            if (match.getTossWinner() != null) {
+                matchDTO.setTossWinnerId(match.getTossWinner().getId());
+            } else {
+                matchDTO.setTossWinnerId(null);
+            }
 
             matchDTOs.add(matchDTO);
         }

@@ -24,9 +24,18 @@ public class SeasonService {
         if(!accountInterface.existsByUsername(season.getUsername())){
             return ResponseEntity.badRequest().body(season.getUsername());
         }
-        Season season1=new Season();
+        var rolecheck = accountInterface.findByUsername(season.getUsername());
+        if (!rolecheck.getRole().equalsIgnoreCase("admin")) {
+            return ResponseEntity.badRequest().body("Only admin can create a season");
+        }
+
+        Season season1 = new Season();
         season1.setName(season.getName());
-        season1.setAccount(accountInterface.findByUsername(season.getUsername()));
+        season1.setAccount(rolecheck);
+
+
+
+
         return ResponseEntity.ok(seasonInterface.save(season1));
 
     }

@@ -6,12 +6,12 @@ import lombok.Data;
 @Data
 public class BallDTO {
     public Long id;
-    public Integer overNumber;
-    public Integer ballNumber;
+    public int overNumber;
+    public int ballNumber;
     public Long batsmanId;
     public Long bowlerId;
-    public Integer runs;
-    public Integer extra;
+    public int runs;
+    public int extra;
     public String extraType;
     public String dismissalType;
     public Long fielderId;

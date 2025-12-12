@@ -39,6 +39,11 @@ public class TournamentService {
         }
         Tournament tournament1=new Tournament();
         tournament1.setName(tournament.getName());
+        //check role
+        String role = accountInterface.findByUsername(tournament.getUsername()).getRole().trim().toUpperCase();
+        if (!role.equals("ADMIN")) {
+            return ResponseEntity.badRequest().body("Only admin can create a tournament");
+        }
         tournament1.setOrganizer(accountInterface.findByUsername(tournament.getUsername()));
         tournament1.setSeason(seasonInterface.findById(tournament.getSeasonId()).get());
         tournament1.setSport(sportsInterface.findById(tournament.getSportsId()).get());

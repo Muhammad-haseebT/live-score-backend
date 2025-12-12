@@ -5,7 +5,6 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Data;
 
-// GoalsType.java
 @Entity
 @Data
 public class GoalsType {

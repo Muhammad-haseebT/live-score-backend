@@ -15,4 +15,7 @@ public interface PlayerInterface extends JpaRepository<Player,Long> {
     List<Player> findPlayersByTeamId(@Param("teamId") Long teamId);
 
 
+    boolean existsByAccount_Username(String username);
+
+
 }

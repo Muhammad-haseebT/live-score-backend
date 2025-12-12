@@ -31,4 +31,5 @@ public class PlayerController {
     public ResponseEntity<?> getPlayerById(@PathVariable Long id) {
         return playerService.getPlayerById(id);
     }
+
 }

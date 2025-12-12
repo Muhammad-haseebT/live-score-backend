@@ -3,7 +3,7 @@ package com.livescore.backend.DTO;
 import lombok.Data;
 
 @Data
-// AwardsDTO.java
+
 public class AwardsDTO {
     public Long matchId;
     public Long manOfMatchId;

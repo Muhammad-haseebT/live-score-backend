@@ -1,6 +1,6 @@
 package com.livescore.backend.DTO;
 
-// PlayerStatsDTO.java
+
 public class PlayerStatsDTO {
     public Long playerId;
     public String playerName;

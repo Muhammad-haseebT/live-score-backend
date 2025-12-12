@@ -23,7 +23,7 @@ public interface MatchInterface extends JpaRepository<Match,Long> {
 
 
 
-    Object findByDate(LocalDate date);
+    List<Match> findByDate(LocalDate date);
 
     @Query("SELECT m FROM Match m WHERE m.time = :time")
     List<Match> findByTime(@Param("time") LocalTime time);
@@ -31,5 +31,5 @@ public interface MatchInterface extends JpaRepository<Match,Long> {
 
 
     @Query("SELECT m FROM Match m WHERE m.team1.id = :team1 OR m.team2.id = :team2")
-    Object findByTeam1IdOrTeam2Id(@Param("team1") Long team1, @Param("team2") Long team2);
+    List<Match> findByTeam1IdOrTeam2Id(@Param("team1") Long team1, @Param("team2") Long team2);
 }
