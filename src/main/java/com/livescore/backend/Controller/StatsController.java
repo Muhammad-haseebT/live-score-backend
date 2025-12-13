@@ -18,8 +18,9 @@ public class StatsController {
         return statsService.getAllStats();
     }
 
-
-
-
+    @GetMapping("/stats/{id}")
+    public ResponseEntity<?> getStatsbyId(@PathVariable("id") Long statsId) {
+        return statsService.getStatsById(statsId);
+    }
 
 }

@@ -69,7 +69,7 @@ public class MatchService {
         match.setDate(matchDTO.getDate());
         match.setTime(matchDTO.getTime());
         match.setOvers(matchDTO.getOvers());
-        match.setDecision(matchDTO.getDecision());
+
         match.setSets(matchDTO.getSets());
 
         matchInterface.save(match);
@@ -107,6 +107,8 @@ public class MatchService {
         match.setVenue(matchDTO.getVenue());
         match.setDate(matchDTO.getDate());
         match.setTime(matchDTO.getTime());
+        match.setOvers(matchDTO.getOvers());
+        match.setSets(matchDTO.getSets());
         matchInterface.save(match);
         return ResponseEntity.ok().body("Match updated successfully");
     }
@@ -183,12 +185,13 @@ public class MatchService {
     }
 
     public ResponseEntity<?> startMatch(Long id,MatchDTO m) {
+        System.out.println(m.getScorerId());
         Match match = matchInterface.findById(id).orElse(null);
         if (match == null) {
             return ResponseEntity.badRequest().body("Match with id " + id + " does not exist");
         }
         match.setStatus("live");
-        match.setScorer(accountInterface.getById(m.getScorerId()));
+        match.setScorer(accountInterface.findById(m.getScorerId()).orElse(null));
         match.setTossWinner(teamInterface.getById(m.getTossWinnerId()));
         match.setDecision(m.getDecision());
         Sports s= sportsInterface.getById(m.getSportId());

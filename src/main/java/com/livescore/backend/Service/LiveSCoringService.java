@@ -29,10 +29,13 @@ public class LiveSCoringService {
     private StatsService statsService;
     @Autowired
     private AwardService awardService;
+    @Autowired
+    private MatchService matchService;
 
     @Transactional
     public ScoreDTO scoring(ScoreDTO s){
 
+        boolean check=true;
 
         Match m=matchRepo.findById(s.getMatchId()).orElseThrow();
 
@@ -65,7 +68,9 @@ public class LiveSCoringService {
             }
             awardService.computeMatchAwards(s.getMatchId());
             matchRepo.save(m);
+            check=false;
         }
+
 
 
 
@@ -193,7 +198,11 @@ public class LiveSCoringService {
 
                 String dismissal = s.getEvent();
                 ball.setDismissalType(dismissal);
-                ball.setOutPlayer(playerRepo.findById(s.getOutPlayerId()).orElse(ball.getBatsman()));
+                if(s.getOutPlayerId()==null){
+                    ball.setOutPlayer(ball.getBatsman());
+                }else{
+                    ball.setOutPlayer(playerRepo.findById(s.getOutPlayerId()).orElse(null));
+                }
                 int runsBeforeOut = s.getRunsOnThisBall();
                 ball.setRuns(runsBeforeOut);
                 ball.setExtra(s.getExtrasThisBall());
@@ -209,6 +218,19 @@ public class LiveSCoringService {
             default:
                 throw new RuntimeException("Invalid event type");
         }
+
+
+        if(s.getTarget()<0&&!s.isFirstInnings()&&check){
+            m.setWinnerTeam(teamRepo.findById(s.getTeamId()).orElseThrow());
+            s.setStatus("end Match");
+            m.setStatus("completed");
+            awardService.computeMatchAwards(s.getMatchId());
+            matchRepo.save(m);
+            check=false;
+            System.out.println("Match completed");
+            matchService.endMatch(s.getMatchId());
+        }
+
 
         // Update target for 2nd innings
         if (!s.isFirstInnings() && ball.getLegalDelivery()) {
