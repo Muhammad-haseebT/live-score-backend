@@ -4,9 +4,15 @@ import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.ToString;
+
 // PlayerTeam.java
 @Entity
-@Data
+@Getter
+@Setter
+@ToString(exclude = {"player", "team", "tournament"})
 public class PlayerRequest {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

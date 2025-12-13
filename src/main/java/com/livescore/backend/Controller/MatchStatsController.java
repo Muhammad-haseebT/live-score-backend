@@ -2,6 +2,7 @@ package com.livescore.backend.Controller;
 
 import com.livescore.backend.DTO.AwardsDTO;
 import com.livescore.backend.DTO.MatchScorecardDTO;
+import com.livescore.backend.DTO.TournamentAwardsDTO;
 import com.livescore.backend.Service.AwardService;
 import com.livescore.backend.Service.StatsService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,4 +29,10 @@ public class MatchStatsController {
         AwardsDTO dto = awardService.ensureAndGetAwards(matchId);
         return ResponseEntity.ok(dto);
     }
+    @GetMapping("/tournaments/{tournamentId}/awards")
+    public ResponseEntity<TournamentAwardsDTO> getTournamentAwards(@PathVariable Long tournamentId) {
+        TournamentAwardsDTO dto = awardService.ensureAndGetTournamentAwards(tournamentId);
+        return ResponseEntity.ok(dto);
+    }
+
 }

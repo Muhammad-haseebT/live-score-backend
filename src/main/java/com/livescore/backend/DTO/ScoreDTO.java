@@ -35,6 +35,14 @@ public class ScoreDTO {
     private String comment;
     private Long mediaId;
 
+
+    private double crr;
+    private double rrr;
+
+
+
+
+
 }
 
 

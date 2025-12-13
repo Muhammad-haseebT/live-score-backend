@@ -1,9 +1,6 @@
 package com.livescore.backend.Service;
 
-import com.livescore.backend.DTO.BallDTO;
-import com.livescore.backend.DTO.InningsDTO;
-import com.livescore.backend.DTO.MatchScorecardDTO;
-import com.livescore.backend.DTO.PlayerStatsDTO;
+import com.livescore.backend.DTO.*;
 import com.livescore.backend.Entity.*;
 import com.livescore.backend.Interface.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -303,22 +300,42 @@ public class StatsService {
 
         return dto;
     }
-
     private InningsDTO buildInningsDTO(CricketInnings innings) {
         InningsDTO d = new InningsDTO();
+        if (innings == null) return d;
+
         d.inningsId = innings.getId();
         d.teamId = innings.getTeam() == null ? null : innings.getTeam().getId();
         d.teamName = innings.getTeam() == null ? null : innings.getTeam().getName();
 
-        List<CricketBall> balls = cricketBallInterface.findByMatch_IdAndInnings_Id(innings.getMatch().getId(), innings.getId());
-        d.totalRuns = balls.stream().mapToInt(b -> (b.getRuns()==null?0:b.getRuns()) + (b.getExtra()==null?0:b.getExtra())).sum();
-        d.extras = balls.stream().mapToInt(b -> b.getExtra()==null?0:b.getExtra()).sum();
-        d.wickets = (int) balls.stream().filter(b -> b.getDismissalType() != null && !b.getDismissalType().toLowerCase().contains("none")).count();
-        int legalBalls = (int) balls.stream().filter(b -> Boolean.TRUE.equals(b.getLegalDelivery())).count();
-        d.totalBalls = legalBalls;
-        d.oversString = formatOvers(legalBalls);
+        List<CricketBall> balls = cricketBallInterface.findByMatch_IdAndInnings_Id(
+                innings.getMatch() == null ? null : innings.getMatch().getId(),
+                innings.getId()
+        );
 
-        // optional ball list (map to BallDTO)
+        if (balls == null) balls = List.of();
+
+        // ---------- TOTALS ----------
+        int totalRuns = balls.stream()
+                .mapToInt(b -> (b.getRuns() == null ? 0 : b.getRuns()) + (b.getExtra() == null ? 0 : b.getExtra()))
+                .sum();
+        d.totalRuns = totalRuns;
+
+        int extras = balls.stream().mapToInt(b -> b.getExtra() == null ? 0 : b.getExtra()).sum();
+        d.extras = extras;
+
+        int wickets = (int) balls.stream()
+                .filter(b -> b.getDismissalType() != null && !b.getDismissalType().trim().isEmpty())
+                .count();
+        d.wickets = wickets;
+
+        int legalBallsTotal = (int) balls.stream()
+                .filter(b -> Boolean.TRUE.equals(b.getLegalDelivery()))
+                .count();
+        d.totalBalls = legalBallsTotal;
+        d.oversString = formatOvers(legalBallsTotal);
+
+        // ---------- balls list (ball-by-ball) ----------
         d.balls = balls.stream().map(b -> {
             BallDTO bd = new BallDTO();
             bd.id = b.getId();
@@ -335,8 +352,125 @@ public class StatsService {
             return bd;
         }).collect(Collectors.toList());
 
+        // ---------- PLAYER-WISE BATTING ----------
+        Map<Long, List<CricketBall>> ballsByBatsman = balls.stream()
+                .filter(b -> b.getBatsman() != null && b.getBatsman().getId() != null)
+                .collect(Collectors.groupingBy(b -> b.getBatsman().getId()));
+
+        d.battingScores = ballsByBatsman.entrySet().stream()
+                .map(entry -> {
+                    Long playerId = entry.getKey();
+                    List<CricketBall> pBalls = entry.getValue();
+                    Player p = pBalls.get(0).getBatsman();
+
+                    BattingScoreDTO bs = new BattingScoreDTO();
+                    bs.playerId = playerId;
+                    bs.playerName = p == null ? null : p.getName();
+
+                    bs.runs = pBalls.stream().mapToInt(b -> b.getRuns() == null ? 0 : b.getRuns()).sum();
+                    bs.balls = (int) pBalls.stream().filter(b -> Boolean.TRUE.equals(b.getLegalDelivery())).count();
+                    bs.fours = (int) pBalls.stream().filter(b -> Boolean.TRUE.equals(b.getIsFour())).count();
+                    bs.sixes = (int) pBalls.stream().filter(b -> Boolean.TRUE.equals(b.getIsSix())).count();
+                    bs.strikeRate = bs.balls == 0 ? 0.0 : roundTo2((double) bs.runs * 100.0 / bs.balls);
+                    boolean isOut = pBalls.stream().anyMatch(b -> b.getDismissalType() != null && !b.getDismissalType().trim().isEmpty());
+                    bs.notOut = !isOut;
+                    return bs;
+                })
+                // optionally sort by batting order if you have it; fallback by runs desc
+                .sorted((a, b) -> Integer.compare(b.runs, a.runs))
+                .collect(Collectors.toList());
+
+        if (d.battingScores == null) d.battingScores = List.of();
+
+        // ---------- BOWLING SCORECARD (OPPOSITION) ----------
+        Map<Long, List<CricketBall>> ballsByBowler = balls.stream()
+                .filter(b -> b.getBowler() != null && b.getBowler().getId() != null)
+                .collect(Collectors.groupingBy(b -> b.getBowler().getId()));
+
+        d.bowlingScores = ballsByBowler.entrySet().stream()
+                .map(entry -> {
+                    Long bowlerId = entry.getKey();
+                    List<CricketBall> bowlerBalls = entry.getValue();
+                    Player bowler = bowlerBalls.get(0).getBowler();
+
+                    BowlingScoreDTO bw = new BowlingScoreDTO();
+                    bw.playerId = bowlerId;
+                    bw.playerName = bowler == null ? null : bowler.getName();
+
+                    long legalBallsByBowler = bowlerBalls.stream().filter(b -> Boolean.TRUE.equals(b.getLegalDelivery())).count();
+                    bw.balls = (int) legalBallsByBowler;
+                    bw.overs = formatOvers((int) legalBallsByBowler);
+
+                    bw.runsConceded = bowlerBalls.stream().mapToInt(b -> {
+                        int r = b.getRuns() == null ? 0 : b.getRuns();
+                        int e = b.getExtra() == null ? 0 : b.getExtra();
+                        String et = b.getExtraType();
+                        if (et != null) {
+                            String t = et.toLowerCase();
+                            if (t.contains("wide") || t.contains("no")) {
+                                return r + e;
+                            }
+                        }
+                        return r;
+                    }).sum();
+
+                    bw.wickets = (int) bowlerBalls.stream()
+                            .filter(b -> b.getDismissalType() != null && !b.getDismissalType().trim().isEmpty())
+                            .filter(b -> {
+                                String dType = b.getDismissalType().toLowerCase();
+                                return dType.contains("bowled") || dType.contains("caught") || dType.contains("lbw")
+                                        || dType.contains("stumped") || dType.contains("hit wicket") || dType.contains("hitwicket");
+                            })
+                            .count();
+
+                    bw.maidens = calculateMaidens(bowlerBalls);
+
+                    bw.economy = legalBallsByBowler == 0 ? 0.0 : roundTo2((double) bw.runsConceded * 6.0 / (double) legalBallsByBowler);
+
+                    return bw;
+                })
+                .sorted((a, b) -> {
+                    if (a.playerName == null) return -1;
+                    if (b.playerName == null) return 1;
+                    return a.playerName.compareToIgnoreCase(b.playerName);
+                })
+                .collect(Collectors.toList());
+
+        if (d.bowlingScores == null) d.bowlingScores = List.of();
+
         return d;
     }
+
+
+    private int calculateMaidens(List<CricketBall> balls) {
+
+        Map<Integer, List<CricketBall>> overs =
+                balls.stream()
+                        .filter(b -> b.getOverNumber() != null)
+                        .collect(Collectors.groupingBy(CricketBall::getOverNumber));
+
+        int maidens = 0;
+
+        for (List<CricketBall> overBalls : overs.values()) {
+
+            boolean hasRun = overBalls.stream().anyMatch(b -> {
+                int r = b.getRuns() == null ? 0 : b.getRuns();
+                int e = b.getExtra() == null ? 0 : b.getExtra();
+                return (r + e) > 0;
+            });
+
+            boolean sixLegal = overBalls.stream()
+                    .filter(b -> Boolean.TRUE.equals(b.getLegalDelivery()))
+                    .count() == 6;
+
+            if (!hasRun && sixLegal) {
+                maidens++;
+            }
+        }
+
+        return maidens;
+    }
+
 
     private String formatOvers(int legalBalls) {
         int overs = legalBalls / 6;

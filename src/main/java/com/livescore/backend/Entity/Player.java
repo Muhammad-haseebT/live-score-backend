@@ -6,10 +6,13 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.Data;
+import lombok.ToString;
+
 import java.util.List;
 // Player.java
 @Entity
 @Data
+@ToString(exclude = {"account", "playerRequests", "team"})
 @JsonIgnoreProperties({"playerTeams"}) // avoid recursion if needed
 public class Player {
     @Id

@@ -1,6 +1,8 @@
 package com.livescore.backend.Service;
 
 import com.livescore.backend.DTO.AwardsDTO;
+import com.livescore.backend.DTO.PlayerStatDTO;
+import com.livescore.backend.DTO.TournamentAwardsDTO;
 import com.livescore.backend.Entity.CricketBall;
 import com.livescore.backend.Entity.Match;
 import com.livescore.backend.Entity.Player;
@@ -27,6 +29,7 @@ public class AwardService {
 
     @Transactional
     public void computeMatchAwards(Long matchId) {
+        // --- YOUR EXISTING METHOD (unchanged) ---
         Match match = matchRepo.findById(matchId).orElseThrow();
         List<CricketBall> balls = cricketBallInterface.findByMatch_Id(matchId);
         if (balls == null || balls.isEmpty()) return;
@@ -41,13 +44,11 @@ public class AwardService {
             int wickets = 0;
             int runsConceded = 0;
             int ballsBowled = 0; // legal deliveries bowled
-            // track per-innings runs to compute highest innings
             Map<Long, Integer> inningsRuns = new HashMap<>();
         }
 
         Map<Long, Agg> map = new HashMap<>();
 
-        // helper
         java.util.function.Function<Player, Agg> getAgg = (player) -> {
             if (player == null) return null;
             return map.computeIfAbsent(player.getId(), id -> {
@@ -89,8 +90,6 @@ public class AwardService {
                     }
                 }
             }
-
-            // fielder credits are stored in ball as fielder/outPlayer if needed
         }
 
         // compute derived metrics per player
@@ -106,7 +105,7 @@ public class AwardService {
             int runsConceded;
             int ballsBowled;
             double economy; // runs per over
-            double bowlingAverage; // runsConceded / wickets
+            double bowlingAverage;
         }
 
         List<PlayerMetrics> metrics = new ArrayList<>();
@@ -122,48 +121,30 @@ public class AwardService {
             pm.ballsBowled = a.ballsBowled;
             pm.highestInnings = a.inningsRuns.values().stream().mapToInt(Integer::intValue).max().orElse(0);
 
-            if (pm.ballsFaced > 0) {
-                // strike rate = runs * 100 / ballsFaced
-                pm.strikeRate = (double) pm.runs * 100.0 / pm.ballsFaced;
-            } else pm.strikeRate = 0.0;
+            if (pm.ballsFaced > 0) pm.strikeRate = (double) pm.runs * 100.0 / pm.ballsFaced;
+            else pm.strikeRate = 0.0;
 
             if (pm.ballsBowled > 0) {
                 double overs = pm.ballsBowled / 6.0;
                 pm.economy = pm.runsConceded / overs;
             } else pm.economy = Double.POSITIVE_INFINITY;
 
-            if (pm.wickets > 0) {
-                pm.bowlingAverage = (double) pm.runsConceded / pm.wickets;
-            } else pm.bowlingAverage = Double.POSITIVE_INFINITY;
+            if (pm.wickets > 0) pm.bowlingAverage = (double) pm.runsConceded / pm.wickets;
+            else pm.bowlingAverage = Double.POSITIVE_INFINITY;
 
             metrics.add(pm);
         }
 
-        //  --- Best Batsman: runs desc, tie -> highestInnings desc -> strikeRate desc
+        // Best Batsman
         PlayerMetrics bestBat = metrics.stream()
-                .filter(m -> m.ballsFaced > 0) // optional: ensure batted
+                .filter(m -> m.ballsFaced > 0)
                 .max(Comparator.comparingInt((PlayerMetrics m) -> m.runs)
                         .thenComparingInt(m -> m.highestInnings)
                         .thenComparingDouble(m -> m.strikeRate))
                 .orElse(null);
 
-        // --- Best Bowler: wickets desc, tie -> economy asc, tie -> bowlingAverage asc
-        PlayerMetrics bestBowl = metrics.stream()
-                .filter(m -> m.ballsBowled > 0)
-                .max(Comparator.comparingInt((PlayerMetrics m) -> m.wickets)
-                        .thenComparingDouble(m -> -m.economy) // trick: we need min economy -> sort desc of -economy
-                        .thenComparingDouble(m -> -m.bowlingAverage)) // min average -> desc of -average
-                .orElse(null);
-
-        // The above comparator uses max() and reverses for economy/average ties; simpler to use custom comparator:
-        Comparator<PlayerMetrics> bowlComparator = (x,y) -> {
-            if (x.wickets != y.wickets) return Integer.compare(x.wickets, y.wickets);
-            if (Double.compare(x.economy, y.economy) != 0) return Double.compare(y.economy, x.economy) * -1; // ensure lower economy wins in max
-            return Double.compare(y.bowlingAverage, x.bowlingAverage) * -1;
-        };
-
-        // Simpler safer approach: calculate manually
-        bestBowl = null;
+        // Best Bowler - manual comparator to ensure deterministic tiebreakers
+        PlayerMetrics bestBowl = null;
         for (PlayerMetrics pm : metrics) {
             if (pm.ballsBowled == 0) continue;
             if (bestBowl == null) { bestBowl = pm; continue; }
@@ -176,13 +157,7 @@ public class AwardService {
             }
         }
 
-        // --- Man of the Match: composite metric
-        // Weights (tune as needed):
-        // runWeight = 1
-        // wicketWeight = 30 (wickets are very valuable)
-        // sixWeight = 3, fourWeight = 1
-        // strikeRateBonus = strikeRate / 10
-        // economyBonus = if bowled, (6.0 - economy) * 5 (lower economy yields positive)
+        // Man of the Match - composite score
         class MoMMetrics {
             PlayerMetrics pm;
             double score;
@@ -196,7 +171,6 @@ public class AwardService {
             score += pm.fours * 1.0;
             if (pm.ballsFaced > 0) score += pm.strikeRate / 10.0;
             if (pm.ballsBowled > 0) {
-                // economy smaller => bigger positive bonus
                 double economyBonus = Math.max(0.0, 6.0 - pm.economy) * 5.0;
                 score += economyBonus;
             }
@@ -206,12 +180,9 @@ public class AwardService {
             momList.add(m);
         }
 
-        // sort by score desc
         MoMMetrics top = momList.stream().max(Comparator.comparingDouble(x -> x.score)).orElse(null);
 
-        // tiebreakers: if tie choose player from winning team, else wickets then runs
         if (top != null) {
-            // find ties within small epsilon
             double bestScore = top.score;
             List<MoMMetrics> tied = momList.stream().filter(m -> Math.abs(m.score - bestScore) < 1e-6).collect(Collectors.toList());
             Player chosen = null;
@@ -229,7 +200,6 @@ public class AwardService {
                     }
                 }
                 if (chosen == null) {
-                    // next tiebreaker: highest wickets then runs
                     tied.sort((a,b) -> {
                         if (a.pm.wickets != b.pm.wickets) return Integer.compare(b.pm.wickets, a.pm.wickets);
                         return Integer.compare(b.pm.runs, a.pm.runs);
@@ -238,13 +208,247 @@ public class AwardService {
                 }
             }
 
-            // persist results on match
             if (bestBat != null) match.setBestBatsman(playerRepo.findById(bestBat.playerId).orElse(null));
             if (bestBowl != null) match.setBestBowler(playerRepo.findById(bestBowl.playerId).orElse(null));
             match.setManOfMatch(chosen);
             match.setStatus("FINISHED");
             matchRepo.save(match);
         }
+    }
+
+    // ----------------- NEW: Tournament-level awards -----------------
+
+    /**
+     * Ensure tournament awards are computed and return DTO.
+     * This is on-demand and idempotent.
+     */
+    @Transactional(readOnly = true)
+    public TournamentAwardsDTO ensureAndGetTournamentAwards(Long tournamentId) {
+        // compute on-demand
+        return computeTournamentAwards(tournamentId);
+    }
+
+    /**
+     * Compute tournament awards by aggregating data across all matches in the tournament.
+     * This is a full-scan approach (reads all matches and all balls). Swap to incremental
+     * if performance becomes an issue.
+     */
+    @Transactional
+    public TournamentAwardsDTO computeTournamentAwards(Long tournamentId) {
+        // gather all matches for the tournament
+        List<Match> matches = matchRepo.findByTournament_Id(tournamentId);
+        if (matches == null || matches.isEmpty()) {
+            TournamentAwardsDTO empty = new TournamentAwardsDTO();
+            empty.tournamentId = tournamentId;
+            empty.topBatsmen = Collections.emptyList();
+            empty.topBowlers = Collections.emptyList();
+            return empty;
+        }
+
+        // aggregate per player across all matches
+        class Agg {
+            long playerId;
+            int runs = 0;
+            int ballsFaced = 0;
+            int fours = 0;
+            int sixes = 0;
+            int wickets = 0;
+            int runsConceded = 0;
+            int ballsBowled = 0;
+            Map<Long, Integer> inningsRuns = new HashMap<>(); // key: inningsId (global unique)
+            int pomCount = 0; // player-of-match count across matches
+        }
+
+        Map<Long, Agg> map = new HashMap<>();
+
+        java.util.function.Function<Player, Agg> getAgg = (player) -> {
+            if (player == null) return null;
+            return map.computeIfAbsent(player.getId(), id -> {
+                Agg a = new Agg();
+                a.playerId = id;
+                return a;
+            });
+        };
+
+        // For each match, collect balls and optional man-of-match
+        for (Match match : matches) {
+            Long matchId = match.getId();
+            // count man of match
+            if (match.getManOfMatch() != null) {
+                Agg pomAgg = getAgg.apply(match.getManOfMatch());
+                if (pomAgg != null) pomAgg.pomCount += 1;
+            }
+
+            List<CricketBall> balls = cricketBallInterface.findByMatch_Id(matchId);
+            if (balls == null || balls.isEmpty()) continue;
+
+            for (CricketBall b : balls) {
+                Long inningsId = b.getInnings() == null ? null : b.getInnings().getId();
+
+                if (b.getBatsman() != null) {
+                    Agg a = getAgg.apply(b.getBatsman());
+                    int r = (b.getRuns() == null ? 0 : b.getRuns());
+                    a.runs += r;
+                    if (Boolean.TRUE.equals(b.getLegalDelivery())) a.ballsFaced += 1;
+                    if (Boolean.TRUE.equals(b.getIsFour())) a.fours += 1;
+                    if (Boolean.TRUE.equals(b.getIsSix())) a.sixes += 1;
+                    if (inningsId != null) {
+                        a.inningsRuns.put(inningsId, a.inningsRuns.getOrDefault(inningsId, 0) + r);
+                    }
+                }
+
+                if (b.getBowler() != null) {
+                    Agg a = getAgg.apply(b.getBowler());
+                    int runsConcededThisBall = (b.getRuns() == null ? 0 : b.getRuns()) + (b.getExtra() == null ? 0 : b.getExtra());
+                    a.runsConceded += runsConcededThisBall;
+                    if (Boolean.TRUE.equals(b.getLegalDelivery())) a.ballsBowled += 1;
+
+                    String d = b.getDismissalType();
+                    if (d != null) {
+                        d = d.toLowerCase();
+                        if (d.equals("bowled") || d.equals("caught") || d.equals("lbw") || d.equals("stumped") || d.equals("hit-wicket")) {
+                            a.wickets += 1;
+                        }
+                    }
+                }
+            }
+        }
+
+        // compute PlayerMetrics across tournament
+        class PlayerMetrics {
+            Long playerId;
+            int runs;
+            int ballsFaced;
+            double strikeRate;
+            int highestInnings;
+            int fours;
+            int sixes;
+            int wickets;
+            int runsConceded;
+            int ballsBowled;
+            double economy;
+            double bowlingAverage;
+            int pomCount;
+        }
+
+        List<PlayerMetrics> metrics = new ArrayList<>();
+        for (Agg a : map.values()) {
+            PlayerMetrics pm = new PlayerMetrics();
+            pm.playerId = a.playerId;
+            pm.runs = a.runs;
+            pm.ballsFaced = a.ballsFaced;
+            pm.fours = a.fours;
+            pm.sixes = a.sixes;
+            pm.wickets = a.wickets;
+            pm.runsConceded = a.runsConceded;
+            pm.ballsBowled = a.ballsBowled;
+            pm.highestInnings = a.inningsRuns.values().stream().mapToInt(Integer::intValue).max().orElse(0);
+            pm.pomCount = a.pomCount;
+
+            if (pm.ballsFaced > 0) pm.strikeRate = (double) pm.runs * 100.0 / pm.ballsFaced;
+            else pm.strikeRate = 0.0;
+
+            if (pm.ballsBowled > 0) {
+                double overs = pm.ballsBowled / 6.0;
+                pm.economy = pm.runsConceded / overs;
+            } else pm.economy = Double.POSITIVE_INFINITY;
+
+            if (pm.wickets > 0) pm.bowlingAverage = (double) pm.runsConceded / pm.wickets;
+            else pm.bowlingAverage = Double.POSITIVE_INFINITY;
+
+            metrics.add(pm);
+        }
+
+        TournamentAwardsDTO dto = new TournamentAwardsDTO();
+        dto.tournamentId = tournamentId;
+
+        // Top batsmen (top 3)
+        List<PlayerStatDTO> topBatsmen = metrics.stream()
+                .filter(m -> m.ballsFaced > 0)
+                .sorted(Comparator.comparingInt((PlayerMetrics m) -> m.runs).reversed()
+                        .thenComparingInt(m -> m.highestInnings).reversed()
+                        .thenComparingDouble(m -> m.strikeRate).reversed())
+                .limit(3)
+                .map(m -> {
+                    Player p = playerRepo.findById(m.playerId).orElse(null);
+                    PlayerStatDTO ps = new PlayerStatDTO();
+                    ps.playerId = m.playerId;
+                    ps.playerName = p != null ? p.getName() : "Unknown";
+                    ps.runs = m.runs;
+                    ps.wickets = m.wickets;
+                    ps.pomCount = m.pomCount;
+                    ps.compositeScore = 0.0;
+                    return ps;
+                }).collect(Collectors.toList());
+
+        dto.topBatsmen = topBatsmen;
+        if (!topBatsmen.isEmpty()) {
+            dto.bestBatsmanId = topBatsmen.get(0).playerId;
+            dto.bestBatsmanName = topBatsmen.get(0).playerName;
+            dto.bestBatsmanRuns = topBatsmen.get(0).runs;
+        }
+
+        // Top bowlers (top 3)
+        List<PlayerStatDTO> topBowlers = metrics.stream()
+                .filter(m -> m.ballsBowled > 0)
+                .sorted(Comparator.comparingInt((PlayerMetrics m) -> m.wickets).reversed()
+                        .thenComparingDouble(m -> m.economy)
+                        .thenComparingDouble(m -> m.bowlingAverage))
+                .limit(3)
+                .map(m -> {
+                    Player p = playerRepo.findById(m.playerId).orElse(null);
+                    PlayerStatDTO ps = new PlayerStatDTO();
+                    ps.playerId = m.playerId;
+                    ps.playerName = p != null ? p.getName() : "Unknown";
+                    ps.runs = m.runs;
+                    ps.wickets = m.wickets;
+                    ps.pomCount = m.pomCount;
+                    ps.compositeScore = 0.0;
+                    return ps;
+                }).collect(Collectors.toList());
+
+        dto.topBowlers = topBowlers;
+        if (!topBowlers.isEmpty()) {
+            dto.bestBowlerId = topBowlers.get(0).playerId;
+            dto.bestBowlerName = topBowlers.get(0).playerName;
+            dto.bestBowlerWickets = topBowlers.get(0).wickets;
+        }
+
+        // Compute Man of Tournament using a composite score
+        // weights are configurable - change as you wish
+        Map<Long, Double> composite = new HashMap<>();
+        for (PlayerMetrics m : metrics) {
+            double score = 0.0;
+            score += m.runs * 1.0;
+            score += m.wickets * 20.0;
+            score += m.sixes * 3.0;
+            score += m.fours * 1.0;
+            score += m.pomCount * 50.0;
+            if (m.ballsFaced > 0) score += m.strikeRate / 10.0;
+            if (m.ballsBowled > 0) {
+                double econBonus = Math.max(0.0, 6.0 - m.economy) * 5.0;
+                score += econBonus;
+            }
+            composite.put(m.playerId, score);
+        }
+
+        Optional<Map.Entry<Long, Double>> best = composite.entrySet().stream().max(Map.Entry.comparingByValue());
+        if (best.isPresent()) {
+            Long bestPlayerId = best.get().getKey();
+            Player p = playerRepo.findById(bestPlayerId).orElse(null);
+            dto.manOfTournamentId = bestPlayerId;
+            dto.manOfTournamentName = p != null ? p.getName() : "Unknown";
+        }
+
+        // attach composite scores into the top lists for UI convenience
+        for (PlayerStatDTO ps : dto.topBatsmen) {
+            ps.compositeScore = composite.getOrDefault(ps.playerId, 0.0);
+        }
+        for (PlayerStatDTO ps : dto.topBowlers) {
+            ps.compositeScore = composite.getOrDefault(ps.playerId, 0.0);
+        }
+
+        return dto;
     }
 
     public AwardsDTO ensureAndGetAwards(Long matchId) {
@@ -261,5 +465,4 @@ public class AwardService {
         if (m.getBestBowler()!=null) { dto.bestBowlerId = m.getBestBowler().getId(); dto.bestBowlerName = m.getBestBowler().getName(); }
         return dto;
     }
-
 }

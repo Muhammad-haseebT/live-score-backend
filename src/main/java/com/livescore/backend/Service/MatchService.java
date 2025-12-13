@@ -9,6 +9,7 @@ import com.livescore.backend.Interface.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 
@@ -217,7 +218,7 @@ public class MatchService {
         return ResponseEntity.ok().body("Match started successfully");
     }
 
-
+    @Transactional
     public ResponseEntity<?> endMatch(Long matchId) {
         // 1. Get match
         Match match = matchInterface.findById(matchId).orElse(null);
@@ -229,10 +230,10 @@ public class MatchService {
         match.setStatus("FINISHED");
         matchInterface.save(match);
 
-        // 3. Update points table for teams
+
         ptsTableService.updatePointsTableAfterMatch(matchId);
 
-        // 4. Get all players from match
+
 
         List<Player> playersTeam1 = playerRequestInterface.findApprovedPlayersByTeamId(match.getTeam1().getId());
         List<Player> playersTeam2 = playerRequestInterface.findApprovedPlayersByTeamId(match.getTeam2().getId());

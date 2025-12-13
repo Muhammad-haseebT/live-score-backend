@@ -1,16 +1,24 @@
 package com.livescore.backend.Entity;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
-import lombok.Data;
+import lombok.*;
 
 import java.time.LocalDate;
 import java.util.Collection;
 import java.util.List;
 // Season.java
 @Entity
-@Data
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@ToString(exclude = {
+        "account",
+        "tournaments"
+})
 public class Season {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -29,7 +37,7 @@ public class Season {
     // Season -> Account (many-to-one)
     @ManyToOne
     @JoinColumn(name = "account_id")
-    @JsonBackReference("account-seasons")
+
     private Account account;
 
     // ManyToMany with Sports - break recursion by not using managed/backrefs here.
@@ -41,7 +49,7 @@ public class Season {
 
     // Season -> Tournament (one-to-many)
     @OneToMany(mappedBy = "season", cascade = CascadeType.ALL)
-    @JsonManagedReference("season-tournaments")
+    @JsonIgnore
     private List<Tournament> tournaments;
 
 

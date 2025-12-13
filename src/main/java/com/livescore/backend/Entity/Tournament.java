@@ -1,14 +1,27 @@
 package com.livescore.backend.Entity;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
-import lombok.Data;
+import lombok.*;
+
 import java.time.LocalDate;
 import java.util.List;
 // Tournament.java
 @Entity
-@Data
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@ToString(exclude = {
+        "organizer",
+        "season",
+        "teams",
+        "matches",
+        "sport",
+        "stats"
+})
 public class Tournament {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -25,36 +38,36 @@ public class Tournament {
     private String tournamentStage;//round-robin,knock out
 
     // Tournament -> Account (organizer) many-to-one
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "organizer_id")
-    @JsonBackReference("account-tournaments")
+    @JsonIgnore
     private Account organizer;
 
     // Tournament -> Sports (many-to-one)
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "sports_id")
-    @JsonBackReference("sport-tournaments")
+    @JsonIgnore
     private Sports sport;
 
     // Tournament -> Season (many-to-one)
     @ManyToOne
     @JoinColumn(name = "season_id")
-    @JsonBackReference("season-tournaments")
+    @JsonIgnore
     private Season season;
 
     // Tournament -> Team (one-to-many)
     @OneToMany(mappedBy = "tournament", cascade = CascadeType.ALL)
-    @JsonManagedReference("tournament-teams")
+    @JsonIgnore
     private List<Team> teams;
 
     // Tournament -> Match (one-to-many)
     @OneToMany(mappedBy = "tournament", cascade = CascadeType.ALL)
-    @JsonManagedReference("tournament-matches")
+    @JsonIgnore
     private List<Match> matches;
 
     // Tournament -> Stats (one-to-many)
     @OneToMany(mappedBy = "tournament", cascade = CascadeType.ALL)
-    @JsonManagedReference("tournament-stats")
+    @JsonIgnore
     private List<Stats> stats;
 
 

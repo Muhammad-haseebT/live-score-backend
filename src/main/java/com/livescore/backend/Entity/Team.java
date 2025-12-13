@@ -4,10 +4,16 @@ import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.ToString;
+
 import java.util.List;
 // Team.java
 @Entity
 @Data
+@ToString(exclude = {"players", "playerRequests", "pointsTableEntry"})
+@EqualsAndHashCode(exclude = {"players", "playerRequests", "pointsTableEntry"})
+
 public class Team {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

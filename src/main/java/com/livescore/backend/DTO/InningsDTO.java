@@ -15,4 +15,8 @@ public class InningsDTO {
     public String oversString; // e.g., "14.3"
     public int extras;
     public List<BallDTO> balls; // optional: ball-by-ball
+    public List<BattingScoreDTO> battingScores;
+    public List<BowlingScoreDTO> bowlingScores;
+
+
 }

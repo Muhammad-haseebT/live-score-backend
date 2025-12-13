@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashMap;
 import java.util.List;
@@ -21,6 +22,7 @@ public class PtsTableService {
 
     @Autowired
     private CricketInningsInterface inningsInterface;
+
     public ResponseEntity<?> createPtsTable(PtsTable ptsTable) {
 
         // ID user se aani hi nahi chahiye. Agar aa rahi hai to error feko
@@ -46,7 +48,7 @@ public class PtsTableService {
         return ResponseEntity.ok("PtsTable created successfully");
     }
 
-
+    @Transactional
     public ResponseEntity<?> updatePointsTableAfterMatch(Long matchId) {
 
         if (matchId == null || matchId <= 0) {
@@ -79,7 +81,7 @@ public class PtsTableService {
             loser = match.getTeam1();
         }
 
-        Long tournamentId = match.getTournament().getId();
+        Long tournamentId = match.getTournament() != null ? match.getTournament().getId() : null;
         if (tournamentId == null) {
             return ResponseEntity.badRequest()
                     .body("Tournament not found for this match");
@@ -103,16 +105,18 @@ public class PtsTableService {
 
 
         // --- UPDATE POINTS TABLE ---
-        ptsWinner.setPlayed(ptsWinner.getPlayed() + 1);
-        ptsLoser.setPlayed(ptsLoser.getPlayed() + 1);
+        ptsWinner.setPlayed(safeInc(ptsWinner.getPlayed()));
+        ptsLoser.setPlayed(safeInc(ptsLoser.getPlayed()));
 
-        ptsWinner.setWins(ptsWinner.getWins() + 1);
-        ptsLoser.setLosses(ptsLoser.getLosses() + 1);
+        ptsWinner.setWins(safeInc(ptsWinner.getWins()));
+        ptsLoser.setLosses(safeInc(ptsLoser.getLosses()));
 
-        ptsWinner.setPoints(ptsWinner.getPoints() + 2);
-        ptsLoser.setPoints(ptsLoser.getPoints() - 2);
+        // Correct points handling: winner +2, loser 0 (do NOT subtract)
+        ptsWinner.setPoints(safeAdd(ptsWinner.getPoints(), 2));
+        ptsLoser.setPoints(safeAdd(ptsLoser.getPoints(), -2));
+        // ptsLoser points unchanged
 
-        // NRR calculations
+        // NRR calculations (match-wise)
         double winnerNrr = calculateTeamNrr(winner.getId(), tournamentId);
         double loserNrr = calculateTeamNrr(loser.getId(), tournamentId);
 
@@ -121,7 +125,8 @@ public class PtsTableService {
 
         ptsTableInterface.save(ptsWinner);
         ptsTableInterface.save(ptsLoser);
-
+        System.out.println(ptsWinner);
+        System.out.println(ptsLoser);
 
         // --- SUCCESS RESPONSE ---
         Map<String, Object> response = new HashMap<>();
@@ -133,6 +138,7 @@ public class PtsTableService {
         response.put("winnerNRR", winnerNrr);
         response.put("loserNRR", loserNrr);
 
+
         return ResponseEntity.ok(response);
     }
 
@@ -143,39 +149,48 @@ public class PtsTableService {
     // -------------------------------
     public double calculateTeamNrr(Long teamId, Long tournamentId) {
 
-        List<CricketInnings> teamInnings =
-                inningsInterface.findByTeamAndTournament(teamId, tournamentId);
+        if (teamId == null || tournamentId == null) return 0.0;
 
+        // IMPORTANT: this repository method should return only completed matches
+        // for the provided team in the given tournament (see repo JPQL I suggested).
+        List<Match> matches =
+                matchInterface.findCompletedMatchesByTeam(teamId, tournamentId);
 
+        if (matches == null || matches.isEmpty()) return 0.0;
 
-        double totalRunsScored = 0;
-        double totalOversFaced = 0;
-        double totalRunsConceded = 0;
-        double totalOversBowled = 0;
+        long runsScored = 0L;
+        double oversFaced = 0.0;
+        long runsConceded = 0L;
+        double oversBowled = 0.0;
 
-        for (CricketInnings inn : teamInnings) {
+        for (Match match : matches) {
+            if (match == null) continue;
 
-            // Team innings
-            InningsData self = calculateInningsStats(inn);
-            totalRunsScored += self.runs;
-            totalOversFaced += self.overs;
+            CricketInnings myInnings =
+                    inningsInterface.findByMatchAndTeam(match.getId(), teamId);
 
-            CricketInnings opponent =
-                    inningsInterface.findOpponentInnings(
-                            inn.getMatch().getId(), teamId
-                    );
+            CricketInnings oppInnings =
+                    inningsInterface.findOpponentInnings(match.getId(), teamId);
 
-            if (opponent != null) {
-                InningsData opp = calculateInningsStats(opponent);
-                totalRunsConceded += opp.runs;
-                totalOversBowled += opp.overs;
+            if (myInnings == null || oppInnings == null) {
+                // skip incomplete records
+                continue;
             }
+
+            InningsData self = calculateInningsStats(myInnings);
+            InningsData opp = calculateInningsStats(oppInnings);
+
+            runsScored += self.runs;
+            oversFaced += self.overs;
+
+            runsConceded += opp.runs;
+            oversBowled += opp.overs;
         }
 
-        if (totalOversFaced == 0 || totalOversBowled == 0) return 0;
+        if (oversFaced <= 0.0 || oversBowled <= 0.0) return 0.0;
 
-        return (totalRunsScored / totalOversFaced) -
-                (totalRunsConceded / totalOversBowled);
+        double nrr = ((double) runsScored / oversFaced) - ((double) runsConceded / oversBowled);
+        return roundToThreeDecimals(nrr);
     }
 
     public ResponseEntity<?> deletePtsTable(Long id) {
@@ -201,56 +216,80 @@ public class PtsTableService {
     public ResponseEntity<?> getPointsTableByTournamentId(Long tournamentId) {
         return ResponseEntity.ok(ptsTableInterface.findByTournamentId(tournamentId));
     }
+
+    // changed InningsData to use long runs for safety
     private static class InningsData {
-        int runs;
+        long runs;
         double overs;
+        public InningsData() {}
+        public InningsData(long runs, double overs) {
+            this.runs = runs;
+            this.overs = overs;
+        }
     }
 
+    /**
+     * Calculate innings stats from ball list attached to the innings.
+     * This method:
+     *  - sums runs (including extras if separately stored)
+     *  - counts legal deliveries (excluding WIDE and NO_BALL)
+     *  - converts legal deliveries to overs decimal (e.g., 88 balls -> 14.666...)
+     */
     private InningsData calculateInningsStats(CricketInnings innings) {
+        if (innings == null) return new InningsData(0L, 0.0);
 
         List<CricketBall> balls = innings.getBalls();
+        if (balls == null || balls.isEmpty()) return new InningsData(0L, 0.0);
 
-        int totalRuns = 0;
-
-        Map<Integer, Integer> legalBalls = new HashMap<>();
+        long totalRuns = 0L;
+        long legalBallCount = 0L;
 
         for (CricketBall ball : balls) {
+            if (ball == null) continue;
 
-            // Runs
-            totalRuns += ball.getRuns();
-            if(ball.getExtra() != null){
-                totalRuns += ball.getExtra();
-            }
+            // Sum runs: ball.runs (from bat) + extra (if stored separately)
+            int ballRuns = safeInt(ball.getRuns());
+            int extra = safeInt(ball.getExtra());
+            totalRuns += (ballRuns + extra);
 
-            // Legal vs Illegal balls
-            if (ball.getExtraType() == null || isLegalDelivery(ball.getExtraType())) {
-                legalBalls.merge(ball.getOverNumber(), 1, Integer::sum);
+            // Count legal deliveries: wides and no-balls are NOT legal deliveries (don't increment)
+            String extraType = ball.getExtraType();
+            if (isLegalDelivery(extraType)) {
+                legalBallCount++;
             }
         }
 
-        int completedOvers = 0;
-        int ballsInCurrentOver = 0;
-
-        for (int count : legalBalls.values()) {
-            if (count == 6) completedOvers++;
-            else ballsInCurrentOver = count;
-        }
-
-        double overs = completedOvers + (ballsInCurrentOver / 6.0);
-
-        InningsData data = new InningsData();
-        data.runs = totalRuns;
-        data.overs = overs;
-
-        return data;
+        double overs = convertBallsToOvers(legalBallCount);
+        return new InningsData(totalRuns, overs);
     }
 
 
-    // -------------------------------
-    // 4. LEGAL DELIVERY CHECK
-    // -------------------------------
+
     private boolean isLegalDelivery(String extraType) {
-        return !extraType.equals("WIDE") && !extraType.equals("NO_BALL");
+        if (extraType == null) return true;
+        String t = extraType.trim().toUpperCase();
+        return !(t.equals("WIDE") || t.equals("NO_BALL"));
+    }
+
+    // Convert number of legal balls to overs decimal (e.g., 88 -> 14.6666667)
+    private double convertBallsToOvers(long legalBalls) {
+        long completeOvers = legalBalls / 6;
+        long remainingBalls = legalBalls % 6;
+        return completeOvers + (remainingBalls / 6.0);
+    }
+
+    private double roundToThreeDecimals(double v) {
+        return Math.round(v * 1000.0) / 1000.0;
+    }
+
+    // small safe helpers
+    private int safeInc(Integer x) {
+        return (x == null) ? 1 : x + 1;
+    }
+    private int safeAdd(Integer x, int add) {
+        return (x == null) ? add : x + add;
+    }
+    private int safeInt(Integer x) {
+        return x == null ? 0 : x;
     }
 }
-

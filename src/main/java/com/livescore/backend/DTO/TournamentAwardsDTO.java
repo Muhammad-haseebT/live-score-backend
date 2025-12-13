@@ -1,0 +1,25 @@
+package com.livescore.backend.DTO;
+
+import lombok.Data;
+
+import java.util.List;
+
+@Data
+public class TournamentAwardsDTO {
+    public Long tournamentId;
+
+    public Long manOfTournamentId;
+    public String manOfTournamentName;
+
+    public Long bestBatsmanId;
+    public String bestBatsmanName;
+    public Integer bestBatsmanRuns;
+
+    public Long bestBowlerId;
+    public String bestBowlerName;
+    public Integer bestBowlerWickets;
+
+    // optional: lists for top-3
+    public List<PlayerStatDTO> topBatsmen;
+    public List<PlayerStatDTO> topBowlers;
+}

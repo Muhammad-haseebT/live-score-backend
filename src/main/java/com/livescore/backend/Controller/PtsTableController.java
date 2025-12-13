@@ -10,7 +10,6 @@ import org.springframework.web.bind.annotation.*;
 public class PtsTableController {
     @Autowired
     private PtsTableService ptsTableService;
-
     @PostMapping("/ptsTable")
     public ResponseEntity<?> createPtsTable(@RequestBody PtsTable ptsTable) {
         return ptsTableService.createPtsTable(ptsTable);

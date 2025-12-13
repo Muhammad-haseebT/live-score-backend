@@ -21,4 +21,14 @@ public interface CricketInningsInterface extends JpaRepository<CricketInnings, L
     CricketInnings findOpponentInnings(@Param("matchId") Long matchId, @Param("teamId") Long teamId);
 
     CricketInnings findByMatchIdAndNo(Long matchId, int i);
+    @Query("""
+        SELECT ci FROM CricketInnings ci
+        WHERE ci.match.id = :matchId
+          AND ci.team.id = :teamId
+    """)
+    CricketInnings findByMatchAndTeam(
+            @Param("matchId") Long matchId,
+            @Param("teamId") Long teamId
+    );
+
 }
