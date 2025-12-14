@@ -67,21 +67,18 @@ public class StatsService {
             List<CricketBall> bowlerBalls  = cricketBallInterface.findBowlerBalls(tournamentId, playerId);
             List<CricketBall> fielderBalls = cricketBallInterface.findFielderBalls(tournamentId, playerId);
 
-            // --- BATTING ---
-            // Exclude wides from balls faced (wides do not count as ball faced).
-            // Treat no-ball depending on extraType; commonly no-ball does NOT count as legal ball but batsman may face it.
-            // Here we *exclude* wides and no-balls from balls counted as "legal" deliveries if you want strictly legal balls.
-            // If you want to include no-ball as ball faced, remove the no-ball filter.
+
             Predicate<CricketBall> isWide = cb -> {
                 String et = cb.getExtra() == null ? null : cb.getExtraType();
                 return et != null && et.toLowerCase().contains("wide");
             };
+
             Predicate<CricketBall> isNoBall = cb -> {
                 String et = cb.getExtra() == null ? null : cb.getExtraType();
                 return et != null && (et.toLowerCase().contains("no") || et.toLowerCase().contains("noball"));
             };
 
-            // runs by batsman (includes runs field only; extras not added here)
+
             int totalRuns = batsmanBalls.stream()
                     .mapToInt(cb -> cb.getRuns() != null ? cb.getRuns() : 0)
                     .sum();
@@ -89,7 +86,7 @@ public class StatsService {
             // balls faced: exclude wides (and optionally no-balls if you prefer)
             long ballsFaced = batsmanBalls.stream()
                     .filter(cb -> !isWide.test(cb))   // exclude wides
-                    // .filter(cb -> !isNoBall.test(cb)) // optionally exclude no-balls if you want
+                     .filter(cb -> !isNoBall.test(cb))
                     .count();
 
             // highest per-innings: group by innings id and sum runs per innings, take max
@@ -99,7 +96,7 @@ public class StatsService {
                             Collectors.summingInt(cb -> cb.getRuns() != null ? cb.getRuns() : 0)));
             int highest = runsPerInnings.values().stream().mapToInt(Integer::intValue).max().orElse(0);
 
-            // notOut: count innings where player faced at least one ball and never had a dismissal recorded in that innings
+
             Set<Long> inningsWithAnyBall = batsmanBalls.stream()
                     .filter(cb -> cb.getInnings() != null && cb.getInnings().getId() != null)
                     .map(cb -> cb.getInnings().getId())
@@ -114,11 +111,11 @@ public class StatsService {
                     .filter(innId -> !inningsWhereOut.contains(innId))
                     .count();
 
-            // strikeRate: integer percent
+
             int strikeRate = (ballsFaced == 0) ? 0 : (int) Math.round(((double) totalRuns * 100.0) / (double) ballsFaced);
 
             // --- BOWLING ---
-            // runs conceded: include runs + extras that count against bowler (wides, no-balls).
+
             int runsConceded = bowlerBalls.stream()
                     .mapToInt(cb -> {
                         int r = cb.getRuns() != null ? cb.getRuns() : 0;
@@ -245,13 +242,13 @@ public class StatsService {
             if (Boolean.TRUE.equals(ball.getIsFour())) batStats.setFours(batStats.getFours() + 1);
             if (Boolean.TRUE.equals(ball.getIsSix())) batStats.setSixes(batStats.getSixes() + 1);
 
-            // highest: we need to track runs by innings for highest; easier is to recompute highest on demand
-            if (runs > batStats.getHighest()) batStats.setHighest(runs); // this only compares single-ball not innings — optional improvement: compute innings totals separately
+
+            if (runs > batStats.getHighest()) batStats.setHighest(runs);
 
             statsInterface.save(batStats);
         }
 
-        // --- Bowler updates ---
+
         Player bowler = ball.getBowler();
         if (bowler != null) {
             Stats bowlStats = statsInterface.findByTournamentIdAndPlayerId(tournament.getId(), bowler.getId())
@@ -547,6 +544,17 @@ public class StatsService {
 
         return dto;
     }
+
+
+
+
+
+
+
+
+
+
+
 
     private double roundTo2(double val) {
         if (Double.isInfinite(val) || Double.isNaN(val)) return val;

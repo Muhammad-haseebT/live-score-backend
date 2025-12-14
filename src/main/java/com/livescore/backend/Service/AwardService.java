@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
@@ -25,31 +26,30 @@ public class AwardService {
     @Autowired
     private MatchInterface matchRepo;
     @Autowired
-    private StatsService statsService; // optional, to update Stats.highest from innings
+    private StatsService statsService;
 
     @Transactional
     public void computeMatchAwards(Long matchId) {
-        // --- YOUR EXISTING METHOD (unchanged) ---
         Match match = matchRepo.findById(matchId).orElseThrow();
         List<CricketBall> balls = cricketBallInterface.findByMatch_Id(matchId);
         if (balls == null || balls.isEmpty()) return;
 
-        // per-player aggregation holder
+        //is me hum calculation kare ge
         class Agg {
             long playerId;
             int runs = 0;
-            int ballsFaced = 0; // legal deliveries faced as batsman
+            int ballsFaced = 0;
             int fours = 0;
             int sixes = 0;
             int wickets = 0;
             int runsConceded = 0;
-            int ballsBowled = 0; // legal deliveries bowled
+            int ballsBowled = 0;
             Map<Long, Integer> inningsRuns = new HashMap<>();
         }
 
         Map<Long, Agg> map = new HashMap<>();
 
-        java.util.function.Function<Player, Agg> getAgg = (player) -> {
+        Function<Player, Agg> getAgg = (player) -> {
             if (player == null) return null;
             return map.computeIfAbsent(player.getId(), id -> {
                 Agg a = new Agg();
@@ -82,6 +82,7 @@ public class AwardService {
                 if (Boolean.TRUE.equals(b.getLegalDelivery())) a.ballsBowled += 1;
 
                 // wickets credit (exclude runout)
+
                 String d = b.getDismissalType();
                 if (d != null) {
                     d = d.toLowerCase();
@@ -121,16 +122,21 @@ public class AwardService {
             pm.ballsBowled = a.ballsBowled;
             pm.highestInnings = a.inningsRuns.values().stream().mapToInt(Integer::intValue).max().orElse(0);
 
-            if (pm.ballsFaced > 0) pm.strikeRate = (double) pm.runs * 100.0 / pm.ballsFaced;
-            else pm.strikeRate = 0.0;
+            if (pm.ballsFaced > 0)
+                pm.strikeRate = (double) pm.runs * 100.0 / pm.ballsFaced;
+            else
+                pm.strikeRate = 0.0;
 
             if (pm.ballsBowled > 0) {
                 double overs = pm.ballsBowled / 6.0;
                 pm.economy = pm.runsConceded / overs;
-            } else pm.economy = Double.POSITIVE_INFINITY;
+            } else
+                pm.economy = Double.POSITIVE_INFINITY;
 
-            if (pm.wickets > 0) pm.bowlingAverage = (double) pm.runsConceded / pm.wickets;
-            else pm.bowlingAverage = Double.POSITIVE_INFINITY;
+            if (pm.wickets > 0)
+                pm.bowlingAverage = (double) pm.runsConceded / pm.wickets;
+            else
+                pm.bowlingAverage = Double.POSITIVE_INFINITY;
 
             metrics.add(pm);
         }
@@ -147,7 +153,9 @@ public class AwardService {
         PlayerMetrics bestBowl = null;
         for (PlayerMetrics pm : metrics) {
             if (pm.ballsBowled == 0) continue;
-            if (bestBowl == null) { bestBowl = pm; continue; }
+            if (bestBowl == null) {
+                bestBowl = pm; continue;
+            }
             if (pm.wickets > bestBowl.wickets) bestBowl = pm;
             else if (pm.wickets == bestBowl.wickets) {
                 if (Double.compare(pm.economy, bestBowl.economy) < 0) bestBowl = pm; // lower economy wins
@@ -169,7 +177,8 @@ public class AwardService {
             score += pm.wickets * 30.0;
             score += pm.sixes * 3.0;
             score += pm.fours * 1.0;
-            if (pm.ballsFaced > 0) score += pm.strikeRate / 10.0;
+            if (pm.ballsFaced > 0)
+                score += pm.strikeRate / 10.0;
             if (pm.ballsBowled > 0) {
                 double economyBonus = Math.max(0.0, 6.0 - pm.economy) * 5.0;
                 score += economyBonus;
@@ -216,23 +225,12 @@ public class AwardService {
         }
     }
 
-    // ----------------- NEW: Tournament-level awards -----------------
-
-    /**
-     * Ensure tournament awards are computed and return DTO.
-     * This is on-demand and idempotent.
-     */
+    // ----------------- NEW: Tournament-level awards ---------
     @Transactional(readOnly = true)
     public TournamentAwardsDTO ensureAndGetTournamentAwards(Long tournamentId) {
-        // compute on-demand
         return computeTournamentAwards(tournamentId);
     }
 
-    /**
-     * Compute tournament awards by aggregating data across all matches in the tournament.
-     * This is a full-scan approach (reads all matches and all balls). Swap to incremental
-     * if performance becomes an issue.
-     */
     @Transactional
     public TournamentAwardsDTO computeTournamentAwards(Long tournamentId) {
         // gather all matches for the tournament
@@ -255,13 +253,13 @@ public class AwardService {
             int wickets = 0;
             int runsConceded = 0;
             int ballsBowled = 0;
-            Map<Long, Integer> inningsRuns = new HashMap<>(); // key: inningsId (global unique)
-            int pomCount = 0; // player-of-match count across matches
+            Map<Long, Integer> inningsRuns = new HashMap<>();
+            int pomCount = 0;
         }
 
         Map<Long, Agg> map = new HashMap<>();
 
-        java.util.function.Function<Player, Agg> getAgg = (player) -> {
+        Function<Player, Agg> getAgg = (player) -> {
             if (player == null) return null;
             return map.computeIfAbsent(player.getId(), id -> {
                 Agg a = new Agg();
@@ -498,4 +496,5 @@ public class AwardService {
         if (m.getBestBowler()!=null) { dto.bestBowlerId = m.getBestBowler().getId(); dto.bestBowlerName = m.getBestBowler().getName(); }
         return dto;
     }
+
 }

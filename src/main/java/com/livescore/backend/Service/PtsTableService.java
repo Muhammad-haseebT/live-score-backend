@@ -27,12 +27,12 @@ public class PtsTableService {
 
     public ResponseEntity<?> createPtsTable(PtsTable ptsTable) {
 
-        // ID user se aani hi nahi chahiye. Agar aa rahi hai to error feko
+
         if (ptsTable.getId() != null && ptsTableInterface.existsById(ptsTable.getId())) {
             return ResponseEntity.badRequest().body("PtsTable with id " + ptsTable.getId() + " already exists");
         }
 
-        // Check team + tournament unique
+
         if (ptsTableInterface.existsByTeamIdAndTournamentId(
                 ptsTable.getTeam().getId(),
                 ptsTable.getTournament().getId()
@@ -113,10 +113,10 @@ public class PtsTableService {
         ptsWinner.setWins(safeInc(ptsWinner.getWins()));
         ptsLoser.setLosses(safeInc(ptsLoser.getLosses()));
 
-        // Correct points handling: winner +2, loser 0 (do NOT subtract)
+
         ptsWinner.setPoints(safeAdd(ptsWinner.getPoints(), 2));
         ptsLoser.setPoints(safeAdd(ptsLoser.getPoints(), 0));
-        // ptsLoser points unchanged
+
 
         // NRR calculations (match-wise)
         double winnerNrr = calculateTeamNrr(winner.getId(), tournamentId);
@@ -153,8 +153,6 @@ public class PtsTableService {
 
         if (teamId == null || tournamentId == null) return 0.0;
 
-        // IMPORTANT: this repository method should return only completed matches
-        // for the provided team in the given tournament (see repo JPQL I suggested).
         List<Match> matches =
                 matchInterface.findCompletedMatchesByTeam(teamId, tournamentId);
 
@@ -231,13 +229,7 @@ public class PtsTableService {
         }
     }
 
-    /**
-     * Calculate innings stats from ball list attached to the innings.
-     * This method:
-     *  - sums runs (including extras if separately stored)
-     *  - counts legal deliveries (excluding WIDE and NO_BALL)
-     *  - converts legal deliveries to overs decimal (e.g., 88 balls -> 14.666...)
-     */
+
     private InningsData calculateInningsStats(CricketInnings innings) {
         if (innings == null) return new InningsData(0L, 0.0);
 
@@ -250,12 +242,12 @@ public class PtsTableService {
         for (CricketBall ball : balls) {
             if (ball == null) continue;
 
-            // Sum runs: ball.runs (from bat) + extra (if stored separately)
+
             int ballRuns = safeInt(ball.getRuns());
             int extra = safeInt(ball.getExtra());
             totalRuns += (ballRuns + extra);
 
-            // Count legal deliveries: wides and no-balls are NOT legal deliveries (don't increment)
+
             String extraType = ball.getExtraType();
             if (isLegalDelivery(extraType)) {
                 legalBallCount++;

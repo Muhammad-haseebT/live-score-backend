@@ -38,33 +38,29 @@ public class LiveSCoringService {
     @Transactional
     public ScoreDTO scoring(ScoreDTO s) {
 
-//        if(s.getEventType().equalsIgnoreCase("undo")){
-//            undo(s.getMatchId(),s.getInningsId());
-//            return s;
-//        }
 
         if (s == null) throw new RuntimeException("ScoreDTO required");
+
         Match m = matchRepo.findById(s.getMatchId()).orElseThrow(() -> new RuntimeException("Match not found"));
         CricketInnings currentInnings = cricketInningsRepo.findById(s.getInningsId()).orElseThrow(() -> new RuntimeException("Innings not found"));
 
         int maxBallsPerInnings = (m.getOvers() == 0 ? 0 : m.getOvers() * 6);
 
-        // count current legal balls and wickets before processing this new ball
+
         long legalBallsSoFar = cricketBallInterface.countLegalBallsByInningsId(currentInnings.getId());
         long wicketsSoFar = cricketBallInterface.countWicketsByInningsId(currentInnings.getId());
 
 
-        boolean proceed = true;
 
-        // If innings already reached max overs, end or finalize
+
+
         if (legalBallsSoFar >= maxBallsPerInnings) {
-            // innings finished by overs
+
             s.setStatus("end");
 
             return handleEndOfInningsAndMaybeCreateNext(s, m, currentInnings);
         }
 
-        // Build ball entity
         CricketBall ball = new CricketBall();
         ball.setInnings(currentInnings);
         ball.setBatsman(s.getBatsmanId() == null ? null : playerRepo.findById(s.getBatsmanId()).orElse(null));
@@ -77,7 +73,7 @@ public class LiveSCoringService {
 
         if (s.getEventType() == null) throw new RuntimeException("eventType required");
 
-        // default init
+
         ball.setRuns(0);
         ball.setExtra(0);
         ball.setExtraType(null);
@@ -105,9 +101,9 @@ public class LiveSCoringService {
                 break;
             }
             case "wide": {
-                int w = parseIntSafe(s.getEvent()); // usually 0 or extras
+                int w = parseIntSafe(s.getEvent());
                 ball.setRuns(0);
-                ball.setExtra(w + 1); // 1 + any overthrow/run off wide
+                ball.setExtra(w + 1);
                 ball.setExtraType("WIDE");
                 ball.setLegalDelivery(false);
                 break;
@@ -145,11 +141,11 @@ public class LiveSCoringService {
                     outPlayer = ball.getBatsman();
                 }
                 ball.setOutPlayer(outPlayer);
-                // runs on this ball (could be 0 or some runs)
+
                 ball.setRuns(s.getRunsOnThisBall());
                 ball.setExtra(s.getExtrasThisBall());
                 ball.setLegalDelivery(true);
-                // fielder if applicable
+
                 if (dismissal != null && (dismissal.equalsIgnoreCase("caught") || dismissal.equalsIgnoreCase("runout") || dismissal.equalsIgnoreCase("stumped"))) {
                     ball.setFielder(s.getFielderId() == null ? null : playerRepo.findById(s.getFielderId()).orElse(null));
                 }
@@ -161,18 +157,15 @@ public class LiveSCoringService {
         if(s.getMediaId()!=null){
             ball.setMedia(mediaRepo.findById(s.getMediaId()).orElse(null));
         }
-
-        // Save the ball
         cricketBallInterface.save(ball);
-
-        // Update tournament / player stats
         statsService.updateTournamentStats(ball);
 
-        // Recalculate authoritative innings totals after saving
         List<CricketBall> inningsBalls = cricketBallInterface.findByMatch_IdAndInnings_Id(m.getId(), currentInnings.getId());
+
         int inningsRuns = inningsBalls.stream().mapToInt(b -> (b.getRuns() == null ? 0 : b.getRuns()) + (b.getExtra() == null ? 0 : b.getExtra())).sum();
 
         int legalBallsNow = (int) inningsBalls.stream().filter(b -> Boolean.TRUE.equals(b.getLegalDelivery())).count();
+
         int wicketsNow = (int) inningsBalls.stream().filter(b -> b.getDismissalType() != null && !b.getDismissalType().trim().isEmpty()).count();
 
         // Update DTO live values
@@ -199,7 +192,7 @@ public class LiveSCoringService {
 
             int remainingBalls = Math.max(0, maxBallsPerInnings - legalBallsNow);
 
-            if (remainingRuns <= 0) {
+            if (remainingRuns < 0) {
 
                 Team chasingTeam = currentInnings.getTeam();
                 m.setWinnerTeam(chasingTeam);
@@ -244,7 +237,6 @@ public class LiveSCoringService {
                 }
             }
         } else {
-            // first innings: set target in DTO (runs scored)
             s.setTarget(inningsRuns);
         }
 
@@ -263,15 +255,15 @@ public class LiveSCoringService {
         } catch (Exception ignored) {
         }
 
-        int maxWickets = Math.max(0, teamPlayers - 1); // e.g., 11 players -> 10 wickets
+        int maxWickets = Math.max(0, teamPlayers - 1);
 
         if (wicketsNow >= maxWickets) {
             // innings ended by all-out
             if (s.isFirstInnings()) {
-                // create second innings
+
                 return handleEndOfInningsAndMaybeCreateNext(s, m, currentInnings);
             } else {
-                // second innings all out -> determine winner
+
                 CricketInnings firstInnings = cricketInningsRepo.findByMatchIdAndNo(m.getId(), 1);
                 int firstRuns = 0;
                 if (firstInnings != null) {
@@ -334,24 +326,18 @@ public class LiveSCoringService {
             }
         }
 
-        // normal ongoing ball: just return updated DTO with live CRR/RRR and target
+
         return s;
     }
 
 
-    public void undo(Long matchId,Long inningsId){
-        CricketInnings innings = cricketInningsRepo.findById(inningsId).orElseThrow(() -> new RuntimeException("Innings not found"));
-        CricketBall lastBall = cricketBallInterface.findFirstbyMatch_IdAndInnings_no(matchId, innings.getNo());
-        cricketBallInterface.delete(lastBall);
-
-    }
 
 
 
 
-    // helper: create second innings and return DTO
+
     private ScoreDTO handleEndOfInningsAndMaybeCreateNext(ScoreDTO s, Match m, CricketInnings currentInnings) {
-        // compute first innings total
+
         CricketInnings firstInnings = cricketInningsRepo.findByMatchIdAndNo(m.getId(), 1);
         int firstRuns = 0;
         if (firstInnings != null) {
@@ -359,7 +345,7 @@ public class LiveSCoringService {
             firstRuns = firstBalls.stream().mapToInt(b -> (b.getRuns() == null ? 0 : b.getRuns()) + (b.getExtra() == null ? 0 : b.getExtra())).sum();
         }
 
-        // if we're already in first innings, create second innings and return its id + status
+
         if (s.isFirstInnings()) {
             CricketInnings innings = new CricketInnings();
             innings.setMatch(m);
@@ -394,8 +380,7 @@ public class LiveSCoringService {
             s.setTarget(firstRuns + 1); // runs required to win
             return s;
         } else {
-            // already second innings -> end match (overs exhausted)
-            // determine winner
+
             CricketInnings second = cricketInningsRepo.findByMatchIdAndNo(m.getId(), 2);
             int secondRuns = 0;
             if (second != null) {
@@ -430,6 +415,7 @@ public class LiveSCoringService {
     }
 
     private double round2(double v) {
+
         return Math.round(v * 100.0) / 100.0;
     }
 }
