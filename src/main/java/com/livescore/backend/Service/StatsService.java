@@ -540,43 +540,10 @@ public class StatsService {
         dto.wickets = wickets;
         dto.ballsBowled = ballsBowled;
         dto.runsConceded = runsConceded;
-        dto.economy = (ballsBowled == 0) ? Double.POSITIVE_INFINITY : roundTo2((double) runsConceded * 6.0 / (double) ballsBowled);
-        dto.bowlingAverage = (wickets == 0) ? Double.POSITIVE_INFINITY : roundTo2((double) runsConceded / (double) wickets);
+        dto.economy = (ballsBowled == 0) ? 0 : roundTo2((double) runsConceded * 6.0 / (double) ballsBowled);
+        dto.bowlingAverage = (wickets == 0) ? 0 : roundTo2((double) runsConceded / (double) wickets);
 
-        // If matchId provided and match is active, compute CRR & RRR from match context
-        if (matchId != null) {
-            Match match = matchRepo.findById(matchId).orElse(null);
-            if (match != null) {
-                // find current innings (if player is batting team, compute CRR)
-                CricketInnings innings = cricketInningsRepo.findByMatchIdAndNo(matchId, 1); // your logic might pick proper innings
-                // For simplicity compute CRR as batting player's team innings if they batted this match:
-                if (innings != null) {
-                    List<CricketBall> inningsBalls = cricketBallInterface.findByMatch_IdAndInnings_Id(matchId, innings.getId());
-                    int inningsRuns = inningsBalls.stream().mapToInt(b -> (b.getRuns()==null?0:b.getRuns()) + (b.getExtra()==null?0:b.getExtra())).sum();
-                    int inningsBallsLegal = (int) inningsBalls.stream().filter(b -> Boolean.TRUE.equals(b.getLegalDelivery())).count();
-                    double crr = (inningsBallsLegal == 0) ? 0.0 : inningsRuns * 6.0 / inningsBallsLegal;
-                    dto.currentRunRate = roundTo2(crr);
-                }
-                // Required run rate only meaningful if this player is on chasing team and second innings exists
-                CricketInnings second = cricketInningsRepo.findByMatchIdAndNo(matchId, 2);
-                if (second != null) {
-                    // get target
-                    List<CricketBall> firstBalls = cricketBallInterface.findByMatch_IdAndInnings_Id(matchId, innings.getId());
-                    int firstRuns = firstBalls.stream().mapToInt(b -> (b.getRuns()==null?0:b.getRuns()) + (b.getExtra()==null?0:b.getExtra())).sum();
-                    int totalTarget = firstRuns + 1;
-                    // second innings so far
-                    List<CricketBall> secondBalls = cricketBallInterface.findByMatch_IdAndInnings_Id(matchId, second.getId());
-                    int secondRuns = secondBalls.stream().mapToInt(b -> (b.getRuns()==null?0:b.getRuns()) + (b.getExtra()==null?0:b.getExtra())).sum();
-                    int remainingRuns = totalTarget - secondRuns;
-                    int legalBallsSecond = (int) secondBalls.stream().filter(b -> Boolean.TRUE.equals(b.getLegalDelivery())).count();
-                    int maxBalls = match.getOvers() * 6;
-                    int remainingBalls = maxBalls - legalBallsSecond;
-                    if (remainingRuns <= 0) dto.requiredRunRate = 0.0;
-                    else if (remainingBalls <= 0) dto.requiredRunRate = Double.POSITIVE_INFINITY;
-                    else dto.requiredRunRate = roundTo2( (double) remainingRuns * 6.0 / (double) remainingBalls );
-                }
-            }
-        }
+
 
         return dto;
     }

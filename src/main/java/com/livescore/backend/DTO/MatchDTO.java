@@ -29,6 +29,7 @@ public class MatchDTO {
     private Long tossWinnerId;
     private String decision;
     private Long winnerTeamId;
+    private String winnerTeamName;
     private Long sportId;
     private int overs;
     private int sets;

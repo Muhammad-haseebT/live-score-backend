@@ -7,7 +7,7 @@ public class ScoreDTO {
     private int runs;
     private int overs;
     private int wickets;
-    private int balls;
+    private int balls=1;
     private String status;
     private int target;
      // RUN, BOUNDARY, SIX, EXTRA, WICKET

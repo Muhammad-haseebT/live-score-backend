@@ -20,7 +20,5 @@ public class PlayerStatsDTO {
 
     public int points; // your points calc
 
-    // optional: if match context present
-    public Double currentRunRate; // CRR (if batting context)
-    public Double requiredRunRate; // RRR (if chasing context)
+
 }

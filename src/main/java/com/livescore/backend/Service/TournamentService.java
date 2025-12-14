@@ -1,6 +1,8 @@
 package com.livescore.backend.Service;
 
 import com.livescore.backend.DTO.TournamentRequestDTO;
+import com.livescore.backend.Entity.Season;
+import com.livescore.backend.Entity.Sports;
 import com.livescore.backend.Entity.Tournament;
 import com.livescore.backend.Interface.AccountInterface;
 import com.livescore.backend.Interface.SeasonInterface;
@@ -9,6 +11,8 @@ import com.livescore.backend.Interface.TournamentInterface;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+
+import java.util.ArrayList;
 
 @Service
 public class TournamentService {
@@ -44,6 +48,8 @@ public class TournamentService {
         if (!role.equals("ADMIN")) {
             return ResponseEntity.badRequest().body("Only admin can create a tournament");
         }
+
+
         tournament1.setOrganizer(accountInterface.findByUsername(tournament.getUsername()));
         tournament1.setSeason(seasonInterface.findById(tournament.getSeasonId()).get());
         tournament1.setSport(sportsInterface.findById(tournament.getSportsId()).get());
@@ -52,7 +58,26 @@ public class TournamentService {
         tournament1.setPlayerType(tournament.getPlayerType());
         tournament1.setTournamentType(tournament.getTournamentType());
         tournament1.setTournamentStage(tournament.getTournamentStage());
-        return ResponseEntity.ok(tournamentInterface.save(tournament1));
+
+       tournamentInterface.save(tournament1);
+
+        Season season = seasonInterface.findById(tournament.getSeasonId())
+                .orElseThrow(() -> new RuntimeException("Season not found"));
+
+        Sports sport = sportsInterface.findById(tournament.getSportsId())
+                .orElseThrow(() -> new RuntimeException("Sport not found"));
+        if (season.getSportsOffered() == null) {
+            season.setSportsOffered(new ArrayList<>());
+        }
+
+        if (!season.getSportsOffered().contains(sport)) {
+            season.getSportsOffered().add(sport);
+            seasonInterface.save(season);
+        }
+
+
+
+        return ResponseEntity.ok().build();
 
     }
     public ResponseEntity<?> getTournamentById(Long id) {

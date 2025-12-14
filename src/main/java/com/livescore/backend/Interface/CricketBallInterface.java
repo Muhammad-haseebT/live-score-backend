@@ -92,4 +92,9 @@ public interface CricketBallInterface extends JpaRepository<CricketBall, Long> {
             "GROUP BY cb.bowler.id ORDER BY SUM(CASE WHEN cb.dismissalType IS NOT NULL AND LOWER(cb.dismissalType) NOT IN ('runout','retired','retired hurt') THEN 1 ELSE 0 END) DESC")
     List<Object[]> countWicketsByBowlerId(@Param("tournamentId") Long tournamentId, Pageable pageable);
 
+    @Query("SELECT cb FROM CricketBall cb WHERE cb.overNumber = :overNumber AND cb.ballNumber = :ballNumber AND cb.match.id = :matchId AND cb.innings.no = :inningsNo")
+    List<CricketBall> findByOverNumberAndBallNumberAndMatch_Id(@Param("overNumber") Long overNumber, @Param("ballNumber") Long ballNumber, @Param("matchId") Long matchId, @Param("inningsNo") int inningsNo);
+//select top 1 from cricket ball where match id and innings no order by id desc
+    @Query("SELECT cb FROM CricketBall cb WHERE cb.match.id = :matchId AND cb.innings.no = :inningsNo ORDER BY cb.id Desc LIMIT 1")
+    CricketBall findFirstbyMatch_IdAndInnings_no(@Param("matchId") Long matchId, @Param("inningsNo") int inningsNo);
 }

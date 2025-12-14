@@ -48,6 +48,7 @@ public class PlayerService {
     public ResponseEntity<?> updatePlayer(Long id, PlayerDto player) {
         return playerInterface.findById(id).map(playerEntity -> {
             playerEntity.setName(player.getName());
+            playerEntity.setPlayerRole(player.getPlayerRole());
             return ResponseEntity.ok(playerInterface.save(playerEntity));
         }).orElse(ResponseEntity.notFound().build());
     }

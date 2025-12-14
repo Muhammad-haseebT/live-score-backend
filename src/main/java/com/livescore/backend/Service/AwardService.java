@@ -363,6 +363,7 @@ public class AwardService {
         dto.tournamentId = tournamentId;
 
         // Top batsmen (top 3)
+        // Top batsmen mapping (keep sorting as you have)
         List<PlayerStatDTO> topBatsmen = metrics.stream()
                 .filter(m -> m.ballsFaced > 0)
                 .sorted(Comparator.comparingInt((PlayerMetrics m) -> m.runs).reversed()
@@ -374,10 +375,27 @@ public class AwardService {
                     PlayerStatDTO ps = new PlayerStatDTO();
                     ps.playerId = m.playerId;
                     ps.playerName = p != null ? p.getName() : "Unknown";
+
+                    // batting fields
                     ps.runs = m.runs;
+                    ps.ballsFaced = m.ballsFaced;
+                    ps.fours = m.fours;
+                    ps.sixes = m.sixes;
+
+                    // bowling fields (may be zero)
                     ps.wickets = m.wickets;
+                    ps.runsConceded = m.runsConceded;
+                    ps.ballsBowled = m.ballsBowled;
+                    if (m.ballsBowled > 0) {
+                        double overs = m.ballsBowled / 6.0;
+                        ps.economy = overs > 0 ? (double) m.runsConceded / overs : null;
+                    } else {
+                        ps.economy = null;
+                    }
+                    ps.bowlingAverage = m.wickets > 0 ? (double) m.runsConceded / m.wickets : null;
+
                     ps.pomCount = m.pomCount;
-                    ps.compositeScore = 0.0;
+                    ps.compositeScore = 0.0; // will be attached later (as in your original flow)
                     return ps;
                 }).collect(Collectors.toList());
 
@@ -387,8 +405,6 @@ public class AwardService {
             dto.bestBatsmanName = topBatsmen.get(0).playerName;
             dto.bestBatsmanRuns = topBatsmen.get(0).runs;
         }
-
-        // Top bowlers (top 3)
         List<PlayerStatDTO> topBowlers = metrics.stream()
                 .filter(m -> m.ballsBowled > 0)
                 .sorted(Comparator.comparingInt((PlayerMetrics m) -> m.wickets).reversed()
@@ -400,10 +416,27 @@ public class AwardService {
                     PlayerStatDTO ps = new PlayerStatDTO();
                     ps.playerId = m.playerId;
                     ps.playerName = p != null ? p.getName() : "Unknown";
+
+                    // batting
                     ps.runs = m.runs;
+                    ps.ballsFaced = m.ballsFaced;
+                    ps.fours = m.fours;
+                    ps.sixes = m.sixes;
+
+                    // bowling
                     ps.wickets = m.wickets;
+                    ps.runsConceded = m.runsConceded;
+                    ps.ballsBowled = m.ballsBowled;
+                    if (m.ballsBowled > 0) {
+                        double overs = m.ballsBowled / 6.0;
+                        ps.economy = overs > 0 ? (double) m.runsConceded / overs : null;
+                    } else {
+                        ps.economy = null;
+                    }
+                    ps.bowlingAverage = m.wickets > 0 ? (double) m.runsConceded / m.wickets : null;
+
                     ps.pomCount = m.pomCount;
-                    ps.compositeScore = 0.0;
+                    ps.compositeScore = 0.0; // to be filled later
                     return ps;
                 }).collect(Collectors.toList());
 
@@ -440,13 +473,13 @@ public class AwardService {
             dto.manOfTournamentName = p != null ? p.getName() : "Unknown";
         }
 
-        // attach composite scores into the top lists for UI convenience
         for (PlayerStatDTO ps : dto.topBatsmen) {
             ps.compositeScore = composite.getOrDefault(ps.playerId, 0.0);
         }
         for (PlayerStatDTO ps : dto.topBowlers) {
             ps.compositeScore = composite.getOrDefault(ps.playerId, 0.0);
         }
+
 
         return dto;
     }

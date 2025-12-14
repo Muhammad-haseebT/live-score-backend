@@ -32,11 +32,17 @@ public class LiveSCoringService {
     private AwardService awardService;
     @Autowired
     private MatchService matchService;
+    @Autowired
+    private MediaInterface mediaRepo;
 
     @Transactional
     public ScoreDTO scoring(ScoreDTO s) {
 
-        // basic validations
+        if(s.getEventType().equalsIgnoreCase("undo")){
+            undo(s.getMatchId(),s.getInningsId());
+            return s;
+        }
+
         if (s == null) throw new RuntimeException("ScoreDTO required");
         Match m = matchRepo.findById(s.getMatchId()).orElseThrow(() -> new RuntimeException("Match not found"));
         CricketInnings currentInnings = cricketInningsRepo.findById(s.getInningsId()).orElseThrow(() -> new RuntimeException("Innings not found"));
@@ -151,6 +157,9 @@ public class LiveSCoringService {
             }
             default:
                 throw new RuntimeException("Invalid event type: " + s.getEventType());
+        }
+        if(s.getMediaId()!=null){
+            ball.setMedia(mediaRepo.findById(s.getMediaId()).orElse(null));
         }
 
         // Save the ball
@@ -330,6 +339,17 @@ public class LiveSCoringService {
         return s;
     }
 
+
+    public void undo(Long matchId,Long inningsId){
+        CricketInnings innings = cricketInningsRepo.findById(inningsId).orElseThrow(() -> new RuntimeException("Innings not found"));
+        CricketBall lastBall = cricketBallInterface.findFirstbyMatch_IdAndInnings_no(matchId, innings.getNo());
+        cricketBallInterface.delete(lastBall);
+
+    }
+
+
+
+
     // helper: create second innings and return DTO
     private ScoreDTO handleEndOfInningsAndMaybeCreateNext(ScoreDTO s, Match m, CricketInnings currentInnings) {
         // compute first innings total
@@ -360,7 +380,7 @@ public class LiveSCoringService {
             s.setRuns(0);
             s.setOvers(0);
             s.setWickets(0);
-            s.setBalls(0);
+            s.setBalls(1);
             s.setEvent("");
             s.setEventType("");
             s.setDismissalType("");

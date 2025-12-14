@@ -1,0 +1,28 @@
+package com.livescore.backend.Controller;
+
+import com.livescore.backend.Entity.CricketBall;
+import com.livescore.backend.Interface.CricketBallInterface;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
+
+import static org.springframework.data.jpa.domain.AbstractPersistable_.id;
+
+@RestController
+public class CricketBallController {
+    @Autowired
+    private CricketBallInterface cricketBallInterface;
+    @GetMapping("/cricketBall")
+    public List<CricketBall> getAllCricketBall() {
+        return cricketBallInterface.findAll();
+    }
+
+    @GetMapping("/cricketBall/{over}/{balls}/{matchID}/{inningsId}")
+    public List<CricketBall> getCricketBallById(@PathVariable Long over, @PathVariable Long balls, @PathVariable Long matchID,@PathVariable int inningsId) {
+
+        return cricketBallInterface.findByOverNumberAndBallNumberAndMatch_Id(over, balls, matchID,inningsId);
+    }
+}

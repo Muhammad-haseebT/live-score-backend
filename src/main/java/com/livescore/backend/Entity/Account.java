@@ -8,8 +8,6 @@ import lombok.*;
 import java.beans.Encoder;
 import java.util.Base64;
 import java.util.List;
-
-// Account.java
 @Entity
 @Getter
 @Setter

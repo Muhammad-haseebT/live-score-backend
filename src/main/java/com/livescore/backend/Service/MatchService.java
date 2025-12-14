@@ -43,6 +43,7 @@ public class MatchService {
 
 
     public ResponseEntity<?> createMatch(MatchDTO matchDTO) {
+        boolean check=true;
         if (accountInterface.getById(matchDTO.getScorerId()) == null) {
             return ResponseEntity.badRequest().body("Account with id " + matchDTO.getScorerId() + " does not exist");
         }
@@ -55,10 +56,14 @@ public class MatchService {
         if (tournamentInterface.getById(matchDTO.getTournamentId()) == null) {
             return ResponseEntity.badRequest().body("Tournament with id " + matchDTO.getTournamentId() + " does not exist");
         }
+
         if (matchDTO.getDate().isBefore(LocalDate.now())) {
             return ResponseEntity.badRequest().body("Match date " + matchDTO.getDate() + " does not belong to the future");
         }
-        if (matchDTO.getTime().isBefore(LocalTime.now())) {
+        if(matchDTO.getDate().isAfter(LocalDate.now())||matchDTO.getDate().isEqual(LocalDate.now())){
+            check=false;
+        }
+        if (matchDTO.getTime().isBefore(LocalTime.now())&&check) {
             return ResponseEntity.badRequest().body("Match time " + matchDTO.getTime() + " does not belong to the future");
         }
         Match match = new Match();
@@ -98,7 +103,13 @@ public class MatchService {
         if (matchDTO.getDate().isBefore(LocalDate.now())) {
             return ResponseEntity.badRequest().body("Match date " + matchDTO.getDate() + " does not belong to the future");
         }
-        if (matchDTO.getTime().isBefore(LocalTime.now())) {
+
+        boolean check=true;
+        if(matchDTO.getDate().isAfter(LocalDate.now())||matchDTO.getDate().isEqual(LocalDate.now())){
+            check=false;
+        }
+
+        if (matchDTO.getTime().isBefore(LocalTime.now())&&check) {
             return ResponseEntity.badRequest().body("Match time " + matchDTO.getTime() + " does not belong to the future");
         }
         match.setTournament(tournamentInterface.getById(matchDTO.getTournamentId()));
@@ -110,6 +121,7 @@ public class MatchService {
         match.setTime(matchDTO.getTime());
         match.setOvers(matchDTO.getOvers());
         match.setSets(matchDTO.getSets());
+
         matchInterface.save(match);
         return ResponseEntity.ok().body("Match updated successfully");
     }
@@ -159,6 +171,10 @@ public class MatchService {
                 matchDTO.setTossWinnerId(match.getTossWinner().getId());
             } else {
                 matchDTO.setTossWinnerId(null);
+            }
+            if(match.getWinnerTeam()!=null) {
+                matchDTO.setWinnerTeamId(match.getWinnerTeam().getId());
+                matchDTO.setWinnerTeamName(match.getWinnerTeam().getName());
             }
 
             matchDTOs.add(matchDTO);
