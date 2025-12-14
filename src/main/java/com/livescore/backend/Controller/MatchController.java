@@ -73,7 +73,7 @@ public class MatchController {
     public ResponseEntity<?> startMatch(@PathVariable Long id,@RequestBody MatchDTO match) {
         return matchService.startMatch(id,match);
     }
-    //end match (status changed to finished ,winner team id assign ho)
+
     @PutMapping("/match/end/{id}")
     public ResponseEntity<?> endMatch(@PathVariable Long id) {
         return matchService.endMatch(id);

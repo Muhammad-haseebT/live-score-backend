@@ -31,7 +31,13 @@ public class TeamRequestService {
                     Map.of("error", "Player id is required")
             );
         }
+
         Team team=teamInterface.findById(teamRequest.getTeamId()).orElse(null);
+        if(team.getPlayers().size()<11){
+            return ResponseEntity.badRequest().body(
+                    Map.of("error", "11 players required")
+            );
+        }
         Account player=playerInterface.findById(teamRequest.getPlayerId()).orElse(null);
         if(team==null||player==null){
             return ResponseEntity.badRequest().body(

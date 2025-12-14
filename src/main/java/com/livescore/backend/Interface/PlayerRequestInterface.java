@@ -23,6 +23,8 @@ AND pr.status = 'APPROVED'
     PlayerRequest findExistingRequest(Long playerId, Long tournamentId);
 
 
+    @Query("SELECT pr FROM PlayerRequest pr WHERE pr.player.id = :playerId")
+    List<PlayerRequest> findbyPlayer_Id(@Param("playerId") Long playerId);
 }
 
 

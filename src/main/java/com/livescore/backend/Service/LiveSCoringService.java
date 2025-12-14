@@ -38,23 +38,21 @@ public class LiveSCoringService {
     @Transactional
     public ScoreDTO scoring(ScoreDTO s) {
 
-        if(s.getEventType().equalsIgnoreCase("undo")){
-            undo(s.getMatchId(),s.getInningsId());
-            return s;
-        }
+//        if(s.getEventType().equalsIgnoreCase("undo")){
+//            undo(s.getMatchId(),s.getInningsId());
+//            return s;
+//        }
 
         if (s == null) throw new RuntimeException("ScoreDTO required");
         Match m = matchRepo.findById(s.getMatchId()).orElseThrow(() -> new RuntimeException("Match not found"));
         CricketInnings currentInnings = cricketInningsRepo.findById(s.getInningsId()).orElseThrow(() -> new RuntimeException("Innings not found"));
 
-        // caps
         int maxBallsPerInnings = (m.getOvers() == 0 ? 0 : m.getOvers() * 6);
 
         // count current legal balls and wickets before processing this new ball
         long legalBallsSoFar = cricketBallInterface.countLegalBallsByInningsId(currentInnings.getId());
-        long wicketsSoFar = cricketBallInterface.countWicketsByInningsId(currentInnings.getId()); // add repo method or fallback below
+        long wicketsSoFar = cricketBallInterface.countWicketsByInningsId(currentInnings.getId());
 
-        // (If your repo doesn't have countWicketsByInningsId, we compute below after fetching list.)
 
         boolean proceed = true;
 
@@ -62,6 +60,7 @@ public class LiveSCoringService {
         if (legalBallsSoFar >= maxBallsPerInnings) {
             // innings finished by overs
             s.setStatus("end");
+
             return handleEndOfInningsAndMaybeCreateNext(s, m, currentInnings);
         }
 
@@ -74,6 +73,7 @@ public class LiveSCoringService {
         ball.setMatch(m);
         ball.setOverNumber(s.getOvers());
         ball.setBallNumber(s.getBalls());
+        ball.setComment(s.getComment());
 
         if (s.getEventType() == null) throw new RuntimeException("eventType required");
 
@@ -171,6 +171,7 @@ public class LiveSCoringService {
         // Recalculate authoritative innings totals after saving
         List<CricketBall> inningsBalls = cricketBallInterface.findByMatch_IdAndInnings_Id(m.getId(), currentInnings.getId());
         int inningsRuns = inningsBalls.stream().mapToInt(b -> (b.getRuns() == null ? 0 : b.getRuns()) + (b.getExtra() == null ? 0 : b.getExtra())).sum();
+
         int legalBallsNow = (int) inningsBalls.stream().filter(b -> Boolean.TRUE.equals(b.getLegalDelivery())).count();
         int wicketsNow = (int) inningsBalls.stream().filter(b -> b.getDismissalType() != null && !b.getDismissalType().trim().isEmpty()).count();
 
@@ -184,9 +185,9 @@ public class LiveSCoringService {
         double crr = legalBallsNow == 0 ? 0.0 : ((double) inningsRuns * 6.0) / (double) legalBallsNow;
         s.setCrr(round2(crr));
 
-        // If second innings, compute RRR
+
         if (!s.isFirstInnings()) {
-            // compute first innings total (target = firstRuns + 1)
+
             CricketInnings firstInnings = cricketInningsRepo.findByMatchIdAndNo(m.getId(), 1);
             int firstRuns = 0;
             if (firstInnings != null) {
@@ -199,7 +200,7 @@ public class LiveSCoringService {
             int remainingBalls = Math.max(0, maxBallsPerInnings - legalBallsNow);
 
             if (remainingRuns <= 0) {
-                // chasing team has reached target -> match over, set winner
+
                 Team chasingTeam = currentInnings.getTeam();
                 m.setWinnerTeam(chasingTeam);
                 m.setStatus("COMPLETED");
@@ -247,7 +248,6 @@ public class LiveSCoringService {
             s.setTarget(inningsRuns);
         }
 
-        // ALL-OUT check: determine team players count (fallback 11)
         int teamPlayers = 11;
         try {
             Team t = currentInnings.getTeam();
@@ -255,7 +255,6 @@ public class LiveSCoringService {
                 Optional<Team> teamOpt = teamRepo.findById(t.getId());
                 if (teamOpt.isPresent()) {
                     Team teamEntity = teamOpt.get();
-                    // try to infer players collection size; adjust getter if different name
                     if (teamEntity.getPlayers() != null) {
                         teamPlayers = teamEntity.getPlayers().size();
                     }

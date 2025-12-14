@@ -2,12 +2,16 @@ package com.livescore.backend.Service;
 
 import com.livescore.backend.DTO.PlayerDto;
 import com.livescore.backend.Entity.Player;
+import com.livescore.backend.Entity.PlayerRequest;
 import com.livescore.backend.Interface.AccountInterface;
 import com.livescore.backend.Interface.PlayerInterface;
+import com.livescore.backend.Interface.PlayerRequestInterface;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 @Service
@@ -16,6 +20,8 @@ public class PlayerService {
     private PlayerInterface playerInterface;
     @Autowired
     private AccountInterface accountInterface;
+    @Autowired
+    private PlayerRequestInterface playerRequestInterface;
     public ResponseEntity<?> createPlayer(PlayerDto player) {
         if(player.getName().isEmpty()||player.getName().isBlank()){
             return ResponseEntity.badRequest().body(
@@ -60,7 +66,28 @@ public class PlayerService {
         return ResponseEntity.notFound().build();
     }
     public ResponseEntity<?> getAllPlayers() {
-        return ResponseEntity.ok(playerInterface.findAll());
+        //sett all player according to players dto
+        List<Player> p1=playerInterface.findAll();
+        List<PlayerDto> p=new ArrayList<>();
+        for(Player i:p1){
+            PlayerDto p2=new PlayerDto();
+
+            p2.setId(i.getId());
+            p2.setName(i.getName());
+            p2.setPlayerRole(i.getPlayerRole());
+            List<PlayerRequest> pr=playerRequestInterface.findbyPlayer_Id(i.getId());
+            for(PlayerRequest j:pr){
+                p2.setTeamName(j.getTeam().getName());
+                p2.setTournamentName(j.getTournament().getName());
+                p2.setTeamId(j.getTeam().getId());
+                p2.setTournamentId(j.getTournament().getId());
+            }
+            p.add(p2);
+
+
+        }
+
+        return ResponseEntity.ok(p);
     }
     public ResponseEntity<?> getPlayerById(Long id) {
         return playerInterface.findById(id)

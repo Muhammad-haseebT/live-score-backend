@@ -8,6 +8,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -113,7 +115,7 @@ public class PtsTableService {
 
         // Correct points handling: winner +2, loser 0 (do NOT subtract)
         ptsWinner.setPoints(safeAdd(ptsWinner.getPoints(), 2));
-        ptsLoser.setPoints(safeAdd(ptsLoser.getPoints(), -2));
+        ptsLoser.setPoints(safeAdd(ptsLoser.getPoints(), 0));
         // ptsLoser points unchanged
 
         // NRR calculations (match-wise)
@@ -190,6 +192,7 @@ public class PtsTableService {
         if (oversFaced <= 0.0 || oversBowled <= 0.0) return 0.0;
 
         double nrr = ((double) runsScored / oversFaced) - ((double) runsConceded / oversBowled);
+
         return roundToThreeDecimals(nrr);
     }
 
@@ -279,8 +282,9 @@ public class PtsTableService {
     }
 
     private double roundToThreeDecimals(double v) {
-        return Math.round(v * 1000.0) / 1000.0;
+        return  Math.round(v*1000.0)/1000.0;
     }
+
 
     // small safe helpers
     private int safeInc(Integer x) {

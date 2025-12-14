@@ -19,7 +19,7 @@ public class TournamentAwardsDTO {
     public String bestBowlerName;
     public Integer bestBowlerWickets;
 
-    // optional: lists for top-3
+
     public List<PlayerStatDTO> topBatsmen;
     public List<PlayerStatDTO> topBowlers;
 }

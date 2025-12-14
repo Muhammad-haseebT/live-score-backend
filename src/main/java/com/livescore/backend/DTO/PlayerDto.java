@@ -9,4 +9,9 @@ public class PlayerDto {
     private String playerRole;
     private String username;
     private String status;
+    private String teamName;
+    private String tournamentName;
+    private Long teamId;
+    private Long tournamentId;
+
 }

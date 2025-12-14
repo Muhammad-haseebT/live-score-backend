@@ -12,7 +12,7 @@ import lombok.ToString;
 @Entity
 @Getter
 @Setter
-@ToString(exclude = {"player", "team", "tournament"})
+
 public class PlayerRequest {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

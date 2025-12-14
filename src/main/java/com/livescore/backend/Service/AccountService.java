@@ -49,12 +49,19 @@ public class AccountService {
 
     public ResponseEntity<?> updateAccount(Long id, Account account) {
         if(accountInterface.findById(id).isPresent()){
-            Account ac=accountInterface.findById(id).get();
-            ac.setUsername(account.getUsername().toLowerCase());
-            ac.setPassword(account.getPassword());
-            ac.setRole(account.getRole().toUpperCase());
-            ac.setName(account.getName());
-            return ResponseEntity.ok(accountInterface.save(ac));
+            try {
+
+
+                Account ac = accountInterface.findById(id).get();
+                ac.setUsername(account.getUsername());
+                ac.setPassword(Base64.getEncoder().encodeToString(account.getPassword().getBytes()));
+                ac.setRole(account.getRole().toUpperCase());
+                ac.setName(account.getName());
+                return ResponseEntity.ok(accountInterface.save(ac));
+            }catch(Exception e){
+                return ResponseEntity.badRequest().body("invalid request");
+
+            }
         }else{
             return ResponseEntity.notFound().build();
         }
