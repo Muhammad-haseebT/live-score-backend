@@ -21,7 +21,7 @@ public class MatchStatsController {
 
     @GetMapping("/{matchId}/scorecard")
     public ResponseEntity<MatchScorecardDTO> getScorecard(@PathVariable Long matchId) {
-        return ResponseEntity.ok(statsService.getMatchScorecard(matchId));
+        return statsService.getMatchScorecard(matchId);
     }
 
     @GetMapping("/{matchId}/awards")

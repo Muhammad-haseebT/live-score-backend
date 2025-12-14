@@ -146,9 +146,6 @@ public class PtsTableService {
 
 
 
-    // -------------------------------
-    // 2. CALCULATE NRR FOR TEAM
-    // -------------------------------
     public double calculateTeamNrr(Long teamId, Long tournamentId) {
 
         if (teamId == null || tournamentId == null) return 0.0;
@@ -274,6 +271,7 @@ public class PtsTableService {
     }
 
     private double roundToThreeDecimals(double v) {
+
         return  Math.round(v*1000.0)/1000.0;
     }
 

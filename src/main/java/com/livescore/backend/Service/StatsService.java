@@ -227,6 +227,23 @@ public class StatsService {
                         s.setTournament(tournament);
                         s.setPlayer(batsman);
                         s.setSportType(match.getTournament().getSport()); // adjust getter
+                        // Initialize all numeric fields to 0 to prevent NullPointerException
+                        s.setRuns(0);
+                        s.setWickets(0);
+                        s.setHighest(0);
+                        s.setNotOut(0);
+                        s.setStrikeRate(0);
+                        s.setBallsFaced(0);
+                        s.setBallsBowled(0);
+                        s.setRunsConceded(0);
+                        s.setFours(0);
+                        s.setSixes(0);
+                        s.setPoints(0);
+                        s.setGoals(0);
+                        s.setAssists(0);
+                        s.setFouls(0);
+                        s.setYellowCards(0);
+                        s.setRedCards(0);
                         return s;
                     });
             // runs off bat
@@ -257,6 +274,23 @@ public class StatsService {
                         s.setTournament(tournament);
                         s.setPlayer(bowler);
                         s.setSportType(match.getTournament().getSport());
+                        // Initialize all numeric fields to 0 to prevent NullPointerException
+                        s.setRuns(0);
+                        s.setWickets(0);
+                        s.setHighest(0);
+                        s.setNotOut(0);
+                        s.setStrikeRate(0);
+                        s.setBallsFaced(0);
+                        s.setBallsBowled(0);
+                        s.setRunsConceded(0);
+                        s.setFours(0);
+                        s.setSixes(0);
+                        s.setPoints(0);
+                        s.setGoals(0);
+                        s.setAssists(0);
+                        s.setFouls(0);
+                        s.setYellowCards(0);
+                        s.setRedCards(0);
                         return s;
                     });
 
@@ -283,8 +317,12 @@ public class StatsService {
     }
 
 
-    public MatchScorecardDTO getMatchScorecard(Long matchId) {
-        Match match = matchRepo.findById(matchId).orElseThrow(() -> new RuntimeException("Match not found"));
+    public ResponseEntity<MatchScorecardDTO> getMatchScorecard(Long matchId) {
+        Match match = matchRepo.findById(matchId).orElse(null);
+        if(match==null){
+            return ResponseEntity.notFound().build();
+
+        }
         MatchScorecardDTO dto = new MatchScorecardDTO();
         dto.matchId = matchId;
         dto.status = match.getStatus();
@@ -295,7 +333,7 @@ public class StatsService {
         CricketInnings inn2 = cricketInningsRepo.findByMatchIdAndNo(matchId, 2);
         if (inn2 != null) dto.secondInnings = buildInningsDTO(inn2);
 
-        return dto;
+        return ResponseEntity.ok(dto);
     }
     private InningsDTO buildInningsDTO(CricketInnings innings) {
         InningsDTO d = new InningsDTO();

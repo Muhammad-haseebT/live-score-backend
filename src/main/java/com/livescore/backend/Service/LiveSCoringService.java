@@ -365,7 +365,7 @@ public class LiveSCoringService {
             s.setRuns(0);
             s.setOvers(0);
             s.setWickets(0);
-            s.setBalls(1);
+            s.setBalls(0);
             s.setEvent("");
             s.setEventType("");
             s.setDismissalType("");

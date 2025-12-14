@@ -36,12 +36,10 @@ public class Player {
     @Column(nullable = false)
     private String playerRole;
 
-
-
-
     // Player -> PlayerTeam (one-to-many)
     @OneToMany(mappedBy = "player", cascade = CascadeType.ALL)
     @JsonManagedReference("player-playerTeams")
+    @JsonIgnore
     private List<PlayerRequest> playerRequests;
 
 }

@@ -7,7 +7,7 @@ public class ScoreDTO {
     private int runs;
     private int overs;
     private int wickets;
-    private int balls=1;
+    private int balls;
     private String status;
     private int target;
      // RUN, BOUNDARY, SIX, EXTRA, WICKET
@@ -24,7 +24,7 @@ public class ScoreDTO {
 
     private String dismissalType; // catch, bowled, runout, stumped, lbw, hit-wicket, retired
     private Boolean isLegal;
-    private Double runRate;
+
     private Long inningsId;
     private Long outPlayerId;
     private int runsOnThisBall;
