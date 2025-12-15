@@ -10,7 +10,7 @@ import org.springframework.web.socket.handler.TextWebSocketHandler;
 
 import java.net.URI;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.*;
 
 @Component
 public class LiveScoringHandler extends TextWebSocketHandler {
@@ -18,83 +18,150 @@ public class LiveScoringHandler extends TextWebSocketHandler {
     private final LiveSCoringService liveScoringService;
     private final ObjectMapper mapper = new ObjectMapper();
 
-    // matchId -> sessions subscribed to that match
+
     private final Map<Long, Set<WebSocketSession>> subscriptions = new ConcurrentHashMap<>();
 
-    // map session -> set of subscribed matchIds (for cleanup)
+
     private final Map<String, Set<Long>> sessionSubscriptions = new ConcurrentHashMap<>();
+
+
+    private final Map<String, Object> sessionLocks = new ConcurrentHashMap<>();
+
+
+    private final ExecutorService executor = Executors.newFixedThreadPool(10);
 
     public LiveScoringHandler(LiveSCoringService liveScoringService) {
         this.liveScoringService = liveScoringService;
     }
 
     @Override
-    public void afterConnectionEstablished(WebSocketSession session) throws Exception {
-        // try to read matchId from query param: ws://host/ws?matchId=123
+    public void afterConnectionEstablished(WebSocketSession session) {
         URI uri = session.getUri();
-        if (uri != null && uri.getQuery() != null) {
-            String[] qs = uri.getQuery().split("&");
-            for (String q : qs) {
-                if (q.startsWith("matchId=")) {
-                    try {
-                        Long matchId = Long.parseLong(q.split("=")[1]);
-                        subscribe(session, matchId);
-                    } catch (NumberFormatException ignored) {}
-                }
+        if (uri == null || uri.getQuery() == null) return;
+
+        for (String q : uri.getQuery().split("&")) {
+            if (q.startsWith("matchId=")) {
+                try {
+                    Long matchId = Long.parseLong(q.split("=")[1]);
+                    subscribe(session, matchId);
+                } catch (Exception ignored) {}
             }
         }
     }
 
     private void subscribe(WebSocketSession session, Long matchId) {
-        subscriptions.computeIfAbsent(matchId, k -> Collections.newSetFromMap(new ConcurrentHashMap<>())).add(session);
-        sessionSubscriptions.computeIfAbsent(session.getId(), k -> ConcurrentHashMap.newKeySet()).add(matchId);
+        if (matchId == null) return;
+
+        subscriptions
+                .computeIfAbsent(matchId,
+                        k -> Collections.newSetFromMap(new ConcurrentHashMap<>()))
+                .add(session);
+
+        sessionSubscriptions
+                .computeIfAbsent(session.getId(),
+                        k -> ConcurrentHashMap.newKeySet())
+                .add(matchId);
+
+        sessionLocks.computeIfAbsent(session.getId(), k -> new Object());
     }
 
     private void unsubscribeAll(WebSocketSession session) {
         Set<Long> matches = sessionSubscriptions.remove(session.getId());
+
         if (matches != null) {
             for (Long m : matches) {
                 Set<WebSocketSession> set = subscriptions.get(m);
                 if (set != null) {
                     set.remove(session);
-                    if (set.isEmpty()) subscriptions.remove(m);
+                    if (set.isEmpty()) {
+                        subscriptions.remove(m);
+                    }
                 }
             }
         }
+
+        sessionLocks.remove(session.getId());
     }
 
     @Override
-    protected void handleTextMessage(WebSocketSession session, TextMessage message) throws Exception {
-        JsonNode node = mapper.readTree(message.getPayload());
-        // allow a subscribe message
-        if (node.has("action") && node.get("action").asText().equalsIgnoreCase("subscribe") && node.has("matchId")) {
-            Long matchId = node.get("matchId").asLong();
-            subscribe(session, matchId);
-            // ack
-            session.sendMessage(new TextMessage("{\"status\":\"subscribed\",\"matchId\":" + matchId + "}"));
-            return;
+    protected void handleTextMessage(WebSocketSession session, TextMessage message) {
+        try {
+            JsonNode node = mapper.readTree(message.getPayload());
+
+            // SUBSCRIBE MESSAGE
+            if (node.has("action")
+                    && "subscribe".equalsIgnoreCase(node.get("action").asText())
+                    && node.has("matchId")) {
+
+                Long matchId = node.get("matchId").asLong();
+                subscribe(session, matchId);
+
+                safeSend(session,
+                        "{\"status\":\"subscribed\",\"matchId\":" + matchId + "}");
+                return;
+            }
+
+            // SCORE MESSAGE
+            ScoreDTO score = mapper.treeToValue(node, ScoreDTO.class);
+
+            if (score.getMatchId() == null) {
+                safeSend(session,
+                        "{\"error\":\"matchId is required\"}");
+                return;
+            }
+
+            // ASYNC PROCESSING
+            executor.execute(() -> processScore(score));
+
+        } catch (Exception e) {
+            safeSend(session,
+                    "{\"error\":\"Invalid JSON payload\"}");
         }
+    }
 
-        // otherwise treat message as scoring update
-        ScoreDTO score = mapper.treeToValue(node, ScoreDTO.class);
-        if (score.getMatchId() == null) {
-            session.sendMessage(new TextMessage("{\"error\":\"matchId required in scoring message\"}"));
-            return;
+    private void processScore(ScoreDTO score) {
+        try {
+            ScoreDTO updated = liveScoringService.scoring(score);
+            broadcast(updated);
+        } catch (Exception e) {
+
+            e.printStackTrace();
         }
+    }
 
-        ScoreDTO updated = liveScoringService.scoring(score);
-        String json = mapper.writeValueAsString(updated);
+    private void broadcast(ScoreDTO updated) {
+        try {
+            String json = mapper.writeValueAsString(updated);
+            Set<WebSocketSession> subs = subscriptions.get(updated.getMatchId());
 
-        // broadcast only to subscribers of this matchId
-        Set<WebSocketSession> subs = subscriptions.get(score.getMatchId());
-        if (subs != null) {
+            if (subs == null) return;
+
             for (WebSocketSession s : subs) {
                 try {
-                    if (s.isOpen()) s.sendMessage(new TextMessage(json));
-                } catch (Exception e) {
-                    // remove broken session
+                    safeSend(s, json);
+                } catch (Exception ex) {
                     unsubscribeAll(s);
+                    try { s.close(); } catch (Exception ignore) {}
                 }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void safeSend(WebSocketSession session, String payload) {
+        if (session == null || !session.isOpen()) return;
+
+        Object lock = sessionLocks.computeIfAbsent(
+                session.getId(), k -> new Object());
+
+        synchronized (lock) {
+            try {
+                if (session.isOpen()) {
+                    session.sendMessage(new TextMessage(payload));
+                }
+            } catch (Exception e) {
+                unsubscribeAll(session);
             }
         }
     }
