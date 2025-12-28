@@ -17,8 +17,7 @@ import java.util.List;
         "seasonsCreated",
         "tournamentsCreated",
         "scoredMatches",
-        "player"
-})
+        "player"})
 public class Account {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -49,4 +48,5 @@ public class Account {
     @OneToMany(mappedBy = "scorer", cascade = CascadeType.ALL)
     @JsonIgnore
     private List<Match> scoredMatches;
+
 }

@@ -585,19 +585,11 @@ public class StatsService {
 
 
 
-
-
-
-
-
-
-
-
-
     private double roundTo2(double val) {
         if (Double.isInfinite(val) || Double.isNaN(val)) return val;
         BigDecimal bd = BigDecimal.valueOf(val).setScale(2, RoundingMode.HALF_UP);
         return bd.doubleValue();
     }
+
 
 }

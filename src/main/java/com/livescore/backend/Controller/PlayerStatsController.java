@@ -22,4 +22,5 @@ public class PlayerStatsController {
         PlayerStatsDTO dto = statsService.getPlayerTournamentStats(playerId, tournamentId, matchId);
         return ResponseEntity.ok(dto);
     }
+
 }
