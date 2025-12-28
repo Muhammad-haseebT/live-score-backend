@@ -3,7 +3,7 @@ package com.livescore.backend.Entity;
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 import lombok.Data;
-// SetPoint.java
+
 @Entity
 @Data
 public class SetPoint {

@@ -12,7 +12,6 @@ public class PlayerStatsController {
     @Autowired
     private StatsService statsService;
 
-    // tournamentId required for tournament-level stats; matchId optional for match context
     @GetMapping("/{playerId}/stats")
     public ResponseEntity<?> getPlayerStats(
             @PathVariable Long playerId,

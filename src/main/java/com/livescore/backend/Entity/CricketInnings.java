@@ -7,7 +7,7 @@ import jakarta.persistence.*;
 import lombok.Data;
 
 import java.util.List;
-// CricketInnings.java
+
 @Entity
 @Data
 public class CricketInnings {

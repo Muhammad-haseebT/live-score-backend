@@ -11,5 +11,6 @@ public class PlayerDto {
     private String name;
     private String playerRole;
     private String username;
+
     private List<ShowRequestDto> playerRequests = new ArrayList<>();
 }

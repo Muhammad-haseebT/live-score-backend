@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Data;
-// Board.java
+
 @Entity
 @Data
 public class Board {
@@ -12,13 +12,13 @@ public class Board {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // Board -> Match
+
     @ManyToOne
     @JoinColumn(name = "match_id")
     @JsonBackReference("match-boards")
     private Match match;
 
-    // winner/loser teams (no managed collection on Team side)
+
     @ManyToOne
     @JoinColumn(name = "winner_team_id")
     @JsonIgnore

@@ -37,7 +37,7 @@ public class MediaService {
             );
         }
 
-        // Validate matchId
+
         if (media.getMatchId() == null) {
             return ResponseEntity.badRequest().body(
                     Map.of("error", "Match ID is required")

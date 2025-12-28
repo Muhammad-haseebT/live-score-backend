@@ -7,7 +7,6 @@ import com.livescore.backend.Service.LiveSCoringService;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.*;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
-
 import java.net.URI;
 import java.util.*;
 import java.util.concurrent.*;
@@ -26,8 +25,6 @@ public class LiveScoringHandler extends TextWebSocketHandler {
 
 
     private final Map<String, Object> sessionLocks = new ConcurrentHashMap<>();
-
-
     private final ExecutorService executor = Executors.newFixedThreadPool(10);
 
     public LiveScoringHandler(LiveSCoringService liveScoringService) {
@@ -101,7 +98,7 @@ public class LiveScoringHandler extends TextWebSocketHandler {
                 return;
             }
 
-            // SCORE MESSAGE
+
             ScoreDTO score = mapper.treeToValue(node, ScoreDTO.class);
 
             if (score.getMatchId() == null) {

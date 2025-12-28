@@ -9,7 +9,7 @@ import lombok.Data;
 import lombok.ToString;
 
 import java.util.List;
-// Player.java
+
 @Entity
 @Data
 @ToString(exclude = {"account", "playerRequests", "team"})

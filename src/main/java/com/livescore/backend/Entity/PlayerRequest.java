@@ -8,7 +8,7 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
 
-// PlayerTeam.java
+
 @Entity
 @Getter
 @Setter

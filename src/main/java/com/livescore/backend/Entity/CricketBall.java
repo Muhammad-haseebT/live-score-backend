@@ -46,14 +46,14 @@ public class CricketBall {
     private Integer overNumber;
     private Integer ballNumber;
 
-    private Integer runs;          // OFF-BAT runs
-    private Integer extra;         // extra runs
-    private String extraType;      // wide/no-ball/leg-bye/etc
-    private String dismissalType;  // bowled/runout/lbw/etc
+    private Integer runs;
+    private Integer extra;
+    private String extraType;
+    private String dismissalType;
 
-    private Boolean legalDelivery = true; // NEW
-    private Boolean isFour = false;       // NEW
-    private Boolean isSix = false;        // NEW
+    private Boolean legalDelivery = true;
+    private Boolean isFour = false;
+    private Boolean isSix = false;
 
     private String comment;
 

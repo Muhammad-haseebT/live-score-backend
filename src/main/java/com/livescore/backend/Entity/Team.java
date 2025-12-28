@@ -8,7 +8,7 @@ import lombok.EqualsAndHashCode;
 import lombok.ToString;
 
 import java.util.List;
-// Team.java
+
 @Entity
 @Data
 @ToString(exclude = {"players", "playerRequests", "pointsTableEntry"})

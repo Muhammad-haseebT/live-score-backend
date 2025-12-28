@@ -19,7 +19,7 @@ public class CricketBallController {
     public List<CricketBall> getAllCricketBall() {
         return cricketBallInterface.findAll();
     }
-
+//  innings id ni ye innings no hai
     @GetMapping("/cricketBall/{over}/{balls}/{matchID}/{inningsId}")
     public List<CricketBall> getCricketBallById(@PathVariable Long over, @PathVariable Long balls, @PathVariable Long matchID,@PathVariable int inningsId) {
 

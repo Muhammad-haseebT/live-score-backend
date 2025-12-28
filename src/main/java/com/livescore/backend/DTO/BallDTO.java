@@ -2,7 +2,7 @@ package com.livescore.backend.DTO;
 
 import lombok.Data;
 
-// BallDTO.java
+
 @Data
 public class BallDTO {
     public Long id;
