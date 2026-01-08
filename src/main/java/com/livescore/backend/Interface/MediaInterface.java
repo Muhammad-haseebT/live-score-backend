@@ -13,4 +13,14 @@ public interface MediaInterface extends JpaRepository<Media,Long> {
 
     @Query("SELECT m FROM Media m WHERE m.match.id = :matchId")
     List<Media> findByMatchId(@Param("matchId") Long ID);
+    @Query("""
+    SELECT m
+    FROM Media m
+    JOIN m.match ma
+    JOIN ma.tournament t
+    JOIN t.season s
+    WHERE s.id = :seasonId
+""")
+    List<Media> findMediaBySeasonId(@Param("seasonId") Long seasonId);
+
 }

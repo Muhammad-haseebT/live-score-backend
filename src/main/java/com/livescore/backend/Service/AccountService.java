@@ -9,23 +9,24 @@ import org.springframework.stereotype.Service;
 
 import java.util.Base64;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class AccountService {
     @Autowired
     private AccountInterface accountInterface;
-    
+
     public ResponseEntity<?> createAccount(Account account) {
-        if(account.getUsername()==null||account.getPassword()==null){
+        if (account.getUsername() == null || account.getPassword() == null) {
             return ResponseEntity.badRequest().body("Username and password are required");
         }
-        if(accountInterface.existsByUsername(account.getUsername())){
+        if (accountInterface.existsByUsername(account.getUsername())) {
             return ResponseEntity.badRequest().body("Username already exists");
         }
         //if username is email then role = admin else user
-        if(account.getUsername().matches("[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}")){
+        if (account.getUsername().matches("[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}")) {
             account.setRole("ADMIN");
-        }else{
+        } else {
             account.setRole("USER");
         }
 
@@ -36,9 +37,9 @@ public class AccountService {
     }
 
     public ResponseEntity<?> getAccountById(Long id) {
-        if(accountInterface.findById(id).isPresent()){
+        if (accountInterface.findById(id).isPresent()) {
             return ResponseEntity.ok(accountInterface.findById(id).get());
-        }else{
+        } else {
             return ResponseEntity.notFound().build();
         }
     }
@@ -48,47 +49,60 @@ public class AccountService {
     }
 
     public ResponseEntity<?> updateAccount(Long id, Account account) {
-        if(accountInterface.findById(id).isPresent()){
-            try {
 
+        System.out.println(id);
+        Optional<Account> optional = accountInterface.findById(id);
 
-                Account ac = accountInterface.findById(id).get();
-                ac.setUsername(account.getUsername());
-                ac.setPassword(Base64.getEncoder().encodeToString(account.getPassword().getBytes()));
-                ac.setRole(account.getRole().toUpperCase());
-                ac.setName(account.getName());
-                return ResponseEntity.ok(accountInterface.save(ac));
-            }catch(Exception e){
-                return ResponseEntity.badRequest().body("invalid request");
-
-            }
-        }else{
+        if (optional.isEmpty()) {
             return ResponseEntity.notFound().build();
         }
+
+        Account ac = optional.get();
+
+        if (account.getUsername() != null)
+            ac.setUsername(account.getUsername());
+
+        if (account.getName() != null)
+            ac.setName(account.getName());
+
+        if (account.getPassword() != null && !account.getPassword().isEmpty()) {
+            ac.setPassword(
+                    Base64.getEncoder().encodeToString(account.getPassword().getBytes())
+            );
+        }
+
+        if (account.getRole() != null) {
+            ac.setRole(account.getRole().toUpperCase());
+        }
+
+        accountInterface.save(ac);
+        return ResponseEntity.ok(ac);
     }
 
     public ResponseEntity<?> deleteAccount(Long id) {
-        if(accountInterface.findById(id).isPresent()){
+        if (accountInterface.findById(id).isPresent()) {
             accountInterface.deleteById(id);
             return ResponseEntity.ok().build();
-        }else{
+        } else {
             return ResponseEntity.notFound().build();
         }
     }
 
     public ResponseEntity<?> loginAccount(accountDTO account) {
-        if(accountInterface.existsByUsername(account.getUsername())){
-            Account ac=accountInterface.findByUsername(account.getUsername());
-            if(ac.getPassword().equals(Base64.getEncoder().encodeToString(account.getPassword().getBytes()))){
+        if (accountInterface.existsByUsername(account.getUsername())) {
+            Account ac = accountInterface.findByUsername(account.getUsername());
+            if (ac.getPassword().equals(Base64.getEncoder().encodeToString(account.getPassword().getBytes()))) {
                 return ResponseEntity.ok(ac);
-            }else{
-                System.out.println(account.getUsername()+account.getPassword());
+            } else {
+                System.out.println(account.getUsername() + account.getPassword());
                 return ResponseEntity.badRequest().body("Invalid password");
             }
 
-        }else{
-            System.out.println(account.getUsername()+account.getPassword());
+        } else {
+            System.out.println(account.getUsername() + account.getPassword());
             return ResponseEntity.notFound().build();
         }
     }
+
+
 }

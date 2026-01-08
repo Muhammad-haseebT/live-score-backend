@@ -59,6 +59,8 @@ public class MatchController {
     }
 
 
+
+
     @GetMapping("/match/date/{date}")
     public ResponseEntity<?> getMatchesByDate(@PathVariable LocalDate date) {
         return matchService.getMatchesByDate(date);
@@ -78,10 +80,17 @@ public class MatchController {
     public ResponseEntity<?> endMatch(@PathVariable Long id) {
         return matchService.endMatch(id);
     }
-    //abondan match
+
     @PutMapping("/match/abandon/{id}")
     public ResponseEntity<?> abandonMatch(@PathVariable Long id) {
         return matchService.abandonMatch(id);
     }
 
+    @GetMapping("/match/sport")
+    public ResponseEntity<?> getMatchesBySport(
+            @RequestParam(required = false) String name,
+            @RequestParam String status
+    ) {
+        return matchService.getmatchbystatusandSport(name, status);
+    }
 }

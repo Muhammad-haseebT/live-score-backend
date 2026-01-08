@@ -1,6 +1,7 @@
 package com.livescore.backend.Controller;
 
 import com.livescore.backend.DTO.SeasonCreateRequestDTO;
+import com.livescore.backend.DTO.SeasonSportsRequestDTO;
 import com.livescore.backend.Entity.Season;
 import com.livescore.backend.Service.SeasonService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,6 +22,10 @@ public class SeasonController {
     public ResponseEntity<?> getSeasonById(@PathVariable Long id) {
         return seasonService.getSeasonById(id);
     }
+    @GetMapping("/season/tournaments/{id}")
+    public ResponseEntity<?> getSeasonWiseTournament(@PathVariable Long id) {
+        return seasonService.getSeasonWiseTournament(id);
+    }
 
     @GetMapping("/season")
     public ResponseEntity<?> getAllSeasons() {
@@ -36,4 +41,14 @@ public class SeasonController {
     public ResponseEntity<?> deleteSeason(@PathVariable Long id) {
         return seasonService.deleteSeason(id);
     }
+    @GetMapping("/season/names")
+    public ResponseEntity<?> getSeasonNames() {
+        return seasonService.getSeasonNames();
+    }
+
+    @PostMapping("/add-sports")
+    public ResponseEntity<?> addSportsToSeason(@RequestBody SeasonSportsRequestDTO request) {
+        return seasonService.addSportsToSeason(request);
+    }
+
 }

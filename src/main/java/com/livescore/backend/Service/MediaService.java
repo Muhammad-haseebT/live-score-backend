@@ -134,5 +134,14 @@ public class MediaService {
 }
 
 
+    public ResponseEntity<?> getMediaBySeasonId(Long id) {
+        List<Media> mediaList = mediaInterface.findMediaBySeasonId(id);
+        if(mediaList.stream().count()==0){
+            return ResponseEntity.notFound().build();
+        }
+       return ResponseEntity.ok(mediaList);
 
+
+
+    }
 }

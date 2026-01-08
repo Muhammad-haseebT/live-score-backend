@@ -87,6 +87,9 @@ public class TournamentService {
             return ResponseEntity.notFound().build();
         }
     }
+
+
+
     public ResponseEntity<?> getAllTournaments() {
         return ResponseEntity.ok(tournamentInterface.findAll());
     }

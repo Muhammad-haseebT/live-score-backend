@@ -49,6 +49,10 @@ public class MediaController {
     public ResponseEntity<?> getMediaByMatchId(@PathVariable Long id) {
         return mediaService.getMediaByMatchId(id);
     }
+    @GetMapping("media/season/{id}")
+    public ResponseEntity<?> getMediaBySeasonId(@PathVariable Long id) {
+        return mediaService.getMediaBySeasonId(id);
+    }
 
 
 

@@ -34,13 +34,13 @@ public class Season {
         createdAt = LocalDate.now();
     }
 
-    // Season -> Account (many-to-one)
+
     @ManyToOne
     @JoinColumn(name = "account_id")
 
     private Account account;
 
-    // ManyToMany with Sports - break recursion by not using managed/backrefs here.
+
     @ManyToMany
     @JoinTable(name = "season_sports",
             joinColumns = @JoinColumn(name = "season_id"),

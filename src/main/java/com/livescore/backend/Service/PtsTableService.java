@@ -2,6 +2,7 @@ package com.livescore.backend.Service;
 
 import com.livescore.backend.Entity.*;
 import com.livescore.backend.Interface.*;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -14,16 +15,18 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+
 @Service
+@RequiredArgsConstructor
 public class PtsTableService {
-    @Autowired
-    private PtsTableInterface ptsTableInterface;
 
-    @Autowired
-    private MatchInterface matchInterface;
+    private final PtsTableInterface ptsTableInterface;
 
-    @Autowired
-    private CricketInningsInterface inningsInterface;
+
+    private final MatchInterface matchInterface;
+
+
+    private final CricketInningsInterface inningsInterface;
 
     public ResponseEntity<?> createPtsTable(PtsTable ptsTable) {
 

@@ -301,4 +301,35 @@ public class MatchService {
         return ResponseEntity.ok(matchDTOs);
     }
 
+    public ResponseEntity<?> getmatchbystatusandSport(String sport,String status) {
+
+        List<Match> matches;
+
+        if (sport == null || sport.isEmpty()) {
+            matches = matchInterface.findByStatus(status);
+        } else {
+            matches = matchInterface.findByTournament_SportName(sport, status);
+        }
+
+        List<MatchDTO> matchDTOs = new ArrayList<>();
+
+        for (Match match : matches) {
+            MatchDTO dto = new MatchDTO();
+            dto.setId(match.getId());
+            dto.setTournamentId(match.getTournament().getId());
+            dto.setTournamentName(match.getTournament().getName());
+            dto.setTeam1Id(match.getTeam1().getId());
+            dto.setTeam1Name(match.getTeam1().getName());
+            dto.setTeam2Id(match.getTeam2().getId());
+            dto.setTeam2Name(match.getTeam2().getName());
+            dto.setStatus(match.getStatus());
+            dto.setVenue(match.getVenue());
+            dto.setDate(match.getDate());
+            dto.setTime(match.getTime());
+            matchDTOs.add(dto);
+        }
+
+        return ResponseEntity.ok(matchDTOs);
+    }
+
 }

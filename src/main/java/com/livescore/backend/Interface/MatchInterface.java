@@ -49,4 +49,8 @@ public interface MatchInterface extends JpaRepository<Match,Long> {
     List<Object[]> countPlayerOfMatchByPlayer(@Param("tournamentId") Long tournamentId);
 
     List<Match> findByTournament_Id(Long tournamentId);
+
+
+    @Query("SELECT m FROM Match m WHERE m.tournament.sport.name = :name AND m.status = :status")
+    List<Match> findByTournament_SportName(@Param("name") String name,@Param("status") String status);
 }
