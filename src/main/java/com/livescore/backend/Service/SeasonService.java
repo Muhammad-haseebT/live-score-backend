@@ -1,6 +1,7 @@
 package com.livescore.backend.Service;
 
 import com.livescore.backend.DTO.SeasonCreateRequestDTO;
+import com.livescore.backend.DTO.SeasonResponse;
 import com.livescore.backend.DTO.SeasonSportsRequestDTO;
 import com.livescore.backend.Entity.Season;
 import com.livescore.backend.Entity.Sports;
@@ -88,7 +89,7 @@ public class SeasonService {
     }
 
     public ResponseEntity<?> getSeasonNames() {
-        return ResponseEntity.ok(seasonInterface.findAll().stream().map(Season::getName).collect(Collectors.toList()));
+        return ResponseEntity.ok(seasonInterface.findAll().stream().map(season->new SeasonResponse(season.getName(),season.getId())).collect(Collectors.toList()));
     }
 
     public ResponseEntity<?> getSeasonWiseTournament(Long id) {
