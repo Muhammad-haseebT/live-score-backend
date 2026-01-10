@@ -1,5 +1,8 @@
 package com.livescore.backend.Entity;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.Data;
 
@@ -10,26 +13,23 @@ import java.util.List;
 public class CricketInnings {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    int inningsid;
+    private Long id;
+    private int no;//1 or 2
 
+    // CricketInnings -> Match (many-to-one)
     @ManyToOne
-    @JoinColumn(name = "mtid")
-    Match match;
+    @JoinColumn(name = "match_id")
+    @JsonBackReference("match-innings")
+    private Match match;
 
-    int extras;
-
+    // CricketInnings -> Team
     @ManyToOne
-    @JoinColumn(name = "batsmanid")
-    Player batsman;
+    @JoinColumn(name = "team_id")
+    @JsonIgnore // no reverse list on Team for innings
+    private Team team;
 
-    @ManyToOne
-    @JoinColumn(name = "bowlerid")
-    Player bowler;
-
-    int runs;
-    int wicket;
-    Double over;
-    String stats;
+    // CricketInnings -> CricketBall (one-to-many)
     @OneToMany(mappedBy = "innings", cascade = CascadeType.ALL)
-    List<CricketBall> balls;
+    @JsonManagedReference("innings-balls")
+    private List<CricketBall> balls;
 }

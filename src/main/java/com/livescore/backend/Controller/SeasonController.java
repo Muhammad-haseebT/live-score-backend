@@ -1,33 +1,54 @@
 package com.livescore.backend.Controller;
 
+import com.livescore.backend.DTO.SeasonCreateRequestDTO;
+import com.livescore.backend.DTO.SeasonSportsRequestDTO;
 import com.livescore.backend.Entity.Season;
 import com.livescore.backend.Service.SeasonService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 public class SeasonController {
     @Autowired
-    SeasonService seasonService;
+    private SeasonService seasonService;
 
     @PostMapping("/season")
-    public Season createSeason(@RequestBody Season season) {
+    public ResponseEntity<?> createSeason(@RequestBody SeasonCreateRequestDTO season) {
         return seasonService.createSeason(season);
     }
 
+    @GetMapping("/season/{id}")
+    public ResponseEntity<?> getSeasonById(@PathVariable Long id) {
+        return seasonService.getSeasonById(id);
+    }
+    @GetMapping("/season/tournaments/{id}")
+    public ResponseEntity<?> getSeasonWiseTournament(@PathVariable Long id) {
+        return seasonService.getSeasonWiseTournament(id);
+    }
+
     @GetMapping("/season")
-    public List<Season> getAllSeasons() {
+    public ResponseEntity<?> getAllSeasons() {
         return seasonService.getAllSeasons();
     }
 
-    @GetMapping("season/{id}")
-    public Season getSeasonById(@PathVariable int id) {
-        return seasonService.getSeasonById(id);
+    @PutMapping("/season/{id}")
+    public ResponseEntity<?> updateSeason(@PathVariable Long id,@RequestBody Season season) {
+        return seasonService.updateSeason(id, season);
     }
-    @DeleteMapping("season/{id}")
-    public void deleteSeason(@PathVariable int id) {
-        seasonService.deleteSeason(id);
+
+    @DeleteMapping("/season/{id}")
+    public ResponseEntity<?> deleteSeason(@PathVariable Long id) {
+        return seasonService.deleteSeason(id);
     }
+    @GetMapping("/season/names")
+    public ResponseEntity<?> getSeasonNames() {
+        return seasonService.getSeasonNames();
+    }
+
+    @PostMapping("/add-sports")
+    public ResponseEntity<?> addSportsToSeason(@RequestBody SeasonSportsRequestDTO request) {
+        return seasonService.addSportsToSeason(request);
+    }
+
 }

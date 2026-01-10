@@ -1,42 +1,51 @@
 package com.livescore.backend.Controller;
 
+import com.livescore.backend.DTO.accountDTO;
 import com.livescore.backend.Entity.Account;
 import com.livescore.backend.Service.AccountService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 
 @RestController
 public class AccountController {
+
     @Autowired
-    AccountService as;
+    private AccountService accountService;
 
-    @PostMapping("/acc/login")
-    public ResponseEntity<?> login(@RequestBody Account a) {
-        return as.check(a);
+    @PostMapping("/account")
+    public ResponseEntity<?> createAccount(@RequestBody Account account) {
+        return accountService.createAccount(account);
     }
 
-    @PostMapping("/acc/register")
-    public ResponseEntity<?> addAcc(@RequestBody Account a) {
-        return as.add(a);
+    @PostMapping("/account/login")
+    public ResponseEntity<?> loginAccount(@RequestBody accountDTO account) {
+        return accountService.loginAccount(account);
     }
 
-    @GetMapping("/acc/get")
-    public ResponseEntity<?> getAcc() {
-        return as.get();
+    @GetMapping("/account/{id}")
+    public ResponseEntity<?> getAccountById(@PathVariable Long id) {
+        return accountService.getAccountById(id);
     }
 
-    @PutMapping("/acc/update")
-    public ResponseEntity<?> updateAcc(@RequestBody Account a) {
-        return as.update(a);
+    @GetMapping("/account")
+    public ResponseEntity<?> getAllAccounts() {
+        return accountService.getAllAccounts();
     }
 
-    @GetMapping("/acc/getSeasons")
-    public ResponseEntity<?> getSeasons(@RequestBody Account a) {
-        return as.getSeasons(a);
+    @PutMapping("/account/{id}")
+    public ResponseEntity<?> updateAccount(@PathVariable Long id, @RequestBody Account account) {
+        return accountService.updateAccount(id, account);
     }
+
+    @DeleteMapping("/account/{id}")
+    public ResponseEntity<?> deleteAccount(@PathVariable Long id) {
+        return accountService.deleteAccount(id);
+    }
+
+
     
 
 

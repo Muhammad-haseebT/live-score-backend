@@ -1,33 +1,38 @@
 package com.livescore.backend.Controller;
 
 import com.livescore.backend.Entity.Sports;
-import com.livescore.backend.Interface.SportsInterface;
 import com.livescore.backend.Service.SportsService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 public class SportsController {
     @Autowired
-    SportsService sportsService;
+    private SportsService sportsService;
+
     @PostMapping("/sports")
-    public ResponseEntity<Sports> addSports(@RequestBody Sports s){
-        return sportsService.add(s);
+    public ResponseEntity<?> createSports(@RequestBody Sports sports) {
+        return sportsService.createSports(sports);
     }
+
+    @GetMapping("/sports/{id}")
+    public ResponseEntity<?> getSportsById(@PathVariable Long id) {
+        return sportsService.getSportsById(id);
+    }
+
     @GetMapping("/sports")
-    public ResponseEntity<List<Sports>> getAllSports(){
-        return sportsService.getAll();
+    public ResponseEntity<?> getAllSports() {
+        return sportsService.getAllSports();
     }
-    @DeleteMapping("/sports/{id}")
-    public ResponseEntity<Sports> deleteSports(@PathVariable int id){
-        return sportsService.delete(id);
-    }
+
     @PutMapping("/sports/{id}")
-    public ResponseEntity<Sports> updateSports(@PathVariable int id, @RequestBody Sports s){
-        return sportsService.update(id, s);
+    public ResponseEntity<?> updateSports(@PathVariable Long id, @RequestBody Sports sports) {
+        return sportsService.updateSports(id, sports);
+    }
+
+    @DeleteMapping("/sports/{id}")
+    public ResponseEntity<?> deleteSports(@PathVariable Long id) {
+        return sportsService.deleteSports(id);
     }
 }

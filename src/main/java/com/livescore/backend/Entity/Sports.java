@@ -1,27 +1,32 @@
 package com.livescore.backend.Entity;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
-import lombok.Data;
+import lombok.*;
 
 import java.util.List;
 
 @Entity
-@Data
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@ToString(exclude = { "tournaments" })
+
+
 public class Sports {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    int Sportsid;
-    @Column(unique = true)
-    String name;
+    private Long id;
 
-    @JsonBackReference
-    @ManyToOne
-    @JoinColumn(name = "sid")
-    Season season;
+    @Column(unique = true, nullable = false)
+    private String name;
 
 
-    @OneToMany(mappedBy = "sports", cascade = CascadeType.ALL)
-    List<Tournament> tournaments;
+    @OneToMany(mappedBy = "sport", cascade = CascadeType.ALL)
+    @JsonManagedReference("sport-tournaments")
+    @JsonIgnore
+    private List<Tournament> tournaments;
 }

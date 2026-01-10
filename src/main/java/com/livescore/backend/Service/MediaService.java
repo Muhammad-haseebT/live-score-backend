@@ -1,4 +1,147 @@
 package com.livescore.backend.Service;
 
+import com.livescore.backend.DTO.MediaDTo;
+import com.livescore.backend.Entity.Match;
+import com.livescore.backend.Entity.Media;
+import com.livescore.backend.Interface.MatchInterface;
+import com.livescore.backend.Interface.MediaInterface;
+import com.livescore.backend.Interface.TournamentInterface;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.*;
+
+@Service
+
 public class MediaService {
+    @Autowired
+    private MediaInterface mediaInterface;
+    @Autowired
+    private MatchInterface matchInterface;
+    @Autowired
+    private TournamentInterface tournamentInterface;
+    private String path = "C:\\Users\\HP\\OneDrive\\Desktop\\media\\";
+
+    public ResponseEntity<?> createMedia(MultipartFile f, MediaDTo media) throws IOException {
+
+        if (f == null || f.isEmpty()) {
+            return ResponseEntity.badRequest().body(
+                    Map.of("error", "Media file is required")
+            );
+        }
+
+
+        if (media.getMatchId() == null) {
+            return ResponseEntity.badRequest().body(
+                    Map.of("error", "Match ID is required")
+            );
+        }
+
+        // Check if match exists
+        Optional<Match> matchOpt = matchInterface.findById(media.getMatchId());
+        if (matchOpt.isEmpty()) {
+            return ResponseEntity.badRequest().body(
+                    Map.of("error", "Match not found with ID: " + media.getMatchId())
+            );
+        }
+        //save file in folder
+        String fileName = f.getOriginalFilename();
+        String filePath = path + fileName;
+        File file = new File(filePath);
+        //if file already exist than do nothing
+        if(file.exists()){
+            return ResponseEntity.badRequest().body(
+                    Map.of("error", "File already exists")
+            );
+        }
+        f.transferTo(file);
+
+
+        Media mediaEntity = new Media();
+        mediaEntity.setFileUrl(filePath);
+        mediaEntity.setFileType(f.getContentType());
+        mediaEntity.setMatch(matchOpt.get());
+
+        // Save and return
+        Media savedMedia = mediaInterface.save(mediaEntity);
+
+        return ResponseEntity.ok(Map.of(
+                "message", "Media uploaded successfully",
+                "mediaId", savedMedia.getId(),
+                "fileType", savedMedia.getFileType(),
+                "matchId", savedMedia.getMatch().getId()
+        ));
+    }
+
+    public ResponseEntity<?> getMediaById(Long id) {
+        return mediaInterface.findById(id)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    public ResponseEntity<?> getAllMedia() {
+        return ResponseEntity.ok(mediaInterface.findAll());
+    }
+
+
+
+    public ResponseEntity<?> deleteMedia(Long id) {
+        if(mediaInterface.existsById(id)){
+            mediaInterface.deleteById(id);
+            return ResponseEntity.ok().build();
+        }
+        return ResponseEntity.notFound().build();
+    }
+
+    private String getFileExtension(String filename) {
+        if (filename == null || !filename.contains(".")) return "unknown";
+        return filename.substring(filename.lastIndexOf('.') + 1);
+    }
+
+    public ResponseEntity<?> getMediaByMatchId(Long matchId) {
+    List<Media> mediaList = mediaInterface.findByMatchId(matchId);
+
+    List<Map<String, Object>> response = new ArrayList<>();
+
+    for (Media m : mediaList) {
+
+        try {
+            // Read file from disk
+            Path filePath = Paths.get(m.getFileUrl()); // <-- Your saved path field
+            byte[] fileBytes = Files.readAllBytes(filePath);
+
+            Map<String, Object> mediaMap = new HashMap<>();
+            mediaMap.put("id", m.getId());
+            mediaMap.put("fileType", m.getFileType());
+            mediaMap.put("fileName", filePath.getFileName().toString());
+            mediaMap.put("data", Base64.getEncoder().encodeToString(fileBytes));
+
+            response.add(mediaMap);
+
+        } catch (IOException e) {
+            return ResponseEntity.status(500).body("Failed to read file: " + m.getFileUrl());
+        }
+    }
+
+    return ResponseEntity.ok(response);
+}
+
+
+    public ResponseEntity<?> getMediaBySeasonId(Long id) {
+        List<Media> mediaList = mediaInterface.findMediaBySeasonId(id);
+        if(mediaList.stream().count()==0){
+            return ResponseEntity.notFound().build();
+        }
+       return ResponseEntity.ok(mediaList);
+
+
+
+    }
 }

@@ -1,5 +1,8 @@
 package com.livescore.backend.Entity;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import jakarta.annotation.Nullable;
 import jakarta.persistence.*;
 import lombok.Data;
 
@@ -8,29 +11,59 @@ import lombok.Data;
 public class CricketBall {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    int ballid;
+    private Long id;
 
     @ManyToOne
-    @JoinColumn(name = "inningsid")
-    CricketInnings innings;
-
-    int overnumber;
-    int ballnumber;
+    @JoinColumn(name = "innings_id")
+    @JsonBackReference("innings-balls")
+    private CricketInnings innings;
 
     @ManyToOne
-    @JoinColumn(name = "batsmanid")
-    Player batsman;
+    @JoinColumn(name = "match_id")
+    @JsonBackReference("match-balls")
+    private Match match;
 
     @ManyToOne
-    @JoinColumn(name = "bowlerid")
-    Player bowler;
-
-    int runs;
-    int extra;
-    String extratype;
-    String dismissletype;
+    @JoinColumn(name = "batsman_id")
+    @JsonIgnore
+    private Player batsman;
 
     @ManyToOne
-    @JoinColumn(name = "fielderid")
-    Player fielder;
+    @JoinColumn(name = "bowler_id")
+    @JsonIgnore
+    private Player bowler;
+
+    @ManyToOne
+    @JoinColumn(name = "fielder_id")
+    @JsonIgnore
+    private Player fielder;
+
+    @ManyToOne
+    @JoinColumn(name = "out_batsman_id")
+    @JsonIgnore
+    private Player outBatsman;
+
+    private Integer overNumber;
+    private Integer ballNumber;
+
+    private Integer runs;
+    private Integer extra;
+    private String extraType;
+    private String dismissalType;
+
+    private Boolean legalDelivery = true;
+    private Boolean isFour = false;
+    private Boolean isSix = false;
+
+    private String comment;
+
+    @ManyToOne
+    @JoinColumn(name = "out_player_id")
+    @JsonIgnore
+    public Player outPlayer;
+
+    @ManyToOne
+    @JoinColumn(name = "media_id")
+    @JsonIgnore
+    private Media media;
 }

@@ -1,5 +1,8 @@
 package com.livescore.backend.Entity;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.Data;
 import java.time.LocalDate;
@@ -11,47 +14,102 @@ import java.util.List;
 public class Match {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    Integer mtid;
+    private Long id;
+
 
     @ManyToOne
-    @JoinColumn(name = "tid")
-    Tournament tournament;
+    @JoinColumn(name = "tournament_id")
+    @JsonBackReference("tournament-matches")
+    private Tournament tournament;
+
+
 
     @ManyToOne
-    @JoinColumn(name = "team1id")
-    Team team1;
+    @JoinColumn(name = "team1_id")
+    @JsonIgnore
+    private Team team1;
 
     @ManyToOne
-    @JoinColumn(name = "team2id")
-    Team team2;
+    @JoinColumn(name = "team2_id")
+    @JsonIgnore
+    private Team team2;
+
 
     @ManyToOne
-    @JoinColumn(name = "scorerid")
-    Account scorer;
+    @JoinColumn(name = "scorer_id")
+    @JsonBackReference("account-scoredMatches")
+    private Account scorer;
 
-    String status;
-    String venue;
-    LocalDate date;
-    LocalTime time;
+    private String status; // UPCOMING / LIVE / FINISHED
+    private String venue;
+    private LocalDate date;
+    private LocalTime time;
+
+    @PrePersist
+    public void prePersist() {
+        this.status = "upcoming";
+    }
+
+
+    @ManyToOne
+    @JoinColumn(name = "toss_winner_id")
+    @JsonIgnore
+    private Team tossWinner;
+
+    private int overs;
+    private int sets;
+
+    private String decision;
+
+    @ManyToOne
+    @JoinColumn(name = "winner_team_id")
+    @JsonIgnore
+    private Team winnerTeam;
+    // in Match.java
+    @ManyToOne
+    @JoinColumn(name = "man_of_match_id")
+    @JsonIgnore
+    private Player manOfMatch;
+
+    @ManyToOne
+    @JoinColumn(name = "best_batsman_id")
+    @JsonIgnore
+    private Player bestBatsman;
+
+    @ManyToOne
+    @JoinColumn(name = "best_bowler_id")
+    @JsonIgnore
+    private Player bestBowler;
+
+
+    // Match -> CricketInnings
+    @OneToMany(mappedBy = "match", cascade = CascadeType.ALL)
+    @JsonManagedReference("match-innings")
+    private List<CricketInnings> cricketInnings;
+
+    // Match -> GoalsType (football events)
+    @OneToMany(mappedBy = "match", cascade = CascadeType.ALL)
+    @JsonManagedReference("match-goals")
+    private List<GoalsType> footballEvents;
+
+    // Match -> MatchSets (set-based sports)
+    @OneToMany(mappedBy = "match", cascade = CascadeType.ALL)
+    @JsonManagedReference("match-sets")
+    private List<MatchSets> matchSets;
+
+    // Match -> Board (board games)
+    @OneToMany(mappedBy = "match", cascade = CascadeType.ALL)
+    @JsonManagedReference("match-boards")
+    private List<Board> boards;
+
+    // Match -> Media
+    @OneToMany(mappedBy = "match", cascade = CascadeType.ALL)
+    @JsonManagedReference("match-media")
+    @JsonIgnore
+    private List<Media> mediaList;
 
     @OneToMany(mappedBy = "match", cascade = CascadeType.ALL)
-    List<Sets> sets;
-
-    @OneToMany(mappedBy = "match", cascade = CascadeType.ALL)
-    List<SetsGamesResults> setsGamesResults;
-
-    @OneToMany(mappedBy = "match", cascade = CascadeType.ALL)
-    List<Board> boards;
-
-    @OneToMany(mappedBy = "match", cascade = CascadeType.ALL)
-    List<GoalsType> goals;
-
-    @OneToMany(mappedBy = "match", cascade = CascadeType.ALL)
-    List<CricketInnings> cricketInnings;
-
-    @OneToMany(mappedBy = "match", cascade = CascadeType.ALL)
-    List<CricketStats> cricketStats;
-
-    @OneToMany(mappedBy = "match", cascade = CascadeType.ALL)
-    List<Media> mediaList;
+    @JsonManagedReference("match-balls")
+    @JsonIgnore
+    private List<CricketBall> cricketBalls;
 }

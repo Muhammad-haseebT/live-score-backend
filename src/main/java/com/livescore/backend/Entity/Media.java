@@ -1,21 +1,29 @@
 package com.livescore.backend.Entity;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 import lombok.Data;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.File;
 
 @Entity
 @Data
 public class Media {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    int mid;
-    @ManyToOne
-    @JoinColumn(name = "parentid")
-    Tournament tournament;
-    @ManyToOne
-    @JoinColumn(name = "childid")
-    Match match;
+    private Long id;
 
-    String url;
-    String filetype;
+    @ManyToOne
+    @JoinColumn(name = "match_id")
+    @JsonBackReference("match-media")
+    private Match match;
+
+
+    private String fileUrl;
+
+    @Column(nullable = false)
+    private String fileType;
+
+
 }

@@ -5,9 +5,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public interface AccountInterface extends JpaRepository<Account,Integer> {
+public interface AccountInterface extends JpaRepository<Account,Long> {
+    boolean existsByUsername(String username);
 
-    public Account findByAridAndPassword(String Arid,String Password);
-
-    Account findByArid(String arid);
+    Account findByUsername(String username);
 }

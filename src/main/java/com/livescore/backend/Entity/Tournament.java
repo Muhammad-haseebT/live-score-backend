@@ -1,41 +1,74 @@
 package com.livescore.backend.Entity;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
-import lombok.Data;
+import lombok.*;
+
 import java.time.LocalDate;
 import java.util.List;
-
+// Tournament.java
 @Entity
-@Data
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@ToString(exclude = {
+        "organizer",
+        "season",
+        "teams",
+        "matches",
+        "sport",
+        "stats"
+})
 public class Tournament {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    int tid;
+    private Long id;
 
-    String name;
+    @Column(nullable = false)
+    private String name;
 
-    LocalDate startdate;
-    LocalDate enddate;
-    String venue;
-    String playerType;
-    String tournamentType;
-    String tournamentStage;
-    String Organizer;
+    private LocalDate startDate;
+    private LocalDate endDate;
 
-    @OneToMany(mappedBy = "tournament", cascade = CascadeType.ALL)
-    List<Media> mediaList;
+    private String playerType;//male/female
+    private String tournamentType;//hard,tennis etc
+    private String tournamentStage;//round-robin,knock out
 
+    // Tournament -> Account (organizer) many-to-one
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "organizer_id")
+    @JsonIgnore
+    private Account organizer;
+
+    // Tournament -> Sports (many-to-one)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "sports_id")
+    @JsonIgnore
+    private Sports sport;
+
+    // Tournament -> Season (many-to-one)
     @ManyToOne
-    @JoinColumn(name = "Sportsid")
+    @JoinColumn(name = "season_id")
+    @JsonIgnore
+    private Season season;
 
-    Sports sports;
+    // Tournament -> Team (one-to-many)
     @OneToMany(mappedBy = "tournament", cascade = CascadeType.ALL)
-    List<Team> teams;
+    @JsonIgnore
+    private List<Team> teams;
 
+    // Tournament -> Match (one-to-many)
     @OneToMany(mappedBy = "tournament", cascade = CascadeType.ALL)
-    List<Match> matches;
+    @JsonIgnore
+    private List<Match> matches;
 
+    // Tournament -> Stats (one-to-many)
     @OneToMany(mappedBy = "tournament", cascade = CascadeType.ALL)
-    List<Stats> statsList;
+    @JsonIgnore
+    private List<Stats> stats;
+
+
 }

@@ -1,93 +1,108 @@
 package com.livescore.backend.Service;
 
+import com.livescore.backend.DTO.accountDTO;
 import com.livescore.backend.Entity.Account;
-import com.livescore.backend.Entity.Season;
 import com.livescore.backend.Interface.AccountInterface;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.regex.Pattern;
+import java.util.Base64;
+import java.util.List;
+import java.util.Optional;
 
 @Service
 public class AccountService {
     @Autowired
-    AccountInterface ai;
+    private AccountInterface accountInterface;
 
-    public ResponseEntity<?> check(Account a) {
-        Map<String, Object> response = new HashMap<>();
-
-        if (ai.findByAridAndPassword(a.getArid().toUpperCase(), a.getPassword()) == null) {
-            response.put("success", false);
-            response.put("message", "Invalid ARID or Password");
-            return ResponseEntity.badRequest().body(response);
+    public ResponseEntity<?> createAccount(Account account) {
+        if (account.getUsername() == null || account.getPassword() == null) {
+            return ResponseEntity.badRequest().body("Username and password are required");
+        }
+        if (accountInterface.existsByUsername(account.getUsername())) {
+            return ResponseEntity.badRequest().body("Username already exists");
+        }
+        //if username is email then role = admin else user
+        if (account.getUsername().matches("[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}")) {
+            account.setRole("ADMIN");
+        } else {
+            account.setRole("USER");
         }
 
-        System.out.println(ai.findByAridAndPassword(a.getArid(), a.getPassword()));
-        response.put("success", true);
-        response.put("message", "Login successful");
-        return ResponseEntity.ok(response);
+        account.setUsername(account.getUsername().toLowerCase());
+        account.setPassword(Base64.getEncoder().encodeToString(account.getPassword().getBytes()));
+
+        return ResponseEntity.ok(accountInterface.save(account));
     }
 
-    public ResponseEntity<?> add(Account a) {
-        Map<String, Object> response = new HashMap<>();
+    public ResponseEntity<?> getAccountById(Long id) {
+        if (accountInterface.findById(id).isPresent()) {
+            return ResponseEntity.ok(accountInterface.findById(id).get());
+        } else {
+            return ResponseEntity.notFound().build();
+        }
+    }
 
-        if (a.getArid() == null || a.getArid().isEmpty()) {
-            response.put("success", false);
-            response.put("message", "Arid is required");
-            return ResponseEntity.badRequest().body(response);
-        } else if (a.getPassword() == null || a.getPassword().isEmpty()) {
-            response.put("success", false);
-            response.put("message", "Password is required");
-            return ResponseEntity.badRequest().body(response);
-        } else if (!Pattern.matches("^(?=.*[a-zA-Z0-9])(?=.*[!@#$%^&*])(?=.*[0-9]).{8,}$", a.getPassword())) {
-            response.put("success", false);
-            response.put("message", "Password must be at least 8 characters long and contain at least one letter, one number, and one special character");
-            return ResponseEntity.badRequest().body(response);
-        } else if (!Pattern.matches("(?i)^\\d{4}-arid-\\d{4}$", a.getArid())) {
-            response.put("success", false);
-            response.put("message", "Arid must be in this format YYYY-ARID-XXXX");
-            return ResponseEntity.badRequest().body(response);
-        } else if (ai.findByArid(a.getArid().toUpperCase()) != null) {
-            response.put("success", false);
-            response.put("message", "Already Exists");
-            return ResponseEntity.badRequest().body(response);
+    public ResponseEntity<?> getAllAccounts() {
+        return ResponseEntity.ok(accountInterface.findAll());
+    }
+
+    public ResponseEntity<?> updateAccount(Long id, Account account) {
+
+        System.out.println(id);
+        Optional<Account> optional = accountInterface.findById(id);
+
+        if (optional.isEmpty()) {
+            return ResponseEntity.notFound().build();
         }
 
-        System.out.println(a.getArid().toUpperCase());
-        a.setArid(a.getArid().toUpperCase());
-        a.setRole("user");
-        ai.save(a);
+        Account ac = optional.get();
 
-        response.put("success", true);
-        response.put("message", "Account registered successfully");
-        return ResponseEntity.ok(response);
+        if (account.getUsername() != null)
+            ac.setUsername(account.getUsername());
+
+        if (account.getName() != null)
+            ac.setName(account.getName());
+
+        if (account.getPassword() != null && !account.getPassword().isEmpty()) {
+            ac.setPassword(
+                    Base64.getEncoder().encodeToString(account.getPassword().getBytes())
+            );
+        }
+
+        if (account.getRole() != null) {
+            ac.setRole(account.getRole().toUpperCase());
+        }
+
+        accountInterface.save(ac);
+        return ResponseEntity.ok(ac);
     }
 
-    public ResponseEntity<?> get() {
-        return ResponseEntity.ok(ai.findAll());
+    public ResponseEntity<?> deleteAccount(Long id) {
+        if (accountInterface.findById(id).isPresent()) {
+            accountInterface.deleteById(id);
+            return ResponseEntity.ok().build();
+        } else {
+            return ResponseEntity.notFound().build();
+        }
     }
 
-    public ResponseEntity<?> update(Account a) {
-        if (a != null) {
-            Account oldAccount = ai.findById(a.getAid()).orElse(null);
-            if (oldAccount != null) {
-                oldAccount.setArid(a.getArid());
-                oldAccount.setPassword(a.getPassword());
-                ai.save(oldAccount);
-                return ResponseEntity.ok("Updated");
+    public ResponseEntity<?> loginAccount(accountDTO account) {
+        if (accountInterface.existsByUsername(account.getUsername())) {
+            Account ac = accountInterface.findByUsername(account.getUsername());
+            if (ac.getPassword().equals(Base64.getEncoder().encodeToString(account.getPassword().getBytes()))) {
+                return ResponseEntity.ok(ac);
             } else {
-                return ResponseEntity.badRequest().body("Account not found");
+                System.out.println(account.getUsername() + account.getPassword());
+                return ResponseEntity.badRequest().body("Invalid password");
             }
+
+        } else {
+            System.out.println(account.getUsername() + account.getPassword());
+            return ResponseEntity.notFound().build();
         }
-        return ResponseEntity.badRequest().body("Account not found");
-
     }
 
-    public ResponseEntity<?> getSeasons(Account a) {
-        Account acc=ai.findByArid(a.getArid());
-        return ResponseEntity.ok(acc.getSeasons());
-    }
+
 }
