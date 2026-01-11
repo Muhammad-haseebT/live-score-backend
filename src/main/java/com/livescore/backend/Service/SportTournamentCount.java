@@ -8,5 +8,5 @@ import lombok.Data;
 public class SportTournamentCount {
     private String name;
     private Long tournamentCount;
-
+    private Long sportId;
 }

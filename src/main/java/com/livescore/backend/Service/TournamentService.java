@@ -1,6 +1,7 @@
 package com.livescore.backend.Service;
 
 import com.livescore.backend.DTO.TournamentRequestDTO;
+import com.livescore.backend.DTO.TournamentResponseDTO;
 import com.livescore.backend.Entity.Season;
 import com.livescore.backend.Entity.Sports;
 import com.livescore.backend.Entity.Tournament;
@@ -118,6 +119,21 @@ public class TournamentService {
             return ResponseEntity.notFound().build();
         }
     }
+
+    private TournamentResponseDTO mapToDTO(Tournament t) {
+        TournamentResponseDTO dto = new TournamentResponseDTO();
+        dto.setId(t.getId());
+        dto.setName(t.getName());
+        dto.setSeasonId(t.getSeason().getId());
+        dto.setSportsId(t.getSport().getId());
+        dto.setStartDate(t.getStartDate().toString());
+        dto.setEndDate(t.getEndDate().toString());
+        dto.setPlayerType(t.getPlayerType());
+        dto.setTournamentType(t.getTournamentType());
+        dto.setTournamentStage(t.getTournamentStage());
+        return dto;
+    }
+
 
 
 }

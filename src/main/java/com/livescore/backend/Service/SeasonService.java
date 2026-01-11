@@ -96,16 +96,21 @@ public class SeasonService {
         if (seasonInterface.findById(id).isPresent()) {
             List<SportTournamentCount> s = seasonInterface.findSportWiseTournamentCount(id);
             List<Tournament> t = new ArrayList<>();
+
             for (SportTournamentCount sr : s) {
-                t = tournamentInterface.findBySeasonIdAndSportName(id, sr.getName());
+                List<Tournament> sportTournaments = tournamentInterface.findBySeasonIdAndSportName(id, sr.getName());
+                t.addAll(sportTournaments);
             }
+
             return ResponseEntity.ok(t);
 
         } else {
             return ResponseEntity.notFound().build();
         }
-
     }
+
+
+
 
     public ResponseEntity<?> addSportsToSeason(SeasonSportsRequestDTO request)
     {

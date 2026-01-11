@@ -16,3 +16,6 @@ public class TournamentRequestDTO {
     private Long seasonId;
     private Long sportsId;
 }
+
+
+
