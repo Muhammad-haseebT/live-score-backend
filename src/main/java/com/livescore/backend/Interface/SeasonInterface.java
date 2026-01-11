@@ -16,12 +16,13 @@ public interface SeasonInterface extends JpaRepository<Season, Long> {
     @Query("""
     SELECT new com.livescore.backend.Service.SportTournamentCount(
         s.name,
-        COUNT(t.id)
+        COUNT(t.id),
+        s.id
     )
     FROM Tournament t
     JOIN t.sport s
     WHERE t.season.id = :seasonId
-    GROUP BY s.name
+    GROUP BY s.id,s.name
 """)
     List<SportTournamentCount> findSportWiseTournamentCount(
             @Param("seasonId") Long seasonId
