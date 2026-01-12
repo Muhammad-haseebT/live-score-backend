@@ -92,18 +92,20 @@ public class SeasonService {
         return ResponseEntity.ok(seasonInterface.findAll().stream().map(season->new SeasonResponse(season.getName(),season.getId())).collect(Collectors.toList()));
     }
 
-    public ResponseEntity<?> getSeasonWiseTournament(Long id) {
+    public ResponseEntity<?> getSeasonWiseTournament(Long id,Long sportId) {
         if (seasonInterface.findById(id).isPresent()) {
             List<SportTournamentCount> s = seasonInterface.findSportWiseTournamentCount(id);
-            List<Tournament> t = new ArrayList<>();
-            for (SportTournamentCount sr : s) {
-                t = tournamentInterface.findBySeasonIdAndSportName(id, sr.getName());
-            }
-            return ResponseEntity.ok(t);
 
-        } else {
-            return ResponseEntity.notFound().build();
+            for (SportTournamentCount sr : s) {
+                if(sr.getSportId().equals(sportId)){
+                    return ResponseEntity.ok(tournamentInterface.findBySeasonIdAndSportName(id, sr.getSportId()));
+                }
+            }
+
         }
+
+            return ResponseEntity.notFound().build();
+
 
     }
 

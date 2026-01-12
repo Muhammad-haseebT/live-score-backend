@@ -22,9 +22,9 @@ public class SeasonController {
     public ResponseEntity<?> getSeasonById(@PathVariable Long id) {
         return seasonService.getSeasonById(id);
     }
-    @GetMapping("/season/tournaments/{id}")
-    public ResponseEntity<?> getSeasonWiseTournament(@PathVariable Long id) {
-        return seasonService.getSeasonWiseTournament(id);
+    @GetMapping("/season/tournaments/{id}/{sid}")
+    public ResponseEntity<?> getSeasonWiseTournament(@PathVariable Long id,@PathVariable Long sid) {
+        return seasonService.getSeasonWiseTournament(id,sid);
     }
 
     @GetMapping("/season")

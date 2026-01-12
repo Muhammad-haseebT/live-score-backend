@@ -2,6 +2,8 @@ package com.livescore.backend.Interface;
 
 import com.livescore.backend.Entity.Tournament;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -10,5 +12,10 @@ import java.util.List;
 public interface TournamentInterface extends JpaRepository<Tournament,Long> {
     boolean existsByNameAndSeasonId(String name, Long seasonId);
 
-    List<Tournament> findBySeasonIdAndSportName(Long id, String name);
+    @Query("""
+            SELECT t
+            FROM Tournament t
+            WHERE t.season.id = :seasonId AND t.sport.id = :sportId
+            """)
+    List<Tournament> findBySeasonIdAndSportName(@Param("seasonId") Long seasonId, @Param("sportId") Long sportId);
 }
