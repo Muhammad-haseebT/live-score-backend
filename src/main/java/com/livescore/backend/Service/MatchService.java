@@ -43,7 +43,7 @@ public class MatchService {
 
 
     public ResponseEntity<?> createMatch(MatchDTO matchDTO) {
-        boolean check=true;
+        boolean check = true;
         if (accountInterface.getById(matchDTO.getScorerId()) == null) {
             return ResponseEntity.badRequest().body("Account with id " + matchDTO.getScorerId() + " does not exist");
         }
@@ -60,10 +60,10 @@ public class MatchService {
         if (matchDTO.getDate().isBefore(LocalDate.now())) {
             return ResponseEntity.badRequest().body("Match date " + matchDTO.getDate() + " does not belong to the future");
         }
-        if(matchDTO.getDate().isAfter(LocalDate.now())||matchDTO.getDate().isEqual(LocalDate.now())){
-            check=false;
+        if (matchDTO.getDate().isAfter(LocalDate.now()) || matchDTO.getDate().isEqual(LocalDate.now())) {
+            check = false;
         }
-        if (matchDTO.getTime().isBefore(LocalTime.now())&&check) {
+        if (matchDTO.getTime().isBefore(LocalTime.now()) && check) {
             return ResponseEntity.badRequest().body("Match time " + matchDTO.getTime() + " does not belong to the future");
         }
         Match match = new Match();
@@ -83,6 +83,7 @@ public class MatchService {
         return ResponseEntity.ok().body("Match created successfully");
 
     }
+
     public ResponseEntity<?> updateMatch(Long id, MatchDTO matchDTO) {
         Match match = matchInterface.getById(id);
         if (match == null) {
@@ -104,12 +105,12 @@ public class MatchService {
             return ResponseEntity.badRequest().body("Match date " + matchDTO.getDate() + " does not belong to the future");
         }
 
-        boolean check=true;
-        if(matchDTO.getDate().isAfter(LocalDate.now())||matchDTO.getDate().isEqual(LocalDate.now())){
-            check=false;
+        boolean check = true;
+        if (matchDTO.getDate().isAfter(LocalDate.now()) || matchDTO.getDate().isEqual(LocalDate.now())) {
+            check = false;
         }
 
-        if (matchDTO.getTime().isBefore(LocalTime.now())&&check) {
+        if (matchDTO.getTime().isBefore(LocalTime.now()) && check) {
             return ResponseEntity.badRequest().body("Match time " + matchDTO.getTime() + " does not belong to the future");
         }
         match.setTournament(tournamentInterface.getById(matchDTO.getTournamentId()));
@@ -125,6 +126,7 @@ public class MatchService {
         matchInterface.save(match);
         return ResponseEntity.ok().body("Match updated successfully");
     }
+
     public ResponseEntity<?> deleteMatch(Long id) {
         Match match = matchInterface.getById(id);
         if (match == null) {
@@ -133,6 +135,7 @@ public class MatchService {
         matchInterface.delete(match);
         return ResponseEntity.ok().body("Match deleted successfully");
     }
+
     public ResponseEntity<?> getMatch(Long id) {
 
         Match match = matchInterface.findById(id).orElse(null);
@@ -147,10 +150,10 @@ public class MatchService {
 
     public ResponseEntity<?> getAllMatches() {
 
-        List<Match> matches=matchInterface.findAll();
-        List<MatchDTO> matchDTOs=new ArrayList<>();
-        for(Match match:matches){
-            MatchDTO matchDTO=new MatchDTO();
+        List<Match> matches = matchInterface.findAll();
+        List<MatchDTO> matchDTOs = new ArrayList<>();
+        for (Match match : matches) {
+            MatchDTO matchDTO = new MatchDTO();
             matchDTO.setId(match.getId());
             matchDTO.setTournamentId(match.getTournament().getId());
             matchDTO.setTournamentName(match.getTournament().getName());
@@ -159,7 +162,7 @@ public class MatchService {
             matchDTO.setTeam2Id(match.getTeam2().getId());
             matchDTO.setTeam2Name(match.getTeam2().getName());
             matchDTO.setScorerId(match.getScorer().getId());
-            matchDTO.setStatus(match.getStatus());
+            matchDTO.setStatus(match.getStatus().toUpperCase());
             matchDTO.setVenue(match.getVenue());
             matchDTO.setDate(match.getDate());
             matchDTO.setTime(match.getTime());
@@ -172,7 +175,7 @@ public class MatchService {
             } else {
                 matchDTO.setTossWinnerId(null);
             }
-            if(match.getWinnerTeam()!=null) {
+            if (match.getWinnerTeam() != null) {
                 matchDTO.setWinnerTeamId(match.getWinnerTeam().getId());
                 matchDTO.setWinnerTeamName(match.getWinnerTeam().getName());
             }
@@ -184,11 +187,10 @@ public class MatchService {
     }
 
 
-
-
     public ResponseEntity<?> getMatchesByTournament(Long tournamentId) {
         return ResponseEntity.ok().body(matchInterface.findByTournamentId(tournamentId));
     }
+
     public ResponseEntity<?> getMatchesByTeam(Long teamId) {
         return ResponseEntity.ok().body(matchInterface.findByTeam1IdOrTeam2Id(teamId, teamId));
     }
@@ -197,34 +199,35 @@ public class MatchService {
     public ResponseEntity<?> getMatchesByDate(LocalDate date) {
         return ResponseEntity.ok().body(matchInterface.findByDate(date));
     }
+
     public ResponseEntity<?> getMatchesByTime(LocalTime time) {
         return ResponseEntity.ok().body(matchInterface.findByTime(time));
     }
 
-    public ResponseEntity<?> startMatch(Long id,MatchDTO m) {
+    public ResponseEntity<?> startMatch(Long id, MatchDTO m) {
         System.out.println(m.getScorerId());
         Match match = matchInterface.findById(id).orElse(null);
         if (match == null) {
             return ResponseEntity.badRequest().body("Match with id " + id + " does not exist");
         }
-        match.setStatus("live");
+        match.setStatus("LIVE");
         match.setScorer(accountInterface.findById(m.getScorerId()).orElse(null));
         match.setTossWinner(teamInterface.getById(m.getTossWinnerId()));
         match.setDecision(m.getDecision());
-        Sports s= sportsInterface.getById(m.getSportId());
-        if(s.getName().equalsIgnoreCase("cricket")){
+        Sports s = sportsInterface.getById(m.getSportId());
+        if (s.getName().equalsIgnoreCase("cricket")) {
             match.setOvers(m.getOvers());
-        } else if (s.getName().equalsIgnoreCase("volleyball")||s.getName().equalsIgnoreCase("Badminton")
-                ||s.getName().equalsIgnoreCase("Tabletennis")) {
+        } else if (s.getName().equalsIgnoreCase("volleyball") || s.getName().equalsIgnoreCase("Badminton")
+                || s.getName().equalsIgnoreCase("Tabletennis")) {
             match.setSets(m.getSets());
         }
         CricketInnings innings = new CricketInnings();
         innings.setMatch(match);
         innings.setNo(1);
-        if(match.getDecision().equalsIgnoreCase("bat")){
+        if (match.getDecision().equalsIgnoreCase("bat")) {
             innings.setTeam(teamInterface.findById(m.getTossWinnerId()).orElse(null));
-        }else{
-            innings.setTeam(teamInterface.findById(m.getTeam1Id()==m.getTossWinnerId()?m.getTeam2Id():m.getTeam1Id()).orElse(null));
+        } else {
+            innings.setTeam(teamInterface.findById(m.getTeam1Id() == m.getTossWinnerId() ? m.getTeam2Id() : m.getTeam1Id()).orElse(null));
         }
         cricketInningsRepo.save(innings);
 
@@ -250,19 +253,18 @@ public class MatchService {
         ptsTableService.updatePointsTableAfterMatch(matchId);
 
 
-
         List<Player> playersTeam1 = playerRequestInterface.findApprovedPlayersByTeamId(match.getTeam1().getId());
         List<Player> playersTeam2 = playerRequestInterface.findApprovedPlayersByTeamId(match.getTeam2().getId());
 
-        if(playersTeam1.isEmpty()||playersTeam2.isEmpty()){
+        if (playersTeam1.isEmpty() || playersTeam2.isEmpty()) {
             return ResponseEntity.badRequest().body("No players found for team 1 or team 2");
         }
         // 5. Update stats for all players
         for (Player p : playersTeam1) {
-            statsService.updateStats(p.getId(), match.getTournament().getId(),matchId);
+            statsService.updateStats(p.getId(), match.getTournament().getId(), matchId);
         }
         for (Player p : playersTeam2) {
-            statsService.updateStats(p.getId(), match.getTournament().getId(),matchId);
+            statsService.updateStats(p.getId(), match.getTournament().getId(), matchId);
         }
 
         return ResponseEntity.ok("Match ended successfully and stats updated");
@@ -273,11 +275,10 @@ public class MatchService {
         if (match == null) {
             return ResponseEntity.badRequest().body("Match with id " + id + " does not exist");
         }
-        match.setStatus("abandoned");
+        match.setStatus("ABANDONED");
         matchInterface.save(match);
         return ResponseEntity.ok().body("Match abandoned successfully");
     }
-
 
 
     public ResponseEntity<?> getMatchesByStatus(String status) {
@@ -292,7 +293,7 @@ public class MatchService {
             matchDTO.setTeam1Name(match.getTeam1().getName());
             matchDTO.setTeam2Id(match.getTeam2().getId());
             matchDTO.setTeam2Name(match.getTeam2().getName());
-            matchDTO.setStatus(match.getStatus());
+            matchDTO.setStatus(match.getStatus().toUpperCase());
             matchDTO.setVenue(match.getVenue());
             matchDTO.setDate(match.getDate());
             matchDTO.setTime(match.getTime());
@@ -301,14 +302,21 @@ public class MatchService {
         return ResponseEntity.ok(matchDTOs);
     }
 
-    public ResponseEntity<?> getmatchbystatusandSport(String sport,String status) {
+    public ResponseEntity<?> getmatchbystatusandSport(String sport, String status) {
 
         List<Match> matches;
+        boolean isSportAll = (sport == null || sport.isEmpty() || sport.equalsIgnoreCase("All"));
+        boolean isStatusAll = (status == null || status.isEmpty() || status.equalsIgnoreCase("All"));
 
-        if (sport == null || sport.isEmpty()) {
-            matches = matchInterface.findByStatus(status);
-        } else {
-            matches = matchInterface.findByTournament_SportName(sport, status);
+        if (isSportAll && isStatusAll) {
+            matches = matchInterface.findAll();
+        } else if (isSportAll) {
+            matches = matchInterface.findByStatus(status.toUpperCase());
+        } else if(isStatusAll) {
+            matches=matchInterface.findByTournament_SportName(sport);
+        }
+        else {
+            matches=matchInterface.findByTournament_SportName(sport,status);
         }
 
         List<MatchDTO> matchDTOs = new ArrayList<>();
@@ -322,7 +330,7 @@ public class MatchService {
             dto.setTeam1Name(match.getTeam1().getName());
             dto.setTeam2Id(match.getTeam2().getId());
             dto.setTeam2Name(match.getTeam2().getName());
-            dto.setStatus(match.getStatus());
+            dto.setStatus(match.getStatus().toUpperCase());
             dto.setVenue(match.getVenue());
             dto.setDate(match.getDate());
             dto.setTime(match.getTime());

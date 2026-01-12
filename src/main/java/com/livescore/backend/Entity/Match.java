@@ -47,7 +47,7 @@ public class Match {
 
     @PrePersist
     public void prePersist() {
-        this.status = "upcoming";
+        this.status = "UPCOMING";
     }
 
 
