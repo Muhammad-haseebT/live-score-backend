@@ -1,5 +1,6 @@
 package com.livescore.backend.Service;
 
+import com.livescore.backend.DTO.PlayerDto;
 import com.livescore.backend.DTO.accountDTO;
 import com.livescore.backend.Entity.Account;
 import com.livescore.backend.Interface.AccountInterface;
@@ -32,6 +33,8 @@ public class AccountService {
 
         account.setUsername(account.getUsername().toLowerCase());
         account.setPassword(Base64.getEncoder().encodeToString(account.getPassword().getBytes()));
+
+
 
         return ResponseEntity.ok(accountInterface.save(account));
     }
