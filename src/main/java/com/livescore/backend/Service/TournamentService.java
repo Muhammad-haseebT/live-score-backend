@@ -4,15 +4,18 @@ import com.livescore.backend.DTO.TournamentRequestDTO;
 import com.livescore.backend.Entity.Season;
 import com.livescore.backend.Entity.Sports;
 import com.livescore.backend.Entity.Tournament;
-import com.livescore.backend.Interface.AccountInterface;
-import com.livescore.backend.Interface.SeasonInterface;
-import com.livescore.backend.Interface.SportsInterface;
-import com.livescore.backend.Interface.TournamentInterface;
+import com.livescore.backend.Interface.*;
+import lombok.Data;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.PageRequest;
+import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.List;
 
 @Service
 public class TournamentService {
@@ -24,6 +27,8 @@ public class TournamentService {
     private SportsInterface sportsInterface;
     @Autowired
     private SeasonInterface seasonInterface;
+    @Autowired
+    private PtsTableInterface ptsTableInterface;
 
     public ResponseEntity<?> createTournament(TournamentRequestDTO tournament) {
         if(tournament.getName()==null||tournament.getName().isEmpty()){
@@ -120,4 +125,28 @@ public class TournamentService {
     }
 
 
+    public ResponseEntity<?> getOverview(Long id) {
+        Tournament tournament = tournamentInterface.findById(id).orElse(null);
+        if(tournament == null){
+            return ResponseEntity.notFound().build();
+        }
+        OverViewDTO overViewDTO = new OverViewDTO();
+        overViewDTO.setTeams(tournament.getTeams().size());
+        overViewDTO.setPlayerType(tournament.getPlayerType());
+        overViewDTO.setStartDate(tournament.getStartDate());
+        Pageable p=PageRequest.of(0, 3);
+        List<Abc> a= ptsTableInterface.findByTournamentId(id,p);
+        overViewDTO.setTop(a);
+        return ResponseEntity.ok(overViewDTO);
+
+    }
+
+}
+
+@Data
+class OverViewDTO {
+    private int teams;
+    private String playerType;
+    private LocalDate startDate;
+    List<Abc> top;
 }

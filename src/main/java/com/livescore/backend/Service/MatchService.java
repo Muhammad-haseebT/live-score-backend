@@ -151,39 +151,9 @@ public class MatchService {
     public ResponseEntity<?> getAllMatches() {
 
         List<Match> matches = matchInterface.findAll();
-        List<MatchDTO> matchDTOs = new ArrayList<>();
-        for (Match match : matches) {
-            MatchDTO matchDTO = new MatchDTO();
-            matchDTO.setId(match.getId());
-            matchDTO.setTournamentId(match.getTournament().getId());
-            matchDTO.setTournamentName(match.getTournament().getName());
-            matchDTO.setTeam1Id(match.getTeam1().getId());
-            matchDTO.setTeam1Name(match.getTeam1().getName());
-            matchDTO.setTeam2Id(match.getTeam2().getId());
-            matchDTO.setTeam2Name(match.getTeam2().getName());
-            matchDTO.setScorerId(match.getScorer().getId());
-            matchDTO.setStatus(match.getStatus().toUpperCase());
-            matchDTO.setVenue(match.getVenue());
-            matchDTO.setDate(match.getDate());
-            matchDTO.setTime(match.getTime());
-            matchDTO.setDecision(match.getDecision());
-            matchDTO.setOvers(match.getOvers());
-            matchDTO.setSets(match.getSets());
-            matchDTO.setSportId(match.getTournament().getSport().getId());
-            if (match.getTossWinner() != null) {
-                matchDTO.setTossWinnerId(match.getTossWinner().getId());
-            } else {
-                matchDTO.setTossWinnerId(null);
-            }
-            if (match.getWinnerTeam() != null) {
-                matchDTO.setWinnerTeamId(match.getWinnerTeam().getId());
-                matchDTO.setWinnerTeamName(match.getWinnerTeam().getName());
-            }
 
-            matchDTOs.add(matchDTO);
-        }
 
-        return ResponseEntity.ok().body(matchDTOs);
+        return ResponseEntity.ok().body(convertToDTO(matches));
     }
 
 
@@ -283,23 +253,8 @@ public class MatchService {
 
     public ResponseEntity<?> getMatchesByStatus(String status) {
         List<Match> matches = matchInterface.findByStatus(status); // only matches with given status
-        List<MatchDTO> matchDTOs = new ArrayList<>();
-        for (Match match : matches) {
-            MatchDTO matchDTO = new MatchDTO();
-            matchDTO.setId(match.getId());
-            matchDTO.setTournamentId(match.getTournament().getId());
-            matchDTO.setTournamentName(match.getTournament().getName());
-            matchDTO.setTeam1Id(match.getTeam1().getId());
-            matchDTO.setTeam1Name(match.getTeam1().getName());
-            matchDTO.setTeam2Id(match.getTeam2().getId());
-            matchDTO.setTeam2Name(match.getTeam2().getName());
-            matchDTO.setStatus(match.getStatus().toUpperCase());
-            matchDTO.setVenue(match.getVenue());
-            matchDTO.setDate(match.getDate());
-            matchDTO.setTime(match.getTime());
-            matchDTOs.add(matchDTO);
-        }
-        return ResponseEntity.ok(matchDTOs);
+
+        return ResponseEntity.ok(convertToDTO(matches));
     }
 
     public ResponseEntity<?> getmatchbystatusandSport(String sport, String status) {
@@ -319,25 +274,52 @@ public class MatchService {
             matches=matchInterface.findByTournament_SportName(sport,status);
         }
 
-        List<MatchDTO> matchDTOs = new ArrayList<>();
 
-        for (Match match : matches) {
-            MatchDTO dto = new MatchDTO();
-            dto.setId(match.getId());
-            dto.setTournamentId(match.getTournament().getId());
-            dto.setTournamentName(match.getTournament().getName());
-            dto.setTeam1Id(match.getTeam1().getId());
-            dto.setTeam1Name(match.getTeam1().getName());
-            dto.setTeam2Id(match.getTeam2().getId());
-            dto.setTeam2Name(match.getTeam2().getName());
-            dto.setStatus(match.getStatus().toUpperCase());
-            dto.setVenue(match.getVenue());
-            dto.setDate(match.getDate());
-            dto.setTime(match.getTime());
-            matchDTOs.add(dto);
-        }
 
-        return ResponseEntity.ok(matchDTOs);
+        return ResponseEntity.ok(convertToDTO(matches));
     }
 
+    public ResponseEntity<?> getMatchesByScorer(Long id) {
+
+        List<Match> matches=matchInterface.findByScorerID(id);
+        return ResponseEntity.ok(convertToDTO(matches));
+    }
+
+
+
+    public List<MatchDTO> convertToDTO(List<Match> matches) {
+        List<MatchDTO> matchDTOs = new ArrayList<>();
+        for (Match match : matches) {
+            MatchDTO matchDTO = new MatchDTO();
+            matchDTO.setId(match.getId());
+            matchDTO.setTournamentId(match.getTournament().getId());
+            matchDTO.setTournamentName(match.getTournament().getName());
+            matchDTO.setTeam1Id(match.getTeam1().getId());
+            matchDTO.setTeam1Name(match.getTeam1().getName());
+            matchDTO.setTeam2Id(match.getTeam2().getId());
+            matchDTO.setTeam2Name(match.getTeam2().getName());
+            matchDTO.setScorerId(match.getScorer().getId());
+            matchDTO.setStatus(match.getStatus().toUpperCase());
+            matchDTO.setVenue(match.getVenue());
+            matchDTO.setDate(match.getDate());
+            matchDTO.setTime(match.getTime());
+            matchDTO.setDecision(match.getDecision());
+            matchDTO.setOvers(match.getOvers());
+            matchDTO.setSets(match.getSets());
+            matchDTO.setSportId(match.getTournament().getSport().getId());
+            if (match.getTossWinner() != null) {
+                matchDTO.setTossWinnerId(match.getTossWinner().getId());
+            } else {
+                matchDTO.setTossWinnerId(null);
+            }
+            if (match.getWinnerTeam() != null) {
+                matchDTO.setWinnerTeamId(match.getWinnerTeam().getId());
+                matchDTO.setWinnerTeamName(match.getWinnerTeam().getName());
+            }
+
+            matchDTOs.add(matchDTO);
+
+        }
+        return matchDTOs;
+    }
 }

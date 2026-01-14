@@ -214,9 +214,7 @@ public class PtsTableService {
     }
 
 
-    public ResponseEntity<?> getPointsTableByTournamentId(Long tournamentId) {
-        return ResponseEntity.ok(ptsTableInterface.findByTournamentId(tournamentId));
-    }
+
 
     // changed InningsData to use long runs for safety
     private static class InningsData {

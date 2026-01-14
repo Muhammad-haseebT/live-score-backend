@@ -37,4 +37,10 @@ public class TournamentController {
     public ResponseEntity<?> deleteTournament(@PathVariable Long id) {
         return tournamentService.deleteTournament(id);
     }
+
+    @GetMapping("/tournament/overview/{id}")
+    public ResponseEntity<?> getOverview(@PathVariable Long id) {
+        return tournamentService.getOverview(id);
+    }
+
 }

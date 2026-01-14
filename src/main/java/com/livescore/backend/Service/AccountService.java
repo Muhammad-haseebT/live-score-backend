@@ -16,6 +16,9 @@ import java.util.Optional;
 public class AccountService {
     @Autowired
     private AccountInterface accountInterface;
+    @Autowired
+    private PlayerService playerService;
+
 
     public ResponseEntity<?> createAccount(Account account) {
         if (account.getUsername() == null || account.getPassword() == null) {
@@ -33,8 +36,11 @@ public class AccountService {
 
         account.setUsername(account.getUsername().toLowerCase());
         account.setPassword(Base64.getEncoder().encodeToString(account.getPassword().getBytes()));
-
-
+        //auto create player with given data
+        PlayerDto playerDto=new PlayerDto();
+        playerDto.setUsername(account.getUsername());
+        playerDto.setName(account.getName());
+        playerService.createPlayer(playerDto);
 
         return ResponseEntity.ok(accountInterface.save(account));
     }
@@ -83,12 +89,24 @@ public class AccountService {
     }
 
     public ResponseEntity<?> deleteAccount(Long id) {
-        if (accountInterface.findById(id).isPresent()) {
-            accountInterface.deleteById(id);
+        Account a=accountInterface.findById(id).get();
+        if (a!=null) {
+
+            accountInterface.delete(a);
+//            a.softDelete();
+//            accountInterface.save(a);
             return ResponseEntity.ok().build();
         } else {
             return ResponseEntity.notFound().build();
         }
+    }
+    public void restoreAccount(Long id) {
+        // Deleted account find karne ke liye special query
+        Account account = accountInterface.findByIdIncludingDeleted(id)
+                .orElseThrow(() -> new RuntimeException("Account not found"));
+
+        account.restore();
+        accountInterface.save(account);
     }
 
     public ResponseEntity<?> loginAccount(accountDTO account) {
