@@ -75,13 +75,9 @@ public class MatchService {
         match.setDate(matchDTO.getDate());
         match.setTime(matchDTO.getTime());
         match.setOvers(matchDTO.getOvers());
-
         match.setSets(matchDTO.getSets());
-
         matchInterface.save(match);
-
         return ResponseEntity.ok().body("Match created successfully");
-
     }
 
     public ResponseEntity<?> updateMatch(Long id, MatchDTO matchDTO) {
