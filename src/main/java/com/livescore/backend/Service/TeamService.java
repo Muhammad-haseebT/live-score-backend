@@ -9,8 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 @Service
 public class TeamService {
@@ -64,13 +63,28 @@ public class TeamService {
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
-    public ResponseEntity<?> getTeamsByTournamentId(Long tournamentId) {
-        return ResponseEntity.ok(teamInterface.findByTournamentId(tournamentId));
-    }
+
+
     public ResponseEntity<?> getTeamsByStatus(String status) {
         return ResponseEntity.ok(teamInterface.findByStatus(status));
     }
     public ResponseEntity<?> getTeamsByTournamentIdAndStatus(Long tournamentId, String status) {
         return ResponseEntity.ok(teamInterface.findByTournamentIdAndStatus(tournamentId, status));
+    }
+
+
+    public ResponseEntity<?> getTeamByTournamentId(Long tid) {
+        List<Map<String, Object>> response = new ArrayList<>();
+        List<Team> teams = teamInterface.findByTournamentId(tid);
+
+        for (Team team : teams) {
+            Map<String, Object> m = new HashMap<>();
+            m.put("id", team.getId());
+            m.put("name", team.getName());
+            response.add(m);
+        }
+
+        return ResponseEntity.ok(response);
+
     }
 }
