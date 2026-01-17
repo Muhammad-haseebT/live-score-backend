@@ -36,6 +36,7 @@ public class AccountService {
 
         account.setUsername(account.getUsername().toLowerCase());
         account.setPassword(Base64.getEncoder().encodeToString(account.getPassword().getBytes()));
+        Account a=accountInterface.save(account);
         //auto create player with given data
         PlayerDto playerDto=new PlayerDto();
         playerDto.setUsername(account.getUsername());
@@ -43,7 +44,7 @@ public class AccountService {
         playerDto.setPlayerRole("player");
         playerService.createPlayer(playerDto);
 
-        return ResponseEntity.ok(accountInterface.save(account));
+        return ResponseEntity.ok(a);
     }
 
     public ResponseEntity<?> getAccountById(Long id) {
