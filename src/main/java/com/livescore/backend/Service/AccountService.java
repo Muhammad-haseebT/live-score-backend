@@ -40,6 +40,7 @@ public class AccountService {
         PlayerDto playerDto=new PlayerDto();
         playerDto.setUsername(account.getUsername());
         playerDto.setName(account.getName());
+        playerDto.setPlayerRole("player");
         playerService.createPlayer(playerDto);
 
         return ResponseEntity.ok(accountInterface.save(account));

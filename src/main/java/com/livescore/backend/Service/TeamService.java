@@ -1,8 +1,11 @@
 package com.livescore.backend.Service;
 
+import com.livescore.backend.DTO.PlayerDto;
+import com.livescore.backend.Entity.Player;
 import com.livescore.backend.Entity.Team;
 import com.livescore.backend.Entity.TeamRequest;
 import com.livescore.backend.Entity.Tournament;
+import com.livescore.backend.Interface.PlayerInterface;
 import com.livescore.backend.Interface.TeamInterface;
 import com.livescore.backend.Interface.TournamentInterface;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,10 +18,14 @@ import java.util.*;
 public class TeamService {
     @Autowired
     private TeamInterface teamInterface;
+    @Autowired
+    private PlayerService playerService;
+    @Autowired
+    private PlayerInterface playerInterface;
 
     @Autowired
     private TournamentInterface tournamentInterface;
-    public ResponseEntity<?> createTeam(Team team,Long tournamentId) {
+    public ResponseEntity<?> createTeam(Team team,Long tournamentId,Long playerId) {
         if(team.getName().isEmpty()||team.getName().isBlank()){
             return ResponseEntity.badRequest().body(
                     Map.of("error", "Team name is required")
@@ -32,6 +39,11 @@ public class TeamService {
         }
         team.setTournament(tournamentOpt.get());
         Team savedTeam = teamInterface.save(team);
+
+       Player p1=playerInterface.findById(playerId).get();
+       p1.setPlayerRole("CAPTAIN");
+       playerInterface.save(p1);
+
         return ResponseEntity.ok(Map.of(
                 "message", "Team created successfully",
                 "teamId", savedTeam.getId(),
@@ -71,6 +83,7 @@ public class TeamService {
     public ResponseEntity<?> getTeamsByTournamentIdAndStatus(Long tournamentId, String status) {
         return ResponseEntity.ok(teamInterface.findByTournamentIdAndStatus(tournamentId, status));
     }
+
 
 
     public ResponseEntity<?> getTeamByTournamentId(Long tid) {

@@ -37,7 +37,7 @@ public class PlayerService {
         Player p1=new Player();
         p1.setName(player.getName());
         p1.setPlayerRole(player.getPlayerRole());
-        //same username player aya to add na ho
+
         if(playerInterface.existsByAccount_Username(player.getUsername())){
             return ResponseEntity.badRequest().body(
                     Map.of("error", "Player with this username already exists")

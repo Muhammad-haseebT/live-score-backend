@@ -70,11 +70,11 @@ public class MatchService {
         match.setTournament(tournamentInterface.getById(matchDTO.getTournamentId()));
         match.setTeam1(teamInterface.getById(matchDTO.getTeam1Id()));
         match.setTeam2(teamInterface.getById(matchDTO.getTeam2Id()));
-        match.setScorer(accountInterface.getById(matchDTO.getScorerId()));
         match.setVenue(matchDTO.getVenue());
         match.setDate(matchDTO.getDate());
         match.setTime(matchDTO.getTime());
         match.setOvers(matchDTO.getOvers());
+        match.setScorer(accountInterface.getById(matchDTO.getScorerId()));
         match.setSets(matchDTO.getSets());
         matchInterface.save(match);
         return ResponseEntity.ok().body("Match created successfully");
