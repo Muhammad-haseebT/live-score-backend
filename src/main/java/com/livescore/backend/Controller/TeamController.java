@@ -11,9 +11,9 @@ public class TeamController {
     @Autowired
     private TeamService teamService;
 
-    @PostMapping("/team/{id}")
-    public ResponseEntity<?> createTeam(@RequestBody Team team,@PathVariable Long id) {
-        return teamService.createTeam(team,id);
+    @PostMapping("/team/{id}/{playerId}")
+    public ResponseEntity<?> createTeam(@RequestBody Team team,@PathVariable Long id,@PathVariable Long playerId) {
+        return teamService.createTeam(team,id,playerId);
     }
     @PostMapping("/team/u/{id}")
     public ResponseEntity<?> updateTeam(@PathVariable Long id, @RequestBody Team team) {
