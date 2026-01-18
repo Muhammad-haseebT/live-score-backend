@@ -35,4 +35,11 @@ public class TeamController {
     public ResponseEntity<?> getTeamByTournamentId(@PathVariable Long tid) {
         return teamService.getTeamByTournamentId( tid);
     }
+    @GetMapping("/team/tournament/account/{tid}/{aid}")
+    public  ResponseEntity<?>getTeamByTournamentIdAndAccountId(@PathVariable Long tid,@PathVariable Long aid){
+        return teamService.getTeamByTournamentIdAndAccountId(tid,aid);
+    }
+
+
+
 }

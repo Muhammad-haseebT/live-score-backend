@@ -1,11 +1,10 @@
 package com.livescore.backend.Service;
 
-import com.livescore.backend.DTO.PlayerDto;
 import com.livescore.backend.Entity.Player;
 import com.livescore.backend.Entity.Team;
-import com.livescore.backend.Entity.TeamRequest;
 import com.livescore.backend.Entity.Tournament;
 import com.livescore.backend.Interface.PlayerInterface;
+import com.livescore.backend.Interface.PlayerRequestInterface;
 import com.livescore.backend.Interface.TeamInterface;
 import com.livescore.backend.Interface.TournamentInterface;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,6 +21,8 @@ public class TeamService {
     private PlayerService playerService;
     @Autowired
     private PlayerInterface playerInterface;
+    @Autowired
+    private PlayerRequestInterface pri;
 
     @Autowired
     private TournamentInterface tournamentInterface;
@@ -37,10 +38,10 @@ public class TeamService {
                     Map.of("error", "Tournament not found with ID: " + tournamentId)
             );
         }
+        Player p1=playerInterface.findById(playerId).get();
         team.setTournament(tournamentOpt.get());
+        team.setCreator(p1);
         Team savedTeam = teamInterface.save(team);
-
-       Player p1=playerInterface.findById(playerId).get();
        p1.setPlayerRole("CAPTAIN");
        playerInterface.save(p1);
 
@@ -98,6 +99,35 @@ public class TeamService {
         }
 
         return ResponseEntity.ok(response);
+
+    }
+
+    public ResponseEntity<?> getTeamByTournamentIdAndAccountId(Long tid, Long aid) {
+        Optional<Team> teamOpt = teamInterface.findByTournamentIdAndPlayerId(tid, aid);
+        if (teamOpt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+
+
+
+
+        Team team = teamOpt.get();
+
+        List<Map<String, Object>> playersLite = team.getPlayers().stream()
+                .map(p -> Map.<String, Object>of(
+                        "id", p.getId(),
+                        "name", p.getName(),
+                        "status",pri.findByPlayer_IdAndTeam_Id(p.getId(),team.getId()).get().getStatus()
+                ))
+                .toList();
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("teamName", team.getName());
+        response.put("players", playersLite);
+
+        return ResponseEntity.ok(response);
+
+
 
     }
 }

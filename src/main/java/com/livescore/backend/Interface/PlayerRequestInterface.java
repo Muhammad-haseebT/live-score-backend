@@ -8,6 +8,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface PlayerRequestInterface extends JpaRepository<PlayerRequest,Long> {
@@ -25,7 +26,11 @@ AND pr.status = 'APPROVED'
 
     @Query("SELECT pr FROM PlayerRequest pr WHERE pr.player.id = :playerId")
     List<PlayerRequest> findbyPlayer_Id(@Param("playerId") Long playerId);
+
+    Optional<PlayerRequest> findByPlayer_IdAndTeam_Id(Long playerId, Long teamId);
+
 }
+
 
 
 

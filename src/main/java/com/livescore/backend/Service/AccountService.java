@@ -4,6 +4,7 @@ import com.livescore.backend.DTO.PlayerDto;
 import com.livescore.backend.DTO.accountDTO;
 import com.livescore.backend.Entity.Account;
 import com.livescore.backend.Interface.AccountInterface;
+import com.livescore.backend.Interface.PlayerInterface;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
@@ -18,6 +19,7 @@ public class AccountService {
     private AccountInterface accountInterface;
     @Autowired
     private PlayerService playerService;
+    @Autowired PlayerInterface playerInterface;
 
 
     public ResponseEntity<?> createAccount(Account account) {
@@ -113,7 +115,13 @@ public class AccountService {
         if (accountInterface.existsByUsername(account.getUsername())) {
             Account ac = accountInterface.findByUsername(account.getUsername());
             if (ac.getPassword().equals(Base64.getEncoder().encodeToString(account.getPassword().getBytes()))) {
-                return ResponseEntity.ok(ac);
+
+                accountDTO accountDTO=new accountDTO();
+                accountDTO.setId(ac.getId());
+                accountDTO.setName(ac.getName());
+                accountDTO.setRole(ac.getRole());
+                accountDTO.setPlayerId(playerInterface.findByAccount_Id(ac.getId()).get().getId());
+                return ResponseEntity.ok(accountDTO);
             } else {
                 System.out.println(account.getUsername() + account.getPassword());
                 return ResponseEntity.badRequest().body("Invalid password");

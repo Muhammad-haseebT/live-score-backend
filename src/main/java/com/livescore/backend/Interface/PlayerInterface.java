@@ -7,6 +7,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface PlayerInterface extends JpaRepository<Player,Long> {
@@ -18,4 +19,6 @@ public interface PlayerInterface extends JpaRepository<Player,Long> {
     boolean existsByAccount_Username(String username);
 
 
+
+    Optional<Player> findByAccount_Id(Long id);
 }

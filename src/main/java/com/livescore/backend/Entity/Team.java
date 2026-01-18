@@ -22,6 +22,11 @@ public class Team {
     @Column(nullable = false)
     private String name;
 
+    @ManyToOne(fetch = FetchType.LAZY)  // or EAGER if you really need it
+    @JoinColumn(name = "creator_id")    // use snake_case; avoid "CreatorId"
+    private Player creator;
+
+
 
     @ManyToOne
     @JoinColumn(name = "tournament_id")

@@ -128,4 +128,5 @@ public class PlayerRequestService {
         statsService.createStats(playerRequest.getPlayer().getId(),playerRequest.getTournament().getId());
         return ResponseEntity.ok().build();
     }
+
 }
