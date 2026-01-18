@@ -2,7 +2,6 @@ package com.livescore.backend.Entity;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.Data;
@@ -20,22 +19,19 @@ public class Match {
 
     @ManyToOne
     @JoinColumn(name = "tournament_id")
-   // @JsonBackReference("tournament-matches")
-    @JsonIgnoreProperties({"matches","teams","sport"})
+    @JsonBackReference("tournament-matches")
     private Tournament tournament;
 
 
 
     @ManyToOne
     @JoinColumn(name = "team1_id")
-//    @JsonIgnore
-    @JsonIgnoreProperties({"players","tournaments"})
+    @JsonIgnore
     private Team team1;
 
     @ManyToOne
     @JoinColumn(name = "team2_id")
-//    @JsonIgnore
-    @JsonIgnoreProperties({"players","tournaments"})
+    @JsonIgnore
     private Team team2;
 
 
