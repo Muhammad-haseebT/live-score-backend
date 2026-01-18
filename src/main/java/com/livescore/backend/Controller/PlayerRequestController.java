@@ -37,4 +37,8 @@ public class PlayerRequestController {
     public ResponseEntity<?> approvePlayerRequest(@PathVariable Long id) {
         return playerRequestService.approvePlayerRequest(id);
     }
+    @GetMapping("/playerRequest/player/{playerId}")
+    public ResponseEntity<?> getPlayerRequestsByPlayerId(@PathVariable Long playerId) {
+        return playerRequestService.getPlayerRequestsByPlayerId(playerId);
+    }
 }

@@ -40,4 +40,6 @@ public class TeamRequestController {
     public ResponseEntity<?> rejectTeamRequest(@PathVariable Long id) {
         return teamRequestService.rejectTeamRequest(id);
     }
+
+
 }

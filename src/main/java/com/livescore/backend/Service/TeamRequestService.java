@@ -7,6 +7,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @Service
@@ -93,8 +96,39 @@ public class TeamRequestService {
         return ResponseEntity.notFound().build();
     }
     public ResponseEntity<?> getAllTeamRequests() {
-        return ResponseEntity.ok(teamRequestInterface.findAll());
+
+        List<TeamRequest> requests = teamRequestInterface.findAll();
+
+        List<HashMap<String, Object>> response = requests.stream().map(r -> {
+            HashMap<String, Object> m = new HashMap<>();
+
+            Team team = r.getTeam();
+
+            m.put("requestId", r.getId());
+            m.put("teamName", team != null ? team.getName() : null);
+
+            String tournamentName = null;
+            if (team != null && team.getTournament() != null) {
+                // Tournament entity me field "name" assume hai
+                tournamentName = team.getTournament().getName();
+            }
+            m.put("tournamentName", tournamentName);
+
+            List<String> playerNames = new ArrayList<>();
+            if (team != null && team.getPlayers() != null) {
+                for (Player p : team.getPlayers()) {
+                    if (p.getIsDeleted() != null && p.getIsDeleted()) continue;
+                    playerNames.add(p.getName());
+                }
+            }
+            m.put("playerNames", playerNames);
+
+            return m;
+        }).toList();
+
+        return ResponseEntity.ok(response);
     }
+
     public ResponseEntity<?> getTeamRequestById(Long id) {
         return teamRequestInterface.findById(id)
                 .map(ResponseEntity::ok)

@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 public class PlayerRequestService {
@@ -132,4 +133,33 @@ public class PlayerRequestService {
         return ResponseEntity.ok().build();
     }
 
+    public ResponseEntity<?> getPlayerRequestsByPlayerId(Long playerId) {
+
+        if (playerId == null) {
+            return ResponseEntity.badRequest().body("playerId is required");
+        }
+
+        List<PlayerRequest> requests = playerRequestInterface.findbyPlayer_Id(playerId);
+
+        List<Map<String, Object>> response = requests.stream().map(r -> {
+            Map<String, Object> map = new java.util.HashMap<>();
+            map.put("requestId", r.getId());
+            map.put("teamName", r.getTeam() != null ? r.getTeam().getName() : null);
+
+            // Team creator name (assumption: Team entity me creator/player/user ka relation maujood hai)
+            // Example: team.getCreatedBy().getName()
+            map.put("teamCreatorName",
+                    (r.getTeam() != null && r.getTeam().getCreator() != null)
+                            ? r.getTeam().getCreator().getName()
+                            : null
+            );
+
+            return map;
+        }).toList();
+
+        return ResponseEntity.ok(response);
+    }
+
+
 }
+
