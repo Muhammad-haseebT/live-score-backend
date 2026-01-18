@@ -12,7 +12,9 @@ import java.util.Optional;
 @Repository
 public interface TeamInterface extends JpaRepository<Team,Long> {
 
-    List<Team> findByTournamentId(Long tournamentId);
+
+    @Query("SELECT t FROM Team t WHERE t.status = 'approved' and t.tournament.id=:id")
+    List<Team> findByTournamentId(@Param("id") Long tournamentId);
 
     Object findByTournamentIdAndStatus(Long tournamentId, String status);
 
