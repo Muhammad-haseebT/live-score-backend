@@ -14,7 +14,7 @@ import java.util.List;
 public interface MatchInterface extends JpaRepository<Match,Long> {
 
     @Query("SELECT m FROM Match m WHERE m.tournament.id = :tournamentId")
-    List<Object> findByTournamentId(@Param("tournamentId") Long tournamentId);
+    List<Match> findByTournamentId(@Param("tournamentId") Long tournamentId);
 
 
 

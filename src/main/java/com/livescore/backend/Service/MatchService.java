@@ -179,7 +179,11 @@ public class MatchService {
 
 
     public ResponseEntity<?> getMatchesByTournament(Long tournamentId) {
-        return ResponseEntity.ok().body(matchInterface.findByTournamentId(tournamentId));
+        List<Match> matches=matchInterface.findByTournamentId(tournamentId);
+        if (matches.size()==0){
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok().body(convertToDTO(matches));
     }
 
     public ResponseEntity<?> getMatchesByTeam(Long teamId) {
