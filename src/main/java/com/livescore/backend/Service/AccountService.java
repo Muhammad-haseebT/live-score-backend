@@ -3,6 +3,7 @@ package com.livescore.backend.Service;
 import com.livescore.backend.DTO.PlayerDto;
 import com.livescore.backend.DTO.accountDTO;
 import com.livescore.backend.Entity.Account;
+import com.livescore.backend.Entity.Player;
 import com.livescore.backend.Interface.AccountInterface;
 import com.livescore.backend.Interface.PlayerInterface;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -120,7 +121,13 @@ public class AccountService {
                 accountDTO.setId(ac.getId());
                 accountDTO.setName(ac.getName());
                 accountDTO.setRole(ac.getRole());
-                accountDTO.setPlayerId(playerInterface.findByAccount_Id(ac.getId()).get().getId());
+                Long p=playerInterface.findByAccount_Id(ac.getId()).get().getId();
+                if(p!=null){
+                    accountDTO.setPlayerId(p);
+
+                }
+                accountDTO.setUsername(ac.getUsername());
+
                 return ResponseEntity.ok(accountDTO);
             } else {
                 System.out.println(account.getUsername() + account.getPassword());
