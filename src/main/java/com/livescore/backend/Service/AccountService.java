@@ -33,11 +33,9 @@ public class AccountService {
         } else {
             account.setRole("USER");
         }
-
         account.setUsername(account.getUsername().toLowerCase());
         account.setPassword(Base64.getEncoder().encodeToString(account.getPassword().getBytes()));
         Account a=accountInterface.save(account);
-        //auto create player with given data
         PlayerDto playerDto=new PlayerDto();
         playerDto.setUsername(account.getUsername());
         playerDto.setName(account.getName());
