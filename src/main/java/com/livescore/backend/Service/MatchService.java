@@ -135,20 +135,45 @@ public class MatchService {
     public ResponseEntity<?> getMatch(Long id) {
 
         Match match = matchInterface.findById(id).orElse(null);
-
-        if (match == null) {
-            return ResponseEntity.badRequest().body("Match with id " + id + " does not exist");
+        if (match==null){
+            return  ResponseEntity.notFound().build();
+        }
+        MatchDTO matchDTO = new MatchDTO();
+        matchDTO.setId(match.getId());
+        matchDTO.setTournamentId(match.getTournament().getId());
+        matchDTO.setTournamentName(match.getTournament().getName());
+        matchDTO.setTeam1Id(match.getTeam1().getId());
+        matchDTO.setTeam1Name(match.getTeam1().getName());
+        matchDTO.setTeam2Id(match.getTeam2().getId());
+        matchDTO.setTeam2Name(match.getTeam2().getName());
+        matchDTO.setScorerId(match.getScorer().getId());
+        matchDTO.setStatus(match.getStatus().toUpperCase());
+        matchDTO.setVenue(match.getVenue());
+        matchDTO.setDate(match.getDate());
+        matchDTO.setTime(match.getTime());
+        matchDTO.setDecision(match.getDecision());
+        matchDTO.setOvers(match.getOvers());
+        matchDTO.setSets(match.getSets());
+        matchDTO.setSportId(match.getTournament().getSport().getId());
+        if (match.getTossWinner() != null) {
+            matchDTO.setTossWinnerId(match.getTossWinner().getId());
+        } else {
+            matchDTO.setTossWinnerId(null);
+        }
+        if (match.getWinnerTeam() != null) {
+            matchDTO.setWinnerTeamId(match.getWinnerTeam().getId());
+            matchDTO.setWinnerTeamName(match.getWinnerTeam().getName());
         }
 
-        return ResponseEntity.ok(match);
+
+
+        return ResponseEntity.ok(matchDTO);
     }
 
 
     public ResponseEntity<?> getAllMatches() {
 
         List<Match> matches = matchInterface.findAll();
-
-
         return ResponseEntity.ok().body(convertToDTO(matches));
     }
 
