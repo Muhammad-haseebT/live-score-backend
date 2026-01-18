@@ -53,7 +53,7 @@ public class TeamService {
                     Map.of("error", "Tournament not found with ID: " + tournamentId)
             );
         }
-        Optional<Player> playerOpt = playerInterface.findById(playerId);
+        Optional<Player> playerOpt = playerInterface.findActiveById(playerId);
         if (playerOpt.isEmpty()) {
             return ResponseEntity.badRequest().body(
                     Map.of("error", "Player not found with ID: " + playerId)
@@ -148,7 +148,15 @@ public class TeamService {
                     Map.of("error", "Tournament id and account id are required")
             );
         }
-        Optional<Team> teamOpt = teamInterface.findByTournamentIdAndPlayerId(tid, aid);
+        Long creatorPlayerId = playerInterface.findByAccount_Id(aid)
+                .filter(p -> !Boolean.TRUE.equals(p.getIsDeleted()))
+                .map(Player::getId)
+                .orElse(null);
+        if (creatorPlayerId == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        Optional<Team> teamOpt = teamInterface.findByTournamentIdAndPlayerId(tid, creatorPlayerId);
         if (teamOpt.isEmpty()) {
             return ResponseEntity.notFound().build();
         }
@@ -165,7 +173,7 @@ public class TeamService {
 
         List<Map<String, Object>> playersLite = new ArrayList<>();
         for (Player p : players) {
-            if (p == null) continue;
+            if (p == null || Boolean.TRUE.equals(p.getIsDeleted())) continue;
             String status = null;
             if (p.getId() != null && team.getId() != null) {
                 status = pri.findByPlayer_IdAndTeam_Id(p.getId(), team.getId())

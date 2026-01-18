@@ -46,6 +46,11 @@ public class AccountController {
         return accountService.deleteAccount(id);
     }
 
+    @PutMapping("/account/{id}/restore")
+    public ResponseEntity<?> restoreAccount(@PathVariable Long id) {
+        return accountService.restoreAccount(id);
+    }
+
 
     
 

@@ -23,6 +23,11 @@ public class PlayerController {
     public ResponseEntity<?> deletePlayer(@PathVariable Long id) {
         return playerService.deletePlayer(id);
     }
+
+    @PutMapping("/player/{id}/restore")
+    public ResponseEntity<?> restorePlayer(@PathVariable Long id) {
+        return playerService.restorePlayer(id);
+    }
     @GetMapping("/player")
     public ResponseEntity<?> getAllPlayers() {
         return playerService.getAllPlayers();

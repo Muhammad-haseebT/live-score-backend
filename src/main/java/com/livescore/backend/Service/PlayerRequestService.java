@@ -45,7 +45,7 @@ public class PlayerRequestService {
                     Map.of("error", "Tournament id is required")
             );
         }
-        Player player=playerInterface.findById(playerRequest.getPlayerId()).orElse(null);
+        Player player=playerInterface.findActiveById(playerRequest.getPlayerId()).orElse(null);
         Team team=teamInterface.findById(playerRequest.getTeamId()).orElse(null);
         Tournament tournament=tournamentInterface.findById(playerRequest.getTournamentId()).orElse(null);
         if(player==null||team==null||tournament==null){
@@ -79,7 +79,7 @@ public class PlayerRequestService {
         if(playerRequest1==null){
             return ResponseEntity.notFound().build();
         }
-        playerRequest1.setPlayer(playerInterface.findById(playerRequest.getPlayerId()).orElse(null));
+        playerRequest1.setPlayer(playerInterface.findActiveById(playerRequest.getPlayerId()).orElse(null));
         playerRequest1.setTeam(teamInterface.findById(playerRequest.getTeamId()).orElse(null));
         playerRequest1.setTournament(tournamentInterface.findById(playerRequest.getTournamentId()).orElse(null));
         playerRequest1.setStatus(playerRequest.getStatus());
@@ -107,6 +107,9 @@ public class PlayerRequestService {
         PlayerRequest playerRequest=playerRequestInterface.findById(id).orElse(null);
         if(playerRequest==null){
             return ResponseEntity.notFound().build();
+        }
+        if (playerRequest.getPlayer() == null || Boolean.TRUE.equals(playerRequest.getPlayer().getIsDeleted())) {
+            return ResponseEntity.badRequest().body("Player not found");
         }
         if(playerRequest.getStatus().equals("APPROVED")){
             return ResponseEntity.badRequest().body("Player already approved");

@@ -44,16 +44,19 @@ public class MatchService {
 
     public ResponseEntity<?> createMatch(MatchDTO matchDTO) {
         boolean check = true;
-        if (accountInterface.getById(matchDTO.getScorerId()) == null) {
+        if (matchDTO == null || matchDTO.getScorerId() == null) {
+            return ResponseEntity.badRequest().body("scorerId is required");
+        }
+        if (accountInterface.findActiveById(matchDTO.getScorerId()).isEmpty()) {
             return ResponseEntity.badRequest().body("Account with id " + matchDTO.getScorerId() + " does not exist");
         }
-        if (teamInterface.getById(matchDTO.getTeam1Id()) == null) {
+        if (matchDTO.getTeam1Id() == null || teamInterface.findById(matchDTO.getTeam1Id()).isEmpty()) {
             return ResponseEntity.badRequest().body("Team with id " + matchDTO.getTeam1Id() + " does not exist");
         }
-        if (teamInterface.getById(matchDTO.getTeam2Id()) == null) {
+        if (matchDTO.getTeam2Id() == null || teamInterface.findById(matchDTO.getTeam2Id()).isEmpty()) {
             return ResponseEntity.badRequest().body("Team with id " + matchDTO.getTeam2Id() + " does not exist");
         }
-        if (tournamentInterface.getById(matchDTO.getTournamentId()) == null) {
+        if (matchDTO.getTournamentId() == null || tournamentInterface.findById(matchDTO.getTournamentId()).isEmpty()) {
             return ResponseEntity.badRequest().body("Tournament with id " + matchDTO.getTournamentId() + " does not exist");
         }
 
@@ -67,14 +70,14 @@ public class MatchService {
             return ResponseEntity.badRequest().body("Match time " + matchDTO.getTime() + " does not belong to the future");
         }
         Match match = new Match();
-        match.setTournament(tournamentInterface.getById(matchDTO.getTournamentId()));
-        match.setTeam1(teamInterface.getById(matchDTO.getTeam1Id()));
-        match.setTeam2(teamInterface.getById(matchDTO.getTeam2Id()));
+        match.setTournament(tournamentInterface.findById(matchDTO.getTournamentId()).orElse(null));
+        match.setTeam1(teamInterface.findById(matchDTO.getTeam1Id()).orElse(null));
+        match.setTeam2(teamInterface.findById(matchDTO.getTeam2Id()).orElse(null));
         match.setVenue(matchDTO.getVenue());
         match.setDate(matchDTO.getDate());
         match.setTime(matchDTO.getTime());
         match.setOvers(matchDTO.getOvers());
-        match.setScorer(accountInterface.getById(matchDTO.getScorerId()));
+        match.setScorer(accountInterface.findActiveById(matchDTO.getScorerId()).orElse(null));
         match.setSets(matchDTO.getSets());
         matchInterface.save(match);
         return ResponseEntity.ok().body("Match created successfully");
@@ -85,16 +88,19 @@ public class MatchService {
         if (match == null) {
             return ResponseEntity.badRequest().body("Match with id " + id + " does not exist");
         }
-        if (accountInterface.getById(matchDTO.getScorerId()) == null) {
+        if (matchDTO == null || matchDTO.getScorerId() == null) {
+            return ResponseEntity.badRequest().body("scorerId is required");
+        }
+        if (accountInterface.findActiveById(matchDTO.getScorerId()).isEmpty()) {
             return ResponseEntity.badRequest().body("Account with id " + matchDTO.getScorerId() + " does not exist");
         }
-        if (teamInterface.getById(matchDTO.getTeam1Id()) == null) {
+        if (matchDTO.getTeam1Id() == null || teamInterface.findById(matchDTO.getTeam1Id()).isEmpty()) {
             return ResponseEntity.badRequest().body("Team with id " + matchDTO.getTeam1Id() + " does not exist");
         }
-        if (teamInterface.getById(matchDTO.getTeam2Id()) == null) {
+        if (matchDTO.getTeam2Id() == null || teamInterface.findById(matchDTO.getTeam2Id()).isEmpty()) {
             return ResponseEntity.badRequest().body("Team with id " + matchDTO.getTeam2Id() + " does not exist");
         }
-        if (tournamentInterface.getById(matchDTO.getTournamentId()) == null) {
+        if (matchDTO.getTournamentId() == null || tournamentInterface.findById(matchDTO.getTournamentId()).isEmpty()) {
             return ResponseEntity.badRequest().body("Tournament with id " + matchDTO.getTournamentId() + " does not exist");
         }
         if (matchDTO.getDate().isBefore(LocalDate.now())) {
@@ -109,10 +115,10 @@ public class MatchService {
         if (matchDTO.getTime().isBefore(LocalTime.now()) && check) {
             return ResponseEntity.badRequest().body("Match time " + matchDTO.getTime() + " does not belong to the future");
         }
-        match.setTournament(tournamentInterface.getById(matchDTO.getTournamentId()));
-        match.setTeam1(teamInterface.getById(matchDTO.getTeam1Id()));
-        match.setTeam2(teamInterface.getById(matchDTO.getTeam2Id()));
-        match.setScorer(accountInterface.getById(matchDTO.getScorerId()));
+        match.setTournament(tournamentInterface.findById(matchDTO.getTournamentId()).orElse(null));
+        match.setTeam1(teamInterface.findById(matchDTO.getTeam1Id()).orElse(null));
+        match.setTeam2(teamInterface.findById(matchDTO.getTeam2Id()).orElse(null));
+        match.setScorer(accountInterface.findActiveById(matchDTO.getScorerId()).orElse(null));
         match.setVenue(matchDTO.getVenue());
         match.setDate(matchDTO.getDate());
         match.setTime(matchDTO.getTime());
@@ -200,16 +206,28 @@ public class MatchService {
     }
 
     public ResponseEntity<?> startMatch(Long id, MatchDTO m) {
-        System.out.println(m.getScorerId());
+        if (m == null) {
+            return ResponseEntity.badRequest().body("Match details are required");
+        }
         Match match = matchInterface.findById(id).orElse(null);
         if (match == null) {
             return ResponseEntity.badRequest().body("Match with id " + id + " does not exist");
         }
         match.setStatus("LIVE");
-        match.setScorer(accountInterface.findById(m.getScorerId()).orElse(null));
-        match.setTossWinner(teamInterface.getById(m.getTossWinnerId()));
+        if (m.getScorerId() == null || accountInterface.findActiveById(m.getScorerId()).isEmpty()) {
+            return ResponseEntity.badRequest().body("Scorer account not found");
+        }
+        match.setScorer(accountInterface.findActiveById(m.getScorerId()).orElse(null));
+
+        if (m.getTossWinnerId() == null || teamInterface.findById(m.getTossWinnerId()).isEmpty()) {
+            return ResponseEntity.badRequest().body("Toss winner team not found");
+        }
+        match.setTossWinner(teamInterface.findById(m.getTossWinnerId()).orElse(null));
         match.setDecision(m.getDecision());
-        Sports s = sportsInterface.getById(m.getSportId());
+        if (m.getSportId() == null || sportsInterface.findById(m.getSportId()).isEmpty()) {
+            return ResponseEntity.badRequest().body("Sport not found");
+        }
+        Sports s = sportsInterface.findById(m.getSportId()).orElse(null);
         if (s.getName().equalsIgnoreCase("cricket")) {
             match.setOvers(m.getOvers());
         } else if (s.getName().equalsIgnoreCase("volleyball") || s.getName().equalsIgnoreCase("Badminton")
@@ -222,7 +240,11 @@ public class MatchService {
         if (match.getDecision().equalsIgnoreCase("bat")) {
             innings.setTeam(teamInterface.findById(m.getTossWinnerId()).orElse(null));
         } else {
-            innings.setTeam(teamInterface.findById(m.getTeam1Id() == m.getTossWinnerId() ? m.getTeam2Id() : m.getTeam1Id()).orElse(null));
+            if (m.getTeam1Id() == null || m.getTeam2Id() == null) {
+                return ResponseEntity.badRequest().body("team1Id and team2Id are required");
+            }
+            Long battingTeamId = m.getTeam1Id().equals(m.getTossWinnerId()) ? m.getTeam2Id() : m.getTeam1Id();
+            innings.setTeam(teamInterface.findById(battingTeamId).orElse(null));
         }
         cricketInningsRepo.save(innings);
 
@@ -240,20 +262,29 @@ public class MatchService {
             return ResponseEntity.badRequest().body("Match with id " + matchId + " does not exist");
         }
 
+        if (match.getStatus() != null && (match.getStatus().equalsIgnoreCase("FINISHED") || match.getStatus().equalsIgnoreCase("COMPLETED"))) {
+            return ResponseEntity.ok("Match already ended");
+        }
+
+        if (match.getTeam1() == null || match.getTeam2() == null || match.getTournament() == null) {
+            return ResponseEntity.badRequest().body("Match is missing tournament or teams");
+        }
+
+        List<Player> playersTeam1 = playerRequestInterface.findApprovedPlayersByTeamId(match.getTeam1().getId());
+        List<Player> playersTeam2 = playerRequestInterface.findApprovedPlayersByTeamId(match.getTeam2().getId());
+
+        if (playersTeam1 == null || playersTeam2 == null || playersTeam1.isEmpty() || playersTeam2.isEmpty()) {
+            return ResponseEntity.badRequest().body("No players found for team 1 or team 2");
+        }
+
         // 2. Mark match as finished
-        match.setStatus("FINISHED");
+        match.setStatus("COMPLETED");
         matchInterface.save(match);
 
 
         ptsTableService.updatePointsTableAfterMatch(matchId);
 
 
-        List<Player> playersTeam1 = playerRequestInterface.findApprovedPlayersByTeamId(match.getTeam1().getId());
-        List<Player> playersTeam2 = playerRequestInterface.findApprovedPlayersByTeamId(match.getTeam2().getId());
-
-        if (playersTeam1.isEmpty() || playersTeam2.isEmpty()) {
-            return ResponseEntity.badRequest().body("No players found for team 1 or team 2");
-        }
         // 5. Update stats for all players
         for (Player p : playersTeam1) {
             statsService.updateStats(p.getId(), match.getTournament().getId(), matchId);

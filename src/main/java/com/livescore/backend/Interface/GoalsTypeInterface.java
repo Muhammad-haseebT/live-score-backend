@@ -15,6 +15,7 @@ public interface GoalsTypeInterface extends JpaRepository<GoalsType,Long> {
         SELECT gt FROM GoalsType gt
         WHERE gt.match.tournament.id = :tournamentId
           AND gt.player.id = :playerId
+          AND gt.player.isDeleted = false
     """)
     List<GoalsType> findGoalsByTournamentAndPlayer(@Param("tournamentId") Long tournamentId,
                                                    @Param("playerId") Long playerId);
@@ -24,6 +25,7 @@ public interface GoalsTypeInterface extends JpaRepository<GoalsType,Long> {
         SELECT gt FROM GoalsType gt
         WHERE gt.match.id = :matchId
           AND gt.player.id = :playerId
+          AND gt.player.isDeleted = false
     """)
     List<GoalsType> findGoalsByMatchAndPlayer(@Param("matchId") Long matchId,
                                               @Param("playerId") Long playerId);

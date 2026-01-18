@@ -53,18 +53,20 @@ public class PlayerService {
         ));
     }
     public ResponseEntity<?> updatePlayer(Long id, PlayerDto player) {
-        return playerInterface.findById(id).map(playerEntity -> {
+        return playerInterface.findActiveById(id).map(playerEntity -> {
             playerEntity.setName(player.getName());
             playerEntity.setPlayerRole(player.getPlayerRole());
             return ResponseEntity.ok(playerInterface.save(playerEntity));
         }).orElse(ResponseEntity.notFound().build());
     }
     public ResponseEntity<?> deletePlayer(Long id) {
-        if(playerInterface.existsById(id)){
-            playerInterface.deleteById(id);
-            return ResponseEntity.ok().build();
-        }
-        return ResponseEntity.notFound().build();
+        return playerInterface.findActiveById(id)
+                .map(p -> {
+                    p.softDelete();
+                    playerInterface.save(p);
+                    return ResponseEntity.ok().build();
+                })
+                .orElse(ResponseEntity.notFound().build());
     }
     public ResponseEntity<?> getAllPlayers() {
 
@@ -111,9 +113,24 @@ public class PlayerService {
     }
 
     public ResponseEntity<?> getPlayerById(Long id) {
-        return playerInterface.findById(id)
+        return playerInterface.findActiveById(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
+    }
+
+    public ResponseEntity<?> restorePlayer(Long id) {
+        if (id == null) {
+            return ResponseEntity.badRequest().body(
+                    Map.of("error", "Player id is required")
+            );
+        }
+        Player p = playerInterface.findByIdIncludingDeleted(id).orElse(null);
+        if (p == null) {
+            return ResponseEntity.notFound().build();
+        }
+        p.restore();
+        playerInterface.save(p);
+        return ResponseEntity.ok().build();
     }
 
 

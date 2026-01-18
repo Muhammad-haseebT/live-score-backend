@@ -221,12 +221,12 @@ public class AwardService {
 
             Player chosen = null;
             if (tied.size() == 1) {
-                chosen = playerRepo.findById(top.pm.playerId).orElse(null);
+                chosen = playerRepo.findActiveById(top.pm.playerId).orElse(null);
             } else {
                 // try pick from winning team (if match winner known)
                 if (match.getWinnerTeam() != null) {
                     for (MoMMetrics m : tied) {
-                        Player p = playerRepo.findById(m.pm.playerId).orElse(null);
+                        Player p = playerRepo.findActiveById(m.pm.playerId).orElse(null);
                         if (p != null && p.getTeam() != null && match.getWinnerTeam().getId() != null
                                 && p.getTeam().getId() != null
                                 && p.getTeam().getId().equals(match.getWinnerTeam().getId())) {
@@ -243,16 +243,16 @@ public class AwardService {
                         if (a.pm.runs != b.pm.runs) return Integer.compare(b.pm.runs, a.pm.runs);
                         return Long.compare(a.pm.playerId, b.pm.playerId); // deterministic fallback
                     });
-                    chosen = playerRepo.findById(tied.get(0).pm.playerId).orElse(null);
+                    chosen = playerRepo.findActiveById(tied.get(0).pm.playerId).orElse(null);
                 }
             }
 
             if (bestBat != null) {
-                Player bestBatPlayer = playerRepo.findById(bestBat.playerId).orElse(null);
+                Player bestBatPlayer = playerRepo.findActiveById(bestBat.playerId).orElse(null);
                 if (bestBatPlayer != null) match.setBestBatsman(bestBatPlayer);
             }
             if (bestBowl != null) {
-                Player bestBowlPlayer = playerRepo.findById(bestBowl.playerId).orElse(null);
+                Player bestBowlPlayer = playerRepo.findActiveById(bestBowl.playerId).orElse(null);
                 if (bestBowlPlayer != null) match.setBestBowler(bestBowlPlayer);
             }
             if (chosen != null) {
@@ -416,7 +416,7 @@ public class AwardService {
                 .sorted(batComp)               // use the single, well-defined comparator
                 .limit(3)
                 .map(m -> {
-                    Player p = playerRepo.findById(m.playerId).orElse(null);
+                    Player p = playerRepo.findActiveById(m.playerId).orElse(null);
                     PlayerStatDTO ps = new PlayerStatDTO();
                     ps.playerId = m.playerId;
                     ps.playerName = p != null ? p.getName() : "Unknown";
@@ -461,7 +461,7 @@ public class AwardService {
                 .sorted(bowlComp)
                 .limit(3)
                 .map(m -> {
-                    Player p = playerRepo.findById(m.playerId).orElse(null);
+                    Player p = playerRepo.findActiveById(m.playerId).orElse(null);
                     PlayerStatDTO ps = new PlayerStatDTO();
                     ps.playerId = m.playerId;
                     ps.playerName = p != null ? p.getName() : "Unknown";
@@ -521,7 +521,7 @@ public class AwardService {
         Optional<Map.Entry<Long, Double>> best = composite.entrySet().stream().max(Map.Entry.comparingByValue());
         if (best.isPresent()) {
             Long bestPlayerId = best.get().getKey();
-            Player p = playerRepo.findById(bestPlayerId).orElse(null);
+            Player p = playerRepo.findActiveById(bestPlayerId).orElse(null);
             dto.manOfTournamentId = bestPlayerId;
             dto.manOfTournamentName = p != null ? p.getName() : "Unknown";
         }

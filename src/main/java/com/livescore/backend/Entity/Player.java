@@ -8,6 +8,7 @@ import jakarta.persistence.*;
 import lombok.Data;
 import lombok.ToString;
 
+ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -37,11 +38,27 @@ public class Player {
     @Column(nullable = false)
     private String playerRole;
 
+     @Column(name = "is_deleted", nullable = false)
+     private Boolean isDeleted = false;
+
+     @Column(name = "deleted_at")
+     private LocalDateTime deletedAt;
+
     // Player -> PlayerTeam (one-to-many)
     @OneToMany(mappedBy = "player", cascade = CascadeType.ALL)
     @JsonManagedReference("player-playerTeams")
     @JsonIgnore
     private List<PlayerRequest> playerRequests = new ArrayList<>();
+
+     public void softDelete() {
+         this.isDeleted = true;
+         this.deletedAt = LocalDateTime.now();
+     }
+
+     public void restore() {
+         this.isDeleted = false;
+         this.deletedAt = null;
+     }
 
 }
 

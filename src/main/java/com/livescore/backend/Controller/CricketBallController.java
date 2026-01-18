@@ -21,7 +21,7 @@ public class CricketBallController {
     }
 //  innings id ni ye innings no hai
     @GetMapping("/cricketBall/{over}/{balls}/{matchID}/{inningsId}")
-    public List<CricketBall> getCricketBallById(@PathVariable Long over, @PathVariable Long balls, @PathVariable Long matchID,@PathVariable int inningsId) {
+    public List<CricketBall> getCricketBallById(@PathVariable Integer over, @PathVariable Integer balls, @PathVariable Long matchID,@PathVariable int inningsId) {
 
         return cricketBallInterface.findByOverNumberAndBallNumberAndMatch_Id(over, balls, matchID,inningsId);
     }

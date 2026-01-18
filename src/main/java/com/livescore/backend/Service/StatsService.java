@@ -35,12 +35,15 @@ public class StatsService {
     private TournamentInterface tournamentInterface;
 
     public ResponseEntity<?> getAllStats() {
-        List<Stats> stats = statsInterface.findAll();
+        List<Stats> stats = statsInterface.findAllActive();
         return ResponseEntity.ok(stats);
     }
 
     public ResponseEntity<?> getStatsById(Long id) {
         Stats stats = statsInterface.findById(id).orElse(null);
+        if (stats == null || stats.getPlayer() == null || Boolean.TRUE.equals(stats.getPlayer().getIsDeleted())) {
+            return ResponseEntity.notFound().build();
+        }
         return ResponseEntity.ok(stats);
     }
 
@@ -48,8 +51,12 @@ public class StatsService {
         if (playerId == null || tournamentId == null) {
             return ResponseEntity.badRequest().body("playerId and tournamentId are required");
         }
+        Player player = playerInterface.findActiveById(playerId).orElse(null);
+        if (player == null) {
+            return ResponseEntity.badRequest().body("Player not found");
+        }
         Stats stats=new Stats();
-        stats.setPlayer(playerInterface.findById(playerId).orElse(null));
+        stats.setPlayer(player);
 
         Tournament t=tournamentInterface.findById(tournamentId).orElse(null);
         if (t == null) {
@@ -536,7 +543,7 @@ public class StatsService {
             dto.playerName = "Unknown";
             return dto;
         }
-        Player p = playerInterface.findById(playerId).orElse(null);
+        Player p = playerInterface.findActiveById(playerId).orElse(null);
         if (p == null) {
             dto.playerName = "Unknown";
             return dto;

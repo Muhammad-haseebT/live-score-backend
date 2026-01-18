@@ -48,7 +48,7 @@ public class TournamentService {
         if (tournamentInterface.existsByNameAndSeasonId(tournament.getName(), tournament.getSeasonId())) {
             return ResponseEntity.badRequest().body("Tournament name already exists");
         }
-        if (!accountInterface.existsByUsername(tournament.getUsername())) {
+        if (!accountInterface.existsActiveByUsername(tournament.getUsername())) {
             return ResponseEntity.badRequest().body("User not found");
         }
         if (!sportsInterface.existsById(tournament.getSportsId())) {

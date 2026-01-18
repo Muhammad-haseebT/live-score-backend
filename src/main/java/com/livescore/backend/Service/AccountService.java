@@ -11,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
 import java.util.Base64;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -30,6 +31,7 @@ public class AccountService {
         if (account.getUsername() == null || account.getUsername().isBlank() || account.getPassword() == null || account.getPassword().isBlank()) {
             return ResponseEntity.badRequest().body("Username and password are required");
         }
+        // username column is unique, so we must reject even if the account is soft-deleted
         if (accountInterface.existsByUsername(account.getUsername())) {
             return ResponseEntity.badRequest().body("Username already exists");
         }
@@ -52,13 +54,13 @@ public class AccountService {
     }
 
     public ResponseEntity<?> getAccountById(Long id) {
-        return accountInterface.findById(id)
+        return accountInterface.findActiveById(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
     public ResponseEntity<?> getAllAccounts() {
-        return ResponseEntity.ok(accountInterface.findAll());
+        return ResponseEntity.ok(accountInterface.findAllActive());
     }
 
     public ResponseEntity<?> updateAccount(Long id, Account account) {
@@ -100,32 +102,55 @@ public class AccountService {
         if (id == null) {
             return ResponseEntity.badRequest().body("Account id is required");
         }
-        Optional<Account> opt = accountInterface.findById(id);
+        Optional<Account> opt = accountInterface.findActiveById(id);
         if (opt.isEmpty()) {
             return ResponseEntity.notFound().build();
         }
-        accountInterface.delete(opt.get());
+        Account account = opt.get();
+        account.softDelete();
+        accountInterface.save(account);
+
+        List<Player> players = playerInterface.findAllByAccount_Id(account.getId());
+        if (players == null) {
+            players = Collections.emptyList();
+        }
+        for (Player p : players) {
+            if (p == null) continue;
+            p.softDelete();
+        }
+        playerInterface.saveAll(players);
         return ResponseEntity.ok().build();
     }
-    public void restoreAccount(Long id) {
-        // Deleted account find karne ke liye special query
+
+    public ResponseEntity<?> restoreAccount(Long id) {
         if (id == null) {
-            return;
+            return ResponseEntity.badRequest().body("Account id is required");
         }
         Account account = accountInterface.findByIdIncludingDeleted(id).orElse(null);
         if (account == null) {
-            return;
+            return ResponseEntity.notFound().build();
         }
 
         account.restore();
         accountInterface.save(account);
+
+        List<Player> players = playerInterface.findAllByAccount_Id(account.getId());
+        if (players != null) {
+            for (Player p : players) {
+                if (p == null) continue;
+                p.restore();
+            }
+            playerInterface.saveAll(players);
+        }
+
+        return ResponseEntity.ok().build();
     }
 
     public ResponseEntity<?> loginAccount(accountDTO account) {
         if (account == null || account.getUsername() == null || account.getUsername().isBlank() || account.getPassword() == null || account.getPassword().isBlank()) {
             return ResponseEntity.badRequest().body("Username and password are required");
         }
-        if (accountInterface.existsByUsername(account.getUsername())) {
+        if (accountInterface.existsActiveByUsername(account.getUsername())) {
             Account ac = accountInterface.findByUsername(account.getUsername());
             if (ac == null || ac.getPassword() == null) {
                 return ResponseEntity.notFound().build();

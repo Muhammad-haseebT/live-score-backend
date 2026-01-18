@@ -61,10 +61,21 @@ public class LiveSCoringService {
             s.setComment("Match not found");
             return s;
         }
+        if (isMatchFinal(m)) {
+            s.setStatus("ERROR");
+            s.setComment("Match already ended");
+            return s;
+        }
         CricketInnings currentInnings = cricketInningsRepo.findById(s.getInningsId()).orElse(null);
         if (currentInnings == null) {
             s.setStatus("ERROR");
             s.setComment("Innings not found");
+            return s;
+        }
+        if (currentInnings.getMatch() == null || currentInnings.getMatch().getId() == null
+                || !currentInnings.getMatch().getId().equals(m.getId())) {
+            s.setStatus("ERROR");
+            s.setComment("Innings does not belong to match");
             return s;
         }
 
@@ -84,11 +95,30 @@ public class LiveSCoringService {
             return handleEndOfInningsAndMaybeCreateNext(s, m, currentInnings);
         }
 
+        if (s.getOvers() < 0 || s.getBalls() < 0) {
+            s.setStatus("ERROR");
+            s.setComment("Invalid over/ball number");
+            return s;
+        }
+
+        int inningsNo = currentInnings.getNo();
+        List<CricketBall> existing = cricketBallInterface.findByOverNumberAndBallNumberAndMatch_Id(
+                s.getOvers(),
+                s.getBalls(),
+                m.getId(),
+                inningsNo
+        );
+        if (existing != null && !existing.isEmpty()) {
+            s.setStatus("ERROR");
+            s.setComment("Duplicate ball");
+            return s;
+        }
+
         CricketBall ball = new CricketBall();
         ball.setInnings(currentInnings);
-        ball.setBatsman(s.getBatsmanId() == null ? null : playerRepo.findById(s.getBatsmanId()).orElse(null));
-        ball.setBowler(s.getBowlerId() == null ? null : playerRepo.findById(s.getBowlerId()).orElse(null));
-        ball.setFielder(s.getFielderId() == null ? null : playerRepo.findById(s.getFielderId()).orElse(null));
+        ball.setBatsman(s.getBatsmanId() == null ? null : playerRepo.findActiveById(s.getBatsmanId()).orElse(null));
+        ball.setBowler(s.getBowlerId() == null ? null : playerRepo.findActiveById(s.getBowlerId()).orElse(null));
+        ball.setFielder(s.getFielderId() == null ? null : playerRepo.findActiveById(s.getFielderId()).orElse(null));
         ball.setMatch(m);
         ball.setOverNumber(s.getOvers());
         ball.setBallNumber(s.getBalls());
@@ -97,6 +127,13 @@ public class LiveSCoringService {
         if (s.getEventType() == null || s.getEventType().isBlank()) {
             s.setStatus("ERROR");
             s.setComment("eventType required");
+            return s;
+        }
+
+        // basic sanity: wicket without a batsman/out-player is meaningless
+        if ("wicket".equalsIgnoreCase(s.getEventType()) && ball.getBatsman() == null && s.getOutPlayerId() == null) {
+            s.setStatus("ERROR");
+            s.setComment("batsmanId or outPlayerId required for wicket");
             return s;
         }
 
@@ -163,7 +200,7 @@ public class LiveSCoringService {
                 String dismissal = s.getEvent();
                 ball.setDismissalType(dismissal);
                 Player outPlayer = null;
-                if (s.getOutPlayerId() != null) outPlayer = playerRepo.findById(s.getOutPlayerId()).orElse(null);
+                if (s.getOutPlayerId() != null) outPlayer = playerRepo.findActiveById(s.getOutPlayerId()).orElse(null);
                 if (outPlayer == null) {
                     outPlayer = ball.getBatsman();
                 }
@@ -174,7 +211,7 @@ public class LiveSCoringService {
                 ball.setLegalDelivery(true);
 
                 if (dismissal != null && (dismissal.equalsIgnoreCase("caught") || dismissal.equalsIgnoreCase("runout") || dismissal.equalsIgnoreCase("stumped"))) {
-                    ball.setFielder(s.getFielderId() == null ? null : playerRepo.findById(s.getFielderId()).orElse(null));
+                    ball.setFielder(s.getFielderId() == null ? null : playerRepo.findActiveById(s.getFielderId()).orElse(null));
                 }
                 break;
             }
@@ -224,11 +261,13 @@ public class LiveSCoringService {
             if (remainingRuns < 0) {
 
                 Team chasingTeam = currentInnings.getTeam();
-                m.setWinnerTeam(chasingTeam);
-                m.setStatus("COMPLETED");
-                matchRepo.save(m);
-                awardService.computeMatchAwards(m.getId());
-                matchService.endMatch(m.getId());
+                if (!isMatchFinal(m)) {
+                    m.setWinnerTeam(chasingTeam);
+                    m.setStatus("COMPLETED");
+                    matchRepo.save(m);
+                    awardService.computeMatchAwards(m.getId());
+                    matchService.endMatch(m.getId());
+                }
 
                 s.setStatus("END_MATCH");
                 s.setTarget(0);
@@ -249,10 +288,14 @@ public class LiveSCoringService {
                         m.setWinnerTeam(null);
                         m.setStatus("TIED");
                     }
-                    m.setStatus("COMPLETED");
-                    matchRepo.save(m);
-                    awardService.computeMatchAwards(m.getId());
-                    matchService.endMatch(m.getId());
+                    if (!isMatchFinal(m)) {
+                        if (!"TIED".equalsIgnoreCase(m.getStatus())) {
+                            m.setStatus("COMPLETED");
+                        }
+                        matchRepo.save(m);
+                        awardService.computeMatchAwards(m.getId());
+                        matchService.endMatch(m.getId());
+                    }
 
                     s.setStatus("END_MATCH");
                     s.setTarget(remainingRuns);
@@ -311,10 +354,14 @@ public class LiveSCoringService {
                     m.setStatus("TIED");
                 }
 
-                m.setStatus("COMPLETED");
-                matchRepo.save(m);
-                awardService.computeMatchAwards(m.getId());
-                matchService.endMatch(m.getId());
+                if (!isMatchFinal(m)) {
+                    if (!"TIED".equalsIgnoreCase(m.getStatus())) {
+                        m.setStatus("COMPLETED");
+                    }
+                    matchRepo.save(m);
+                    awardService.computeMatchAwards(m.getId());
+                    matchService.endMatch(m.getId());
+                }
 
                 s.setStatus("END_MATCH");
                 s.setTarget(Math.max(0, (firstRuns + 1) - inningsRuns));
@@ -345,10 +392,14 @@ public class LiveSCoringService {
                     m.setWinnerTeam(null);
                     m.setStatus("TIED");
                 }
-                m.setStatus("COMPLETED");
-                matchRepo.save(m);
-                awardService.computeMatchAwards(m.getId());
-                matchService.endMatch(m.getId());
+                if (!isMatchFinal(m)) {
+                    if (!"TIED".equalsIgnoreCase(m.getStatus())) {
+                        m.setStatus("COMPLETED");
+                    }
+                    matchRepo.save(m);
+                    awardService.computeMatchAwards(m.getId());
+                    matchService.endMatch(m.getId());
+                }
 
                 s.setStatus("END_MATCH");
                 return s;
@@ -375,6 +426,15 @@ public class LiveSCoringService {
 
 
         if (s.isFirstInnings()) {
+            CricketInnings existingSecond = cricketInningsRepo.findByMatchIdAndNo(m.getId(), 2);
+            if (existingSecond != null && existingSecond.getId() != null) {
+                // idempotency: second innings already created
+                s.setInningsId(existingSecond.getId());
+                s.setStatus("END_FIRST");
+                s.setFirstInnings(false);
+                s.setTarget(firstRuns + 1);
+                return s;
+            }
             CricketInnings innings = new CricketInnings();
             innings.setMatch(m);
             innings.setNo(2);
@@ -413,6 +473,10 @@ public class LiveSCoringService {
             s.setTarget(firstRuns + 1); // runs required to win
             return s;
         } else {
+            if (isMatchFinal(m)) {
+                s.setStatus("END_MATCH");
+                return s;
+            }
 
             CricketInnings second = cricketInningsRepo.findByMatchIdAndNo(m.getId(), 2);
             int secondRuns = 0;
@@ -428,15 +492,25 @@ public class LiveSCoringService {
                 m.setStatus("TIED");
             }
 
-            m.setStatus("COMPLETED");
-            matchRepo.save(m);
-            awardService.computeMatchAwards(m.getId());
-            matchService.endMatch(m.getId());
+            if (!isMatchFinal(m)) {
+                if (!"TIED".equalsIgnoreCase(m.getStatus())) {
+                    m.setStatus("COMPLETED");
+                }
+                matchRepo.save(m);
+                awardService.computeMatchAwards(m.getId());
+                matchService.endMatch(m.getId());
+            }
 
             s.setStatus("END_MATCH");
             s.setTarget(Math.max(0, (firstRuns + 1) - secondRuns));
             return s;
         }
+    }
+
+    private boolean isMatchFinal(Match m) {
+        if (m == null || m.getStatus() == null) return false;
+        String st = m.getStatus().trim().toUpperCase();
+        return st.equals("COMPLETED") || st.equals("FINISHED") || st.equals("ABANDONED") || st.equals("TIED");
     }
 
     private int parseIntSafe(String s) {

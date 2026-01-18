@@ -12,7 +12,7 @@ import java.util.Optional;
 
 @Repository
 public interface PlayerRequestInterface extends JpaRepository<PlayerRequest,Long> {
-        @Query("SELECT pr.player FROM PlayerRequest pr WHERE pr.team.id = :teamId AND pr.status = 'APPROVED'")
+        @Query("SELECT pr.player FROM PlayerRequest pr WHERE pr.team.id = :teamId AND pr.status = 'APPROVED' AND pr.player.isDeleted = false")
         List<Player> findApprovedPlayersByTeamId(@Param("teamId") Long teamId);
     @Query("""
 SELECT pr
@@ -20,11 +20,12 @@ FROM PlayerRequest pr
 WHERE pr.player.id = :playerId
 AND pr.tournament.id = :tournamentId
 AND pr.status = 'APPROVED'
+AND pr.player.isDeleted = false
 """)
     PlayerRequest findExistingRequest(Long playerId, Long tournamentId);
 
 
-    @Query("SELECT pr FROM PlayerRequest pr WHERE pr.player.id = :playerId")
+    @Query("SELECT pr FROM PlayerRequest pr WHERE pr.player.id = :playerId AND pr.player.isDeleted = false")
     List<PlayerRequest> findbyPlayer_Id(@Param("playerId") Long playerId);
 
     Optional<PlayerRequest> findByPlayer_IdAndTeam_Id(Long playerId, Long teamId);

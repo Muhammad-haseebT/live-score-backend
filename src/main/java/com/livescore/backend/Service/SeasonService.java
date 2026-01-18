@@ -43,8 +43,8 @@ public class SeasonService {
         if (season.getUsername() == null || season.getUsername().isBlank()) {
             return ResponseEntity.badRequest().body("Username is required");
         }
-        if (!accountInterface.existsByUsername(season.getUsername())) {
-            return ResponseEntity.badRequest().body(season.getUsername());
+        if (!accountInterface.existsActiveByUsername(season.getUsername())) {
+            return ResponseEntity.badRequest().body("User not found");
         }
         var rolecheck = accountInterface.findByUsername(season.getUsername());
         if (rolecheck == null || rolecheck.getRole() == null) {

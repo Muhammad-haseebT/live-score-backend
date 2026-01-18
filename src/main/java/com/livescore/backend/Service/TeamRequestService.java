@@ -51,7 +51,7 @@ public class TeamRequestService {
                     Map.of("error", "11 players required")
             );
         }
-        Account player=playerInterface.findById(teamRequest.getPlayerId()).orElse(null);
+        Account player=playerInterface.findActiveById(teamRequest.getPlayerId()).orElse(null);
         if(player==null){
             return ResponseEntity.badRequest().body(
                     Map.of("error", "Team or Player not found")
@@ -78,7 +78,7 @@ public class TeamRequestService {
 
         }
         teamRequest1.setTeam(teamInterface.findById(teamRequest.getTeamId()).orElse(null));
-        teamRequest1.setPlayerAccount(playerInterface.findById(teamRequest.getPlayerId()).orElse(null));
+        teamRequest1.setPlayerAccount(playerInterface.findActiveById(teamRequest.getPlayerId()).orElse(null));
         if (status != null) {
             teamRequest1.setStatus(status);
         }
