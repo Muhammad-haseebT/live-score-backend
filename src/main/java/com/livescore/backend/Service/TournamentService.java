@@ -131,7 +131,7 @@ public class TournamentService {
             return ResponseEntity.notFound().build();
         }
         OverViewDTO overViewDTO = new OverViewDTO();
-        overViewDTO.setTeams(tournament.getTeams().size());
+        overViewDTO.setTeams((int) tournament.getTeams().stream().filter(team -> "approved".equals(team.getStatus())).count());
         overViewDTO.setPlayerType(tournament.getPlayerType());
         overViewDTO.setStartDate(tournament.getStartDate());
         Pageable p=PageRequest.of(0, 3);
