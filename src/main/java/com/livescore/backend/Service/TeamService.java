@@ -95,6 +95,7 @@ public class TeamService {
             Map<String, Object> m = new HashMap<>();
             m.put("id", team.getId());
             m.put("name", team.getName());
+            m.put("status",team.getStatus());
             response.add(m);
         }
 
