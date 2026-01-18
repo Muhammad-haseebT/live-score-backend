@@ -13,12 +13,12 @@ import java.util.Optional;
 public interface TeamInterface extends JpaRepository<Team,Long> {
 
 
-    @Query("SELECT t FROM Team t WHERE t.status = 'approved' and t.tournament.id=:id")
+    @Query("SELECT t FROM Team t WHERE t.status = 'APPROVED' and t.tournament.id=:id")
     List<Team> findByTournamentId(@Param("id") Long tournamentId);
 
-    Object findByTournamentIdAndStatus(Long tournamentId, String status);
+    List<Team> findByTournamentIdAndStatus(Long tournamentId, String status);
 
-    Object findByStatus(String status);
+    List<Team> findByStatus(String status);
 
     @Query("SELECT t FROM Team t WHERE t.creator.id = :aid AND t.tournament.id = :tid")
     Optional<Team> findByTournamentIdAndPlayerId(@Param("tid") Long tid,

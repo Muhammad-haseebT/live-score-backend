@@ -12,21 +12,22 @@ public class SportsService {
     private SportsInterface sportsInterface;
 
     public ResponseEntity<?> createSports(Sports sports) {
-        if(sports.getName()==null||sports.getName().isEmpty()){
+        if (sports == null) {
+            return ResponseEntity.badRequest().body("Sports details are required");
+        }
+        if (sports.getName() == null || sports.getName().isBlank()) {
             return ResponseEntity.badRequest().body("Sports name is required");
         }
-        if(sportsInterface.existsByName(sports.getName())){
+        if (sportsInterface.existsByName(sports.getName())) {
             return ResponseEntity.badRequest().body("Sports name already exists");
         }
         return ResponseEntity.ok(sportsInterface.save(sports));
     }
 
     public ResponseEntity<?> getSportsById(Long id) {
-        if(sportsInterface.findById(id).isPresent()){
-            return ResponseEntity.ok(sportsInterface.findById(id).get());
-        }else{
-            return ResponseEntity.notFound().build();
-        }
+        return sportsInterface.findById(id)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
     }
 
     public ResponseEntity<?> getAllSports() {
@@ -34,21 +35,28 @@ public class SportsService {
     }
 
     public ResponseEntity<?> updateSports(Long id, Sports sports) {
-        if(sportsInterface.findById(id).isPresent()){
-            Sports sports1=sportsInterface.findById(id).get();
-            sports1.setName(sports.getName());
-            return ResponseEntity.ok(sportsInterface.save(sports1));
-        }else{
+        if (sports == null) {
+            return ResponseEntity.badRequest().body("Sports details are required");
+        }
+        var opt = sportsInterface.findById(id);
+        if (opt.isEmpty()) {
             return ResponseEntity.notFound().build();
         }
+        Sports sports1 = opt.get();
+        if (sports.getName() != null && !sports.getName().isBlank()) {
+            sports1.setName(sports.getName());
+        }
+        return ResponseEntity.ok(sportsInterface.save(sports1));
     }
 
     public ResponseEntity<?> deleteSports(Long id) {
-        if(sportsInterface.findById(id).isPresent()){
-            sportsInterface.deleteById(id);
-            return ResponseEntity.ok().build();
-        }else{
+        if (id == null) {
+            return ResponseEntity.badRequest().body("Sports id is required");
+        }
+        if (!sportsInterface.existsById(id)) {
             return ResponseEntity.notFound().build();
         }
+        sportsInterface.deleteById(id);
+        return ResponseEntity.ok().build();
     }
 }

@@ -7,6 +7,7 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Entity
@@ -36,11 +37,11 @@ public class Team {
 
     @OneToMany(mappedBy = "team", cascade = CascadeType.ALL)
     @JsonManagedReference("team-playerTeams")
-    private List<PlayerRequest> playerRequests;
+    private List<PlayerRequest> playerRequests = new ArrayList<>();
     //players
     @OneToMany(mappedBy = "team", cascade = CascadeType.ALL)
     @JsonManagedReference("team-players")
-    private List<Player> players;
+    private List<Player> players = new ArrayList<>();
 
 
     @OneToOne(mappedBy = "team", cascade = CascadeType.ALL)
@@ -50,6 +51,17 @@ public class Team {
     private String status;
     @PrePersist
     public void prePersist() {
-        this.status = "draft";
+        if (this.status == null || this.status.isBlank()) {
+            this.status = "DRAFT";
+        } else {
+            this.status = this.status.toUpperCase();
+        }
+    }
+
+    @PreUpdate
+    public void preUpdate() {
+        if (this.status != null) {
+            this.status = this.status.toUpperCase();
+        }
     }
 }

@@ -27,7 +27,22 @@ public class TeamService {
     @Autowired
     private TournamentInterface tournamentInterface;
     public ResponseEntity<?> createTeam(Team team,Long tournamentId,Long playerId) {
-        if(team.getName().isEmpty()||team.getName().isBlank()){
+        if (team == null) {
+            return ResponseEntity.badRequest().body(
+                    Map.of("error", "Team details are required")
+            );
+        }
+        if (tournamentId == null) {
+            return ResponseEntity.badRequest().body(
+                    Map.of("error", "Tournament id is required")
+            );
+        }
+        if (playerId == null) {
+            return ResponseEntity.badRequest().body(
+                    Map.of("error", "Player id is required")
+            );
+        }
+        if (team.getName() == null || team.getName().isBlank()) {
             return ResponseEntity.badRequest().body(
                     Map.of("error", "Team name is required")
             );
@@ -38,7 +53,13 @@ public class TeamService {
                     Map.of("error", "Tournament not found with ID: " + tournamentId)
             );
         }
-        Player p1=playerInterface.findById(playerId).get();
+        Optional<Player> playerOpt = playerInterface.findById(playerId);
+        if (playerOpt.isEmpty()) {
+            return ResponseEntity.badRequest().body(
+                    Map.of("error", "Player not found with ID: " + playerId)
+            );
+        }
+        Player p1 = playerOpt.get();
         team.setTournament(tournamentOpt.get());
         team.setCreator(p1);
         Team savedTeam = teamInterface.save(team);
@@ -55,9 +76,18 @@ public class TeamService {
 
     }
     public ResponseEntity<?> updateTeam(Long id, Team team) {
+        if (team == null) {
+            return ResponseEntity.badRequest().body(
+                    Map.of("error", "Team details are required")
+            );
+        }
         return teamInterface.findById(id).map(teamEntity -> {
-            teamEntity.setName(team.getName());
-            teamEntity.setStatus(team.getStatus());
+            if (team.getName() != null && !team.getName().isBlank()) {
+                teamEntity.setName(team.getName());
+            }
+            if (team.getStatus() != null && !team.getStatus().isBlank()) {
+                teamEntity.setStatus(team.getStatus());
+            }
             return ResponseEntity.ok(teamInterface.save(teamEntity));
         }).orElse(ResponseEntity.notFound().build());
     }
@@ -89,9 +119,18 @@ public class TeamService {
 
     public ResponseEntity<?> getTeamByTournamentId(Long tid) {
         List<Map<String, Object>> response = new ArrayList<>();
+        if (tid == null) {
+            return ResponseEntity.badRequest().body(
+                    Map.of("error", "Tournament id is required")
+            );
+        }
         List<Team> teams = teamInterface.findByTournamentId(tid);
+        if (teams == null || teams.isEmpty()) {
+            return ResponseEntity.ok(response);
+        }
 
         for (Team team : teams) {
+            if (team == null) continue;
             Map<String, Object> m = new HashMap<>();
             m.put("id", team.getId());
             m.put("name", team.getName());
@@ -104,6 +143,11 @@ public class TeamService {
     }
 
     public ResponseEntity<?> getTeamByTournamentIdAndAccountId(Long tid, Long aid) {
+        if (tid == null || aid == null) {
+            return ResponseEntity.badRequest().body(
+                    Map.of("error", "Tournament id and account id are required")
+            );
+        }
         Optional<Team> teamOpt = teamInterface.findByTournamentIdAndPlayerId(tid, aid);
         if (teamOpt.isEmpty()) {
             return ResponseEntity.notFound().build();
@@ -114,13 +158,26 @@ public class TeamService {
 
         Team team = teamOpt.get();
 
-        List<Map<String, Object>> playersLite = team.getPlayers().stream()
-                .map(p -> Map.<String, Object>of(
-                        "id", p.getId(),
-                        "name", p.getName(),
-                        "status",pri.findByPlayer_IdAndTeam_Id(p.getId(),team.getId()).get().getStatus()
-                ))
-                .toList();
+        List<Player> players = team.getPlayers();
+        if (players == null) {
+            players = Collections.emptyList();
+        }
+
+        List<Map<String, Object>> playersLite = new ArrayList<>();
+        for (Player p : players) {
+            if (p == null) continue;
+            String status = null;
+            if (p.getId() != null && team.getId() != null) {
+                status = pri.findByPlayer_IdAndTeam_Id(p.getId(), team.getId())
+                        .map(r -> r.getStatus())
+                        .orElse(null);
+            }
+            Map<String, Object> playerMap = new HashMap<>();
+            playerMap.put("id", p.getId());
+            playerMap.put("name", p.getName());
+            playerMap.put("status", status);
+            playersLite.add(playerMap);
+        }
 
         Map<String, Object> response = new HashMap<>();
         response.put("teamName", team.getName());

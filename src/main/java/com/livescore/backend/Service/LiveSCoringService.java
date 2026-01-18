@@ -38,14 +38,37 @@ public class LiveSCoringService {
     @Transactional
     public ScoreDTO scoring(ScoreDTO s) {
 
+        if (s == null) {
+            ScoreDTO err = new ScoreDTO();
+            err.setStatus("ERROR");
+            err.setComment("ScoreDTO required");
+            return err;
+        }
+        if (s.getMatchId() == null) {
+            s.setStatus("ERROR");
+            s.setComment("matchId required");
+            return s;
+        }
+        if (s.getInningsId() == null) {
+            s.setStatus("ERROR");
+            s.setComment("inningsId required");
+            return s;
+        }
 
-        if (s == null) throw new RuntimeException("ScoreDTO required");
-
-        Match m = matchRepo.findById(s.getMatchId()).orElseThrow(() -> new RuntimeException("Match not found"));
-        CricketInnings currentInnings = cricketInningsRepo.findById(s.getInningsId()).orElseThrow(() -> new RuntimeException("Innings not found"));
+        Match m = matchRepo.findById(s.getMatchId()).orElse(null);
+        if (m == null) {
+            s.setStatus("ERROR");
+            s.setComment("Match not found");
+            return s;
+        }
+        CricketInnings currentInnings = cricketInningsRepo.findById(s.getInningsId()).orElse(null);
+        if (currentInnings == null) {
+            s.setStatus("ERROR");
+            s.setComment("Innings not found");
+            return s;
+        }
 
         int maxBallsPerInnings = (m.getOvers() == 0 ? 0 : m.getOvers() * 6);
-
 
         long legalBallsSoFar = cricketBallInterface.countLegalBallsByInningsId(currentInnings.getId());
         long wicketsSoFar = cricketBallInterface.countWicketsByInningsId(currentInnings.getId());
@@ -56,7 +79,7 @@ public class LiveSCoringService {
 
         if (legalBallsSoFar >= maxBallsPerInnings) {
 
-            s.setStatus("end");
+            s.setStatus("END");
 
             return handleEndOfInningsAndMaybeCreateNext(s, m, currentInnings);
         }
@@ -71,7 +94,11 @@ public class LiveSCoringService {
         ball.setBallNumber(s.getBalls());
         ball.setComment(s.getComment());
 
-        if (s.getEventType() == null) throw new RuntimeException("eventType required");
+        if (s.getEventType() == null || s.getEventType().isBlank()) {
+            s.setStatus("ERROR");
+            s.setComment("eventType required");
+            return s;
+        }
 
 
         ball.setRuns(0);
@@ -152,7 +179,9 @@ public class LiveSCoringService {
                 break;
             }
             default:
-                throw new RuntimeException("Invalid event type: " + s.getEventType());
+                s.setStatus("ERROR");
+                s.setComment("Invalid event type: " + s.getEventType());
+                return s;
         }
         if(s.getMediaId()!=null){
             ball.setMedia(mediaRepo.findById(s.getMediaId()).orElse(null));
@@ -201,7 +230,7 @@ public class LiveSCoringService {
                 awardService.computeMatchAwards(m.getId());
                 matchService.endMatch(m.getId());
 
-                s.setStatus("end Match");
+                s.setStatus("END_MATCH");
                 s.setTarget(0);
                 s.setRrr(0.0);
                 return s;
@@ -225,7 +254,7 @@ public class LiveSCoringService {
                     awardService.computeMatchAwards(m.getId());
                     matchService.endMatch(m.getId());
 
-                    s.setStatus("end Match");
+                    s.setStatus("END_MATCH");
                     s.setTarget(remainingRuns);
                     s.setRrr(Double.POSITIVE_INFINITY);
                     return s;
@@ -287,7 +316,7 @@ public class LiveSCoringService {
                 awardService.computeMatchAwards(m.getId());
                 matchService.endMatch(m.getId());
 
-                s.setStatus("end Match");
+                s.setStatus("END_MATCH");
                 s.setTarget(Math.max(0, (firstRuns + 1) - inningsRuns));
                 s.setRrr(Double.POSITIVE_INFINITY);
                 return s;
@@ -321,7 +350,7 @@ public class LiveSCoringService {
                 awardService.computeMatchAwards(m.getId());
                 matchService.endMatch(m.getId());
 
-                s.setStatus("end Match");
+                s.setStatus("END_MATCH");
                 return s;
             }
         }
@@ -329,7 +358,6 @@ public class LiveSCoringService {
 
         return s;
     }
-
 
 
 
@@ -353,7 +381,11 @@ public class LiveSCoringService {
             // set chasing team: the other team
             Team t1 = m.getTeam1();
             Team t2 = m.getTeam2();
-            if (t1 == null || t2 == null) throw new RuntimeException("Match teams missing");
+            if (t1 == null || t2 == null) {
+                s.setStatus("ERROR");
+                s.setComment("Match teams missing");
+                return s;
+            }
 
             Team chasing = (currentInnings.getTeam() != null && currentInnings.getTeam().getId().equals(t1.getId())) ? t2 : t1;
             innings.setTeam(chasing);
@@ -361,7 +393,8 @@ public class LiveSCoringService {
 
             // set DTO to represent second innings start
             s.setInningsId(innings.getId());
-            s.setStatus("endFirst");
+            s.setStatus("END_FIRST");
+
             s.setRuns(0);
             s.setOvers(0);
             s.setWickets(0);
@@ -400,7 +433,7 @@ public class LiveSCoringService {
             awardService.computeMatchAwards(m.getId());
             matchService.endMatch(m.getId());
 
-            s.setStatus("end Match");
+            s.setStatus("END_MATCH");
             s.setTarget(Math.max(0, (firstRuns + 1) - secondRuns));
             return s;
         }

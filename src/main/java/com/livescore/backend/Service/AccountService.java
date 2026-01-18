@@ -24,7 +24,10 @@ public class AccountService {
 
 
     public ResponseEntity<?> createAccount(Account account) {
-        if (account.getUsername() == null || account.getPassword() == null) {
+        if (account == null) {
+            return ResponseEntity.badRequest().body("Account details are required");
+        }
+        if (account.getUsername() == null || account.getUsername().isBlank() || account.getPassword() == null || account.getPassword().isBlank()) {
             return ResponseEntity.badRequest().body("Username and password are required");
         }
         if (accountInterface.existsByUsername(account.getUsername())) {
@@ -49,11 +52,9 @@ public class AccountService {
     }
 
     public ResponseEntity<?> getAccountById(Long id) {
-        if (accountInterface.findById(id).isPresent()) {
-            return ResponseEntity.ok(accountInterface.findById(id).get());
-        } else {
-            return ResponseEntity.notFound().build();
-        }
+        return accountInterface.findById(id)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
     }
 
     public ResponseEntity<?> getAllAccounts() {
@@ -63,6 +64,9 @@ public class AccountService {
     public ResponseEntity<?> updateAccount(Long id, Account account) {
 
         System.out.println(id);
+        if (account == null) {
+            return ResponseEntity.badRequest().body("Account details are required");
+        }
         Optional<Account> optional = accountInterface.findById(id);
 
         if (optional.isEmpty()) {
@@ -71,8 +75,9 @@ public class AccountService {
 
         Account ac = optional.get();
 
-        if (account.getUsername() != null)
+        if (account.getUsername() != null && !account.getUsername().isBlank()) {
             ac.setUsername(account.getUsername());
+        }
 
         if (account.getName() != null)
             ac.setName(account.getName());
@@ -83,7 +88,7 @@ public class AccountService {
             );
         }
 
-        if (account.getRole() != null) {
+        if (account.getRole() != null && !account.getRole().isBlank()) {
             ac.setRole(account.getRole().toUpperCase());
         }
 
@@ -92,39 +97,49 @@ public class AccountService {
     }
 
     public ResponseEntity<?> deleteAccount(Long id) {
-        Account a=accountInterface.findById(id).get();
-        if (a!=null) {
-
-            accountInterface.delete(a);
-//            a.softDelete();
-//            accountInterface.save(a);
-            return ResponseEntity.ok().build();
-        } else {
+        if (id == null) {
+            return ResponseEntity.badRequest().body("Account id is required");
+        }
+        Optional<Account> opt = accountInterface.findById(id);
+        if (opt.isEmpty()) {
             return ResponseEntity.notFound().build();
         }
+        accountInterface.delete(opt.get());
+        return ResponseEntity.ok().build();
     }
     public void restoreAccount(Long id) {
         // Deleted account find karne ke liye special query
-        Account account = accountInterface.findByIdIncludingDeleted(id)
-                .orElseThrow(() -> new RuntimeException("Account not found"));
+        if (id == null) {
+            return;
+        }
+        Account account = accountInterface.findByIdIncludingDeleted(id).orElse(null);
+        if (account == null) {
+            return;
+        }
 
         account.restore();
         accountInterface.save(account);
     }
 
     public ResponseEntity<?> loginAccount(accountDTO account) {
+        if (account == null || account.getUsername() == null || account.getUsername().isBlank() || account.getPassword() == null || account.getPassword().isBlank()) {
+            return ResponseEntity.badRequest().body("Username and password are required");
+        }
         if (accountInterface.existsByUsername(account.getUsername())) {
             Account ac = accountInterface.findByUsername(account.getUsername());
-            if (ac.getPassword().equals(Base64.getEncoder().encodeToString(account.getPassword().getBytes()))) {
+            if (ac == null || ac.getPassword() == null) {
+                return ResponseEntity.notFound().build();
+            }
+            String encoded = Base64.getEncoder().encodeToString(account.getPassword().getBytes());
+            if (ac.getPassword().equals(encoded)) {
 
                 accountDTO accountDTO=new accountDTO();
                 accountDTO.setId(ac.getId());
                 accountDTO.setName(ac.getName());
                 accountDTO.setRole(ac.getRole());
-                Long p=playerInterface.findByAccount_Id(ac.getId()).get().getId();
-                if(p!=null){
-                    accountDTO.setPlayerId(p);
-
+                Optional<Player> pOpt = playerInterface.findByAccount_Id(ac.getId());
+                if (pOpt.isPresent() && pOpt.get().getId() != null) {
+                    accountDTO.setPlayerId(pOpt.get().getId());
                 }
                 accountDTO.setUsername(ac.getUsername());
 

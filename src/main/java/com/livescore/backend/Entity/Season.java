@@ -8,6 +8,7 @@ import lombok.*;
 
 import java.time.LocalDate;
 import java.util.Collection;
+import java.util.ArrayList;
 import java.util.List;
 // Season.java
 @Entity
@@ -45,12 +46,12 @@ public class Season {
     @JoinTable(name = "season_sports",
             joinColumns = @JoinColumn(name = "season_id"),
             inverseJoinColumns = @JoinColumn(name = "sports_id"))
-    private List<Sports> sportsOffered;
+    private List<Sports> sportsOffered = new ArrayList<>();
 
     // Season -> Tournament (one-to-many)
     @OneToMany(mappedBy = "season", cascade = CascadeType.ALL)
     @JsonIgnore
-    private List<Tournament> tournaments;
+    private List<Tournament> tournaments = new ArrayList<>();
 
 
 }

@@ -45,18 +45,30 @@ public class StatsService {
     }
 
     public ResponseEntity<?> createStats(Long playerId, Long tournamentId) {
+        if (playerId == null || tournamentId == null) {
+            return ResponseEntity.badRequest().body("playerId and tournamentId are required");
+        }
         Stats stats=new Stats();
         stats.setPlayer(playerInterface.findById(playerId).orElse(null));
 
         Tournament t=tournamentInterface.findById(tournamentId).orElse(null);
+        if (t == null) {
+            return ResponseEntity.badRequest().body("Tournament not found");
+        }
         stats.setTournament(t);
         stats.setSportType(t.getSport());
         Stats savedStats = statsInterface.save(stats);
         return ResponseEntity.ok(savedStats);
     }
     public ResponseEntity<?> updateStats(Long playerId, Long tournamentId, Long matchId) {
+        if (playerId == null || tournamentId == null) {
+            return ResponseEntity.badRequest().body("playerId and tournamentId are required");
+        }
         Stats existingStats = statsInterface.findByPlayerIdAndTournamentId(playerId, tournamentId)
-                .orElseThrow(() -> new RuntimeException("Stats not found"));
+                .orElse(null);
+        if (existingStats == null) {
+            return ResponseEntity.notFound().build();
+        }
 
         String sportName = existingStats.getSportType() != null
                 ? existingStats.getSportType().getName()
@@ -393,6 +405,7 @@ public class StatsService {
                 .collect(Collectors.groupingBy(b -> b.getBatsman().getId()));
 
         d.battingScores = ballsByBatsman.entrySet().stream()
+                .filter(entry -> entry.getValue() != null && !entry.getValue().isEmpty())
                 .map(entry -> {
                     Long playerId = entry.getKey();
                     List<CricketBall> pBalls = entry.getValue();
@@ -423,6 +436,7 @@ public class StatsService {
                 .collect(Collectors.groupingBy(b -> b.getBowler().getId()));
 
         d.bowlingScores = ballsByBowler.entrySet().stream()
+                .filter(entry -> entry.getValue() != null && !entry.getValue().isEmpty())
                 .map(entry -> {
                     Long bowlerId = entry.getKey();
                     List<CricketBall> bowlerBalls = entry.getValue();
@@ -515,9 +529,18 @@ public class StatsService {
 
 
     public PlayerStatsDTO getPlayerTournamentStats(Long playerId, Long tournamentId, Long matchId) {
-        Player p = playerInterface.findById(playerId).orElseThrow();
         PlayerStatsDTO dto = new PlayerStatsDTO();
         dto.playerId = playerId;
+
+        if (playerId == null) {
+            dto.playerName = "Unknown";
+            return dto;
+        }
+        Player p = playerInterface.findById(playerId).orElse(null);
+        if (p == null) {
+            dto.playerName = "Unknown";
+            return dto;
+        }
         dto.playerName = p.getName();
 
         // BATTING: aggregate batsman balls in tournament or optional match

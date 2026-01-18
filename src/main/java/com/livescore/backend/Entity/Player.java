@@ -8,6 +8,7 @@ import jakarta.persistence.*;
 import lombok.Data;
 import lombok.ToString;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Entity
@@ -40,7 +41,7 @@ public class Player {
     @OneToMany(mappedBy = "player", cascade = CascadeType.ALL)
     @JsonManagedReference("player-playerTeams")
     @JsonIgnore
-    private List<PlayerRequest> playerRequests;
+    private List<PlayerRequest> playerRequests = new ArrayList<>();
 
 }
 

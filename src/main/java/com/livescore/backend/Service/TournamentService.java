@@ -7,7 +7,6 @@ import com.livescore.backend.Entity.Tournament;
 import com.livescore.backend.Interface.*;
 import lombok.Data;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
@@ -31,33 +30,57 @@ public class TournamentService {
     private PtsTableInterface ptsTableInterface;
 
     public ResponseEntity<?> createTournament(TournamentRequestDTO tournament) {
-        if(tournament.getName()==null||tournament.getName().isEmpty()){
+        if (tournament == null) {
+            return ResponseEntity.badRequest().body("Tournament details are required");
+        }
+        if (tournament.getName() == null || tournament.getName().isBlank()) {
             return ResponseEntity.badRequest().body("Tournament name is required");
         }
-        if(tournamentInterface.existsByNameAndSeasonId(tournament.getName(),tournament.getSeasonId())){
+        if (tournament.getSeasonId() == null) {
+            return ResponseEntity.badRequest().body("Season id is required");
+        }
+        if (tournament.getSportsId() == null) {
+            return ResponseEntity.badRequest().body("Sports id is required");
+        }
+        if (tournament.getUsername() == null || tournament.getUsername().isBlank()) {
+            return ResponseEntity.badRequest().body("Username is required");
+        }
+        if (tournamentInterface.existsByNameAndSeasonId(tournament.getName(), tournament.getSeasonId())) {
             return ResponseEntity.badRequest().body("Tournament name already exists");
         }
-        if(!accountInterface.existsByUsername(tournament.getUsername())){
+        if (!accountInterface.existsByUsername(tournament.getUsername())) {
             return ResponseEntity.badRequest().body("User not found");
         }
-        if(!sportsInterface.existsById(tournament.getSportsId())){
+        if (!sportsInterface.existsById(tournament.getSportsId())) {
             return ResponseEntity.badRequest().body("Sports not found");
         }
-        if(!seasonInterface.existsById(tournament.getSeasonId())){
+        if (!seasonInterface.existsById(tournament.getSeasonId())) {
             return ResponseEntity.badRequest().body("Season not found");
         }
         Tournament tournament1=new Tournament();
         tournament1.setName(tournament.getName());
         //check role
-        String role = accountInterface.findByUsername(tournament.getUsername()).getRole().trim().toUpperCase();
+        var organizer = accountInterface.findByUsername(tournament.getUsername());
+        if (organizer == null || organizer.getRole() == null) {
+            return ResponseEntity.badRequest().body("User role not found");
+        }
+        String role = organizer.getRole().trim().toUpperCase();
         if (!role.equals("ADMIN")) {
             return ResponseEntity.badRequest().body("Only admin can create a tournament");
         }
 
 
-        tournament1.setOrganizer(accountInterface.findByUsername(tournament.getUsername()));
-        tournament1.setSeason(seasonInterface.findById(tournament.getSeasonId()).get());
-        tournament1.setSport(sportsInterface.findById(tournament.getSportsId()).get());
+        tournament1.setOrganizer(organizer);
+        Season season = seasonInterface.findById(tournament.getSeasonId()).orElse(null);
+        if (season == null) {
+            return ResponseEntity.badRequest().body("Season not found");
+        }
+        Sports sport = sportsInterface.findById(tournament.getSportsId()).orElse(null);
+        if (sport == null) {
+            return ResponseEntity.badRequest().body("Sport not found");
+        }
+        tournament1.setSeason(season);
+        tournament1.setSport(sport);
         tournament1.setStartDate(tournament.getStartDate());
         tournament1.setEndDate(tournament.getEndDate());
         tournament1.setPlayerType(tournament.getPlayerType());
@@ -66,11 +89,6 @@ public class TournamentService {
 
        tournamentInterface.save(tournament1);
 
-        Season season = seasonInterface.findById(tournament.getSeasonId())
-                .orElseThrow(() -> new RuntimeException("Season not found"));
-
-        Sports sport = sportsInterface.findById(tournament.getSportsId())
-                .orElseThrow(() -> new RuntimeException("Sport not found"));
         if (season.getSportsOffered() == null) {
             season.setSportsOffered(new ArrayList<>());
         }
@@ -86,11 +104,9 @@ public class TournamentService {
 
     }
     public ResponseEntity<?> getTournamentById(Long id) {
-        if(tournamentInterface.existsById(id)){
-            return ResponseEntity.ok(tournamentInterface.findById(id).get());
-        }else{
-            return ResponseEntity.notFound().build();
-        }
+        return tournamentInterface.findById(id)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
     }
 
 
@@ -99,21 +115,56 @@ public class TournamentService {
         return ResponseEntity.ok(tournamentInterface.findAll());
     }
     public ResponseEntity<?> updateTournament(Long id, TournamentRequestDTO tournament) {
-        if(tournamentInterface.existsById(id)){
-            Tournament tournament1=tournamentInterface.findById(id).get();
-            tournament1.setName(tournament.getName());
-            tournament1.setOrganizer(accountInterface.findByUsername(tournament.getUsername()));
-            tournament1.setSeason(seasonInterface.findById(tournament.getSeasonId()).get());
-            tournament1.setSport(sportsInterface.findById(tournament.getSportsId()).get());
-            tournament1.setStartDate(tournament.getStartDate());
-            tournament1.setEndDate(tournament.getEndDate());
-            tournament1.setPlayerType(tournament.getPlayerType());
-            tournament1.setTournamentType(tournament.getTournamentType());
-            tournament1.setTournamentStage(tournament.getTournamentStage());
-            return ResponseEntity.ok(tournamentInterface.save(tournament1));
-        }else{
+        if (tournament == null) {
+            return ResponseEntity.badRequest().body("Tournament details are required");
+        }
+        var opt = tournamentInterface.findById(id);
+        if (opt.isEmpty()) {
             return ResponseEntity.notFound().build();
         }
+        Tournament tournament1 = opt.get();
+
+        if (tournament.getName() != null && !tournament.getName().isBlank()) {
+            tournament1.setName(tournament.getName());
+        }
+        if (tournament.getUsername() != null && !tournament.getUsername().isBlank()) {
+            var organizer = accountInterface.findByUsername(tournament.getUsername());
+            if (organizer == null) {
+                return ResponseEntity.badRequest().body("User not found");
+            }
+            tournament1.setOrganizer(organizer);
+        }
+        if (tournament.getSeasonId() != null) {
+            Season season = seasonInterface.findById(tournament.getSeasonId()).orElse(null);
+            if (season == null) {
+                return ResponseEntity.badRequest().body("Season not found");
+            }
+            tournament1.setSeason(season);
+        }
+        if (tournament.getSportsId() != null) {
+            Sports sport = sportsInterface.findById(tournament.getSportsId()).orElse(null);
+            if (sport == null) {
+                return ResponseEntity.badRequest().body("Sport not found");
+            }
+            tournament1.setSport(sport);
+        }
+        if (tournament.getStartDate() != null) {
+            tournament1.setStartDate(tournament.getStartDate());
+        }
+        if (tournament.getEndDate() != null) {
+            tournament1.setEndDate(tournament.getEndDate());
+        }
+        if (tournament.getPlayerType() != null) {
+            tournament1.setPlayerType(tournament.getPlayerType());
+        }
+        if (tournament.getTournamentType() != null) {
+            tournament1.setTournamentType(tournament.getTournamentType());
+        }
+        if (tournament.getTournamentStage() != null) {
+            tournament1.setTournamentStage(tournament.getTournamentStage());
+        }
+
+        return ResponseEntity.ok(tournamentInterface.save(tournament1));
     }
     public ResponseEntity<?> deleteTournament(Long id) {
         if(tournamentInterface.existsById(id)){
@@ -131,12 +182,16 @@ public class TournamentService {
             return ResponseEntity.notFound().build();
         }
         OverViewDTO overViewDTO = new OverViewDTO();
-        overViewDTO.setTeams((int) tournament.getTeams().stream().filter(team -> "approved".equals(team.getStatus())).count());
+        if (tournament.getTeams() == null) {
+            overViewDTO.setTeams(0);
+        } else {
+            overViewDTO.setTeams((int) tournament.getTeams().stream().filter(team -> team != null && "APPROVED".equals(team.getStatus())).count());
+        }
         overViewDTO.setPlayerType(tournament.getPlayerType());
         overViewDTO.setStartDate(tournament.getStartDate());
         Pageable p=PageRequest.of(0, 3);
         List<Abc> a= ptsTableInterface.findByTournamentId(id,p);
-        overViewDTO.setTop(a);
+        overViewDTO.setTop(a == null ? List.of() : a);
         return ResponseEntity.ok(overViewDTO);
 
     }

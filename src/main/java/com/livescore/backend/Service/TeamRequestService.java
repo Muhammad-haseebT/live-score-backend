@@ -20,6 +20,14 @@ public class TeamRequestService {
 
     @Autowired
     PtsTableService ptsTableService;
+
+    private String toUpper(String v) {
+        if (v == null) return null;
+        String t = v.trim();
+        if (t.isEmpty()) return null;
+        return t.toUpperCase();
+    }
+
     public ResponseEntity<?> createTeamRequest(TeamRequestDTO teamRequest) {
         if(teamRequest.getTeamId()==null){
             return ResponseEntity.badRequest().body(
@@ -33,13 +41,18 @@ public class TeamRequestService {
         }
 
         Team team=teamInterface.findById(teamRequest.getTeamId()).orElse(null);
-        if(team.getPlayers().size()<11){
+        if(team == null){
+            return ResponseEntity.badRequest().body(
+                    Map.of("error", "Team not found")
+            );
+        }
+        if(team.getPlayers() == null || team.getPlayers().size()<11){
             return ResponseEntity.badRequest().body(
                     Map.of("error", "11 players required")
             );
         }
         Account player=playerInterface.findById(teamRequest.getPlayerId()).orElse(null);
-        if(team==null||player==null){
+        if(player==null){
             return ResponseEntity.badRequest().body(
                     Map.of("error", "Team or Player not found")
             );
@@ -55,13 +68,20 @@ public class TeamRequestService {
         if(teamRequest1==null){
             return ResponseEntity.notFound().build();
         }
-        if(teamRequest.getStatus().equalsIgnoreCase("approve")){
-         teamInterface.findById(teamRequest.getTeamId()).orElse(null).setStatus("approved");
+        String status = toUpper(teamRequest == null ? null : teamRequest.getStatus());
+        if("APPROVE".equals(status) || "APPROVED".equals(status)){
+            Team t = teamInterface.findById(teamRequest.getTeamId()).orElse(null);
+            if (t != null) {
+                t.setStatus("APPROVED");
+                teamInterface.save(t);
+            }
 
         }
         teamRequest1.setTeam(teamInterface.findById(teamRequest.getTeamId()).orElse(null));
         teamRequest1.setPlayerAccount(playerInterface.findById(teamRequest.getPlayerId()).orElse(null));
-        teamRequest1.setStatus(teamRequest.getStatus());
+        if (status != null) {
+            teamRequest1.setStatus(status);
+        }
         teamRequestInterface.save(teamRequest1);
         return ResponseEntity.ok().build();
     }
@@ -86,7 +106,7 @@ public class TeamRequestService {
         if(teamRequest==null){
             return ResponseEntity.notFound().build();
         }
-        teamRequest.setStatus("rejected");
+        teamRequest.setStatus("REJECTED");
         teamRequestInterface.save(teamRequest);
         return ResponseEntity.ok().build();
     }
@@ -96,8 +116,12 @@ public class TeamRequestService {
         if(teamRequest==null){
             return ResponseEntity.notFound().build();
         }
-        teamRequest.setStatus("approved");
-        teamInterface.findById(teamRequest.getTeam().getId()).orElse(null).setStatus("approved");
+        teamRequest.setStatus("APPROVED");
+        Team t = teamInterface.findById(teamRequest.getTeam().getId()).orElse(null);
+        if (t != null) {
+            t.setStatus("APPROVED");
+            teamInterface.save(t);
+        }
         ptsTableService.createPtsTable(new PtsTable(teamRequest.getTeam(),teamRequest.getTeam().getTournament()));
 
         teamRequestInterface.save(teamRequest);

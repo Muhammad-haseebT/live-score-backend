@@ -37,6 +37,12 @@ public class MediaService {
             );
         }
 
+        if (media == null) {
+            return ResponseEntity.badRequest().body(
+                    Map.of("error", "Media details are required")
+            );
+        }
+
 
         if (media.getMatchId() == null) {
             return ResponseEntity.badRequest().body(
@@ -53,6 +59,11 @@ public class MediaService {
         }
         //save file in folder
         String fileName = f.getOriginalFilename();
+        if (fileName == null || fileName.isBlank()) {
+            return ResponseEntity.badRequest().body(
+                    Map.of("error", "Invalid file name")
+            );
+        }
         String filePath = path + fileName;
         File file = new File(filePath);
         //if file already exist than do nothing

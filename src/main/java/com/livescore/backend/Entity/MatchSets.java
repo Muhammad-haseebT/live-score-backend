@@ -6,6 +6,7 @@ import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.Data;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Entity
@@ -34,5 +35,5 @@ public class MatchSets {
     // MatchSets -> SetPoint (one-to-many)
     @OneToMany(mappedBy = "matchSet", cascade = CascadeType.ALL)
     @JsonManagedReference("matchSet-points")
-    private List<SetPoint> points;
+    private List<SetPoint> points = new ArrayList<>();
 }

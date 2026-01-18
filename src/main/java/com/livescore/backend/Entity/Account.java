@@ -7,6 +7,7 @@ import lombok.*;
 import org.hibernate.annotations.Where;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 
@@ -47,17 +48,17 @@ public class Account {
     // Account -> Season (one-to-many)
     @OneToMany(mappedBy = "account", cascade = CascadeType.ALL)
     @JsonIgnore
-    private List<Season> seasonsCreated;
+    private List<Season> seasonsCreated = new ArrayList<>();
 
     // Account -> Tournament (one-to-many)
     @OneToMany(mappedBy = "organizer", cascade = CascadeType.ALL)
     @JsonIgnore
-    private List<Tournament> tournamentsCreated;
+    private List<Tournament> tournamentsCreated = new ArrayList<>();
 
     // Account -> Match (as scorer) (one-to-many)
     @OneToMany(mappedBy = "scorer", cascade = CascadeType.ALL)
     @JsonIgnore
-    private List<Match> scoredMatches;
+    private List<Match> scoredMatches = new ArrayList<>();
 
     // Soft delete method
     public void softDelete() {

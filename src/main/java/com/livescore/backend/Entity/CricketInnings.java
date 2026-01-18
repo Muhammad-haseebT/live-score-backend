@@ -6,6 +6,7 @@ import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.Data;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Entity
@@ -31,5 +32,5 @@ public class CricketInnings {
     // CricketInnings -> CricketBall (one-to-many)
     @OneToMany(mappedBy = "innings", cascade = CascadeType.ALL)
     @JsonManagedReference("innings-balls")
-    private List<CricketBall> balls;
+    private List<CricketBall> balls = new ArrayList<>();
 }

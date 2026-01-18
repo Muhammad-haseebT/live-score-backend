@@ -32,6 +32,17 @@ public class TeamRequest {
     private String status;
     @PrePersist
     public void prePersist() {
-        this.status = "pending";
+        if (this.status == null || this.status.isBlank()) {
+            this.status = "PENDING";
+        } else {
+            this.status = this.status.toUpperCase();
+        }
+    }
+
+    @PreUpdate
+    public void preUpdate() {
+        if (this.status != null) {
+            this.status = this.status.toUpperCase();
+        }
     }
 }

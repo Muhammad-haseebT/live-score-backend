@@ -7,6 +7,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 // Tournament.java
 @Entity
@@ -58,17 +59,17 @@ public class Tournament {
     // Tournament -> Team (one-to-many)
     @OneToMany(mappedBy = "tournament", cascade = CascadeType.ALL)
     @JsonIgnore
-    private List<Team> teams;
+    private List<Team> teams = new ArrayList<>();
 
     // Tournament -> Match (one-to-many)
     @OneToMany(mappedBy = "tournament", cascade = CascadeType.ALL)
     @JsonIgnore
-    private List<Match> matches;
+    private List<Match> matches = new ArrayList<>();
 
     // Tournament -> Stats (one-to-many)
     @OneToMany(mappedBy = "tournament", cascade = CascadeType.ALL)
     @JsonIgnore
-    private List<Stats> stats;
+    private List<Stats> stats = new ArrayList<>();
 
 
 }

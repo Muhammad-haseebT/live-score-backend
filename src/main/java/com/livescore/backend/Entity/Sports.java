@@ -6,6 +6,7 @@ import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Entity
@@ -28,5 +29,5 @@ public class Sports {
     @OneToMany(mappedBy = "sport", cascade = CascadeType.ALL)
     @JsonManagedReference("sport-tournaments")
     @JsonIgnore
-    private List<Tournament> tournaments;
+    private List<Tournament> tournaments = new ArrayList<>();
 }

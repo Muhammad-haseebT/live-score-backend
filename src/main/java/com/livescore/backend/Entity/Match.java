@@ -7,6 +7,7 @@ import jakarta.persistence.*;
 import lombok.Data;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Entity
@@ -47,7 +48,24 @@ public class Match {
 
     @PrePersist
     public void prePersist() {
-        this.status = "UPCOMING";
+        if (this.status == null || this.status.isBlank()) {
+            this.status = "UPCOMING";
+        } else {
+            this.status = this.status.toUpperCase();
+        }
+        if (this.decision != null) {
+            this.decision = this.decision.toUpperCase();
+        }
+    }
+
+    @PreUpdate
+    public void preUpdate() {
+        if (this.status != null) {
+            this.status = this.status.toUpperCase();
+        }
+        if (this.decision != null) {
+            this.decision = this.decision.toUpperCase();
+        }
     }
 
 
@@ -85,31 +103,31 @@ public class Match {
     // Match -> CricketInnings
     @OneToMany(mappedBy = "match", cascade = CascadeType.ALL)
     @JsonManagedReference("match-innings")
-    private List<CricketInnings> cricketInnings;
+    private List<CricketInnings> cricketInnings = new ArrayList<>();
 
     // Match -> GoalsType (football events)
     @OneToMany(mappedBy = "match", cascade = CascadeType.ALL)
     @JsonManagedReference("match-goals")
-    private List<GoalsType> footballEvents;
+    private List<GoalsType> footballEvents = new ArrayList<>();
 
     // Match -> MatchSets (set-based sports)
     @OneToMany(mappedBy = "match", cascade = CascadeType.ALL)
     @JsonManagedReference("match-sets")
-    private List<MatchSets> matchSets;
+    private List<MatchSets> matchSets = new ArrayList<>();
 
     // Match -> Board (board games)
     @OneToMany(mappedBy = "match", cascade = CascadeType.ALL)
     @JsonManagedReference("match-boards")
-    private List<Board> boards;
+    private List<Board> boards = new ArrayList<>();
 
     // Match -> Media
     @OneToMany(mappedBy = "match", cascade = CascadeType.ALL)
     @JsonManagedReference("match-media")
     @JsonIgnore
-    private List<Media> mediaList;
+    private List<Media> mediaList = new ArrayList<>();
 
     @OneToMany(mappedBy = "match", cascade = CascadeType.ALL)
     @JsonManagedReference("match-balls")
     @JsonIgnore
-    private List<CricketBall> cricketBalls;
+    private List<CricketBall> cricketBalls = new ArrayList<>();
 }

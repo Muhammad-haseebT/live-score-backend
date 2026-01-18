@@ -31,7 +31,13 @@ public class AwardService {
     // ----------------- MATCH-LEVEL AWARDS -----------------
     @Transactional
     public void computeMatchAwards(Long matchId) {
-        Match match = matchRepo.findById(matchId).orElseThrow();
+        if (matchId == null) {
+            return;
+        }
+        Match match = matchRepo.findById(matchId).orElse(null);
+        if (match == null) {
+            return;
+        }
         List<CricketBall> balls = cricketBallInterface.findByMatch_Id(matchId);
         if (balls == null || balls.isEmpty()) {
             // nothing to compute
@@ -533,14 +539,24 @@ public class AwardService {
 
     // ----------------- MATCH AWARDS DTO HELPER -----------------
     public AwardsDTO ensureAndGetAwards(Long matchId) {
-        Match m = matchRepo.findById(matchId).orElseThrow();
+        AwardsDTO dto = new AwardsDTO();
+        dto.matchId = matchId;
+        if (matchId == null) {
+            return dto;
+        }
+
+        Match m = matchRepo.findById(matchId).orElse(null);
+        if (m == null) {
+            return dto;
+        }
         // If awards not set on match, compute
         if (m.getManOfMatch() == null || m.getBestBatsman() == null || m.getBestBowler() == null) {
             computeMatchAwards(matchId); // this will set match fields
-            m = matchRepo.findById(matchId).orElseThrow();
+            m = matchRepo.findById(matchId).orElse(null);
+            if (m == null) {
+                return dto;
+            }
         }
-        AwardsDTO dto = new AwardsDTO();
-        dto.matchId = matchId;
         if (m.getManOfMatch() != null) {
             dto.manOfMatchId = m.getManOfMatch().getId();
             dto.manOfMatchName = m.getManOfMatch().getName();
