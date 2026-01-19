@@ -62,6 +62,11 @@ public class PlayerRequestService {
                     Map.of("error", "Player already belongs to a team in this tournament")
             );
         }
+        if(playerRequestInterface.existsByPlayerAndTournament(player, tournament,team)){
+            return ResponseEntity.badRequest().body(
+                    Map.of("error", "Player request already exists for this player and tournament")
+            );
+        }
 
         PlayerRequest playerRequest1=new PlayerRequest();
         playerRequest1.setPlayer(player);

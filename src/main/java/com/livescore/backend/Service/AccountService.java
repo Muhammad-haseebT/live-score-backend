@@ -4,8 +4,10 @@ import com.livescore.backend.DTO.PlayerDto;
 import com.livescore.backend.DTO.accountDTO;
 import com.livescore.backend.Entity.Account;
 import com.livescore.backend.Entity.Player;
+import com.livescore.backend.Entity.PlayerRequest;
 import com.livescore.backend.Interface.AccountInterface;
 import com.livescore.backend.Interface.PlayerInterface;
+import com.livescore.backend.Interface.PlayerRequestInterface;
 import com.livescore.backend.Interface.TeamInterface;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -22,6 +24,8 @@ public class AccountService {
     @Autowired PlayerInterface playerInterface;
     @Autowired
     private TeamInterface teamInterface;
+    @Autowired
+    private PlayerRequestInterface playerRequestInterface;
 
 
     public ResponseEntity<?> createAccount(Account account) {
@@ -180,31 +184,45 @@ public class AccountService {
         }
     }
 
-
     public ResponseEntity<List<accountDTO>> getAllPlayerAccounts(Long tournamentId) {
-        List<Player> players = playerInterface.findAll();
+        // Single query to get all players (not filtering by deleted here for simplicity)
+        List<Player> allPlayers = playerInterface.findAllWithAccounts();
 
-        // ONE TIME fetch
-        Set<Long> alreadyInTournament = new HashSet<>(
-                teamInterface.findTournamentPlayerIds(tournamentId)
-        );
+        // Single query to get player IDs already in tournament
+        Set<Long> alreadyInTournament = playerInterface.findPlayerIdsInTournament(tournamentId);
 
-        List<accountDTO> accountDTOs = players.stream()
-                .filter(p -> !alreadyInTournament.contains(p.getId()))
+        // Single query to get ALL player requests for this tournament WITH players and accounts
+        List<PlayerRequest> tournamentRequests = playerRequestInterface
+                .findByTournamentIdWithPlayerAndAccount(tournamentId);
+
+        // Build a map: playerId -> playerRequestId
+        Map<Long, Long> playerIdToRequestId = new HashMap<>();
+        for (PlayerRequest pr : tournamentRequests) {
+            if (pr.getPlayer() != null) {
+                playerIdToRequestId.put(pr.getPlayer().getId(), pr.getId());
+            }
+        }
+
+        // Filter and map to DTOs
+        List<accountDTO> accountDTOs = allPlayers.stream()
+                .filter(player -> !Boolean.TRUE.equals(player.getIsDeleted()))
+                .filter(player -> !alreadyInTournament.contains(player.getId()))
                 .map(player -> {
                     Account account = player.getAccount();
+                    if (account == null) return null;
+
                     accountDTO dto = new accountDTO();
-                    dto.setId(account.getId());
+                    dto.setId(playerIdToRequestId.get(player.getId())); // O(1) lookup
                     dto.setUsername(account.getUsername());
                     dto.setName(account.getName());
                     dto.setRole(account.getRole());
                     dto.setPlayerId(player.getId());
                     return dto;
                 })
+                .filter(Objects::nonNull)
                 .toList();
 
         return ResponseEntity.ok(accountDTOs);
     }
-
 
 }

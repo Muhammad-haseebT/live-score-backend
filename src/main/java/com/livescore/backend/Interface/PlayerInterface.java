@@ -1,6 +1,7 @@
 package com.livescore.backend.Interface;
 
 import com.livescore.backend.Entity.Player;
+import com.livescore.backend.Entity.PlayerRequest;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -8,6 +9,7 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 @Repository
 public interface PlayerInterface extends JpaRepository<Player,Long> {
@@ -39,4 +41,14 @@ public interface PlayerInterface extends JpaRepository<Player,Long> {
 
     @Query("SELECT p FROM Player p WHERE p.id = :id")
     Optional<Player> findByIdIncludingDeleted(@Param("id") Long id);
+
+    @Query("SELECT DISTINCT p.id FROM Team t JOIN t.players p WHERE t.tournament.id = :tournamentId")
+    Set<Long> findPlayerIdsInTournament(@Param("tournamentId") Long tournamentId);
+
+    @Query("SELECT p FROM Player p " +
+            "LEFT JOIN FETCH p.account a " +
+            "WHERE p.isDeleted = false")
+    List<Player> findAllWithAccounts();
+
+
 }

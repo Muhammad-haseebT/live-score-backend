@@ -43,6 +43,7 @@ public class TeamRequestService {
             );
         }
 
+
         Team team=teamInterface.findById(teamRequest.getTeamId()).orElse(null);
         if(team == null){
             return ResponseEntity.badRequest().body(
@@ -54,6 +55,11 @@ public class TeamRequestService {
         if(player==null){
             return ResponseEntity.badRequest().body(
                     Map.of("error", "Team or Player not found")
+            );
+        }
+        if(teamRequestInterface.existsByTeamAndPlayerAccount(team,player)){
+            return ResponseEntity.badRequest().body(
+                    Map.of("error", "Team request already exists for this team and player")
             );
         }
         TeamRequest teamRequest1=new TeamRequest();

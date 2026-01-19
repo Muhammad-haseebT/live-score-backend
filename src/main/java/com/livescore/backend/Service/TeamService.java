@@ -149,40 +149,40 @@ public class TeamService {
                     Map.of("error", "Tournament id and account id are required")
             );
         }
+
+        // Get player ID
         Long creatorPlayerId = playerInterface.findByAccount_Id(aid)
                 .filter(p -> !Boolean.TRUE.equals(p.getIsDeleted()))
                 .map(Player::getId)
                 .orElse(null);
+
         if (creatorPlayerId == null) {
             return ResponseEntity.notFound().build();
         }
 
+        // Get team
         Optional<Team> teamOpt = teamInterface.findByTournamentIdAndPlayerId(tid, creatorPlayerId);
         if (teamOpt.isEmpty()) {
             return ResponseEntity.notFound().build();
         }
 
-
-
-
         Team team = teamOpt.get();
-           List<PlayerRequest>players= pri.findByTeam_Id(team.getId());
 
-        if (players == null) {
-            players = Collections.emptyList();
-        }
+        // OPTIMIZED: Single query with JOIN FETCH
+        List<PlayerRequest> players = pri
+                .findByTeamIdWithPlayer(team.getId());
 
-        List<Map<String, Object>> playersLite = new ArrayList<>();
-        for (PlayerRequest p : players) {
-            if (p == null || Boolean.TRUE.equals(p.getPlayer().getIsDeleted())) continue;
-
-
-            Map<String, Object> playerMap = new HashMap<>();
-            playerMap.put("id", p.getId());
-            playerMap.put("name", p.getPlayer().getName());
-            playerMap.put("status", p.getStatus());
-            playersLite.add(playerMap);
-        }
+        List<Map<String, Object>> playersLite = players.stream()
+                .filter(p -> p != null && p.getPlayer() != null)
+                .filter(p -> !Boolean.TRUE.equals(p.getPlayer().getIsDeleted()))
+                .map(p -> {
+                    Map<String, Object> playerMap = new HashMap<>();
+                    playerMap.put("id", p.getId());
+                    playerMap.put("name", p.getPlayer().getName());
+                    playerMap.put("status", p.getStatus());
+                    return playerMap;
+                })
+                .toList();
 
         Map<String, Object> response = new HashMap<>();
         response.put("teamName", team.getName());
@@ -191,8 +191,6 @@ public class TeamService {
         response.put("players", playersLite);
 
         return ResponseEntity.ok(response);
-
-
-
     }
+
 }
