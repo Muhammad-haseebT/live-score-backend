@@ -6,14 +6,12 @@ import com.livescore.backend.Entity.Account;
 import com.livescore.backend.Entity.Player;
 import com.livescore.backend.Interface.AccountInterface;
 import com.livescore.backend.Interface.PlayerInterface;
+import com.livescore.backend.Interface.TeamInterface;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
-import java.util.Base64;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 @Service
 public class AccountService {
@@ -22,6 +20,8 @@ public class AccountService {
     @Autowired
     private PlayerService playerService;
     @Autowired PlayerInterface playerInterface;
+    @Autowired
+    private TeamInterface teamInterface;
 
 
     public ResponseEntity<?> createAccount(Account account) {
@@ -178,6 +178,32 @@ public class AccountService {
             System.out.println(account.getUsername() + account.getPassword());
             return ResponseEntity.notFound().build();
         }
+    }
+
+
+    public ResponseEntity<List<accountDTO>> getAllPlayerAccounts(Long tournamentId) {
+        List<Player> players = playerInterface.findAll();
+
+        // ONE TIME fetch
+        Set<Long> alreadyInTournament = new HashSet<>(
+                teamInterface.findTournamentPlayerIds(tournamentId)
+        );
+
+        List<accountDTO> accountDTOs = players.stream()
+                .filter(p -> !alreadyInTournament.contains(p.getId()))
+                .map(player -> {
+                    Account account = player.getAccount();
+                    accountDTO dto = new accountDTO();
+                    dto.setId(account.getId());
+                    dto.setUsername(account.getUsername());
+                    dto.setName(account.getName());
+                    dto.setRole(account.getRole());
+                    dto.setPlayerId(player.getId());
+                    return dto;
+                })
+                .toList();
+
+        return ResponseEntity.ok(accountDTOs);
     }
 
 

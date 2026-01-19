@@ -1,6 +1,7 @@
 package com.livescore.backend.Service;
 
 import com.livescore.backend.Entity.Player;
+import com.livescore.backend.Entity.PlayerRequest;
 import com.livescore.backend.Entity.Team;
 import com.livescore.backend.Entity.Tournament;
 import com.livescore.backend.Interface.PlayerInterface;
@@ -165,30 +166,28 @@ public class TeamService {
 
 
         Team team = teamOpt.get();
+           List<PlayerRequest>players= pri.findByTeam_Id(team.getId());
 
-        List<Player> players = team.getPlayers();
         if (players == null) {
             players = Collections.emptyList();
         }
 
         List<Map<String, Object>> playersLite = new ArrayList<>();
-        for (Player p : players) {
-            if (p == null || Boolean.TRUE.equals(p.getIsDeleted())) continue;
-            String status = null;
-            if (p.getId() != null && team.getId() != null) {
-                status = pri.findByPlayer_IdAndTeam_Id(p.getId(), team.getId())
-                        .map(r -> r.getStatus())
-                        .orElse(null);
-            }
+        for (PlayerRequest p : players) {
+            if (p == null || Boolean.TRUE.equals(p.getPlayer().getIsDeleted())) continue;
+
+
             Map<String, Object> playerMap = new HashMap<>();
             playerMap.put("id", p.getId());
-            playerMap.put("name", p.getName());
-            playerMap.put("status", status);
+            playerMap.put("name", p.getPlayer().getName());
+            playerMap.put("status", p.getStatus());
             playersLite.add(playerMap);
         }
 
         Map<String, Object> response = new HashMap<>();
         response.put("teamName", team.getName());
+        response.put("teamId", team.getId());
+        response.put("teamStatus", team.getStatus());
         response.put("players", playersLite);
 
         return ResponseEntity.ok(response);

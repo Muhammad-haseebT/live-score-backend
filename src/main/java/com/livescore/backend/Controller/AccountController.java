@@ -51,9 +51,11 @@ public class AccountController {
         return accountService.restoreAccount(id);
     }
 
+    @GetMapping("/account/players/{tid}")
+    public ResponseEntity<List<accountDTO>> getAllPlayerAccounts(@PathVariable Long tid) {
+        return accountService.getAllPlayerAccounts(tid);
+    }
 
-
-    
 
 
 }

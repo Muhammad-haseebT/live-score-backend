@@ -49,11 +49,7 @@ public class TeamRequestService {
                     Map.of("error", "Team not found")
             );
         }
-        if(team.getPlayers() == null || team.getPlayers().size()<11){
-            return ResponseEntity.badRequest().body(
-                    Map.of("error", "11 players required")
-            );
-        }
+
         Account player=playerInterface.findActiveById(teamRequest.getPlayerId()).orElse(null);
         if(player==null){
             return ResponseEntity.badRequest().body(
