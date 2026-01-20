@@ -167,6 +167,7 @@ public class TeamRequestService {
                 }
             }
             m.put("players", players);
+            m.put("status", r.getStatus());
 
             return m;
         }).toList();
