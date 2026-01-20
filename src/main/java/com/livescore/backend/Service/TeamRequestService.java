@@ -150,6 +150,7 @@ public class TeamRequestService {
             }
             m.put("tournamentName", tournamentName);
 
+            m.put("CaptainName", r.getTeam().getCreator().getName());
             //player names and usernames
             List<Map<String, String>> players = new ArrayList<>();
             if (team != null && team.getPlayers() != null) {
