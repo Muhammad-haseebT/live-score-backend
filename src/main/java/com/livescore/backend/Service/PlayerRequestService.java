@@ -158,6 +158,7 @@ public class PlayerRequestService {
                             ? r.getTeam().getCreator().getName()
                             : null
             );
+            map.put("status", r.getStatus());
 
             return map;
         }).toList();
