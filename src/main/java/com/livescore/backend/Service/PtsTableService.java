@@ -1,5 +1,6 @@
 package com.livescore.backend.Service;
 
+import com.livescore.backend.DTO.PtsTableDTO;
 import com.livescore.backend.Entity.*;
 import com.livescore.backend.Interface.*;
 import lombok.RequiredArgsConstructor;
@@ -213,7 +214,23 @@ public class PtsTableService {
         return ResponseEntity.ok(ptsTableInterface.findByTournamentIdAndTeamId(tournamentId, teamId));
     }
 
-
+    public ResponseEntity<?> getPtsTablesByTournament(Long tournamentId) {
+        List<PtsTable> p=ptsTableInterface.findByTournamentId(tournamentId);
+        List<PtsTableDTO> ptDtoList=p.stream().map(pt->{
+            PtsTableDTO dto=new PtsTableDTO();
+            dto.setTeamName(pt.getTeam().getName());
+            dto.setId(pt.getId());
+            dto.setTournamentId(pt.getTournament().getId());
+            dto.setTeamId(pt.getTeam().getId());
+            dto.setPlayed(pt.getPlayed());
+            dto.setWins(pt.getWins());
+            dto.setLosses(pt.getLosses());
+            dto.setPoints(pt.getPoints());
+            dto.setNrr(pt.getNrr());
+            return dto;
+        }).toList();
+        return ResponseEntity.ok(ptDtoList);
+    }
 
 
     // changed InningsData to use long runs for safety

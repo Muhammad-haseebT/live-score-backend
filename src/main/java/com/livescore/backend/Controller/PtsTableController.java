@@ -30,5 +30,8 @@ public class PtsTableController {
     public ResponseEntity<?> getPtsTableById(@PathVariable Long id) {
         return ptsTableService.getPtsTableById(id);
     }
-
+    @GetMapping("/ptsTable/tournament/{tournamentId}")
+    public ResponseEntity<?> getPtsTablesByTournament(@PathVariable Long tournamentId) {
+        return ptsTableService.getPtsTablesByTournament(tournamentId);
+    }
 }

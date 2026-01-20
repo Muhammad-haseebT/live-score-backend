@@ -115,6 +115,7 @@ public class MatchService {
         if (matchDTO.getTime().isBefore(LocalTime.now()) && check) {
             return ResponseEntity.badRequest().body("Match time " + matchDTO.getTime() + " does not belong to the future");
         }
+
         match.setTournament(tournamentInterface.findById(matchDTO.getTournamentId()).orElse(null));
         match.setTeam1(teamInterface.findById(matchDTO.getTeam1Id()).orElse(null));
         match.setTeam2(teamInterface.findById(matchDTO.getTeam2Id()).orElse(null));

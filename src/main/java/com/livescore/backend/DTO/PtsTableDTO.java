@@ -9,4 +9,12 @@ public class PtsTableDTO {
     private Long teamId;
     private Long winnerId;
     private Long loserId;
+    private String teamName;
+    private int played;
+    private int wins;
+    private int losses;
+    private  int points;
+    private double nrr;
+
 }
+

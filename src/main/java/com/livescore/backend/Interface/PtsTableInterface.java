@@ -23,4 +23,10 @@ public interface PtsTableInterface extends JpaRepository<PtsTable,Long> {
     @Query("SELECT new com.livescore.backend.Service.Abc(pt.team.name,pt.points) FROM PtsTable pt WHERE pt.tournament.id = :tournamentId ORDER BY pt.points  Desc")
      List<Abc> findByTournamentId(@Param("tournamentId") Long tournamentId, Pageable pageable);
 
+
+    List<PtsTable> findByTournamentId(Long tournamentId);
+
+
+
+
 }

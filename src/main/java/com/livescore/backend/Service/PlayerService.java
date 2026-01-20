@@ -24,12 +24,12 @@ public class PlayerService {
     @Autowired
     private PlayerRequestInterface playerRequestInterface;
     public ResponseEntity<?> createPlayer(PlayerDto player) {
-        if(player.getName().isEmpty()||player.getName().isBlank()){
+        if(player.getName() == null || player.getName().isBlank()){
             return ResponseEntity.badRequest().body(
                     Map.of("error", "Player name is required")
             );
         }
-        if(player.getPlayerRole().isBlank()||player.getPlayerRole().isEmpty()){
+        if(player.getPlayerRole() == null || player.getPlayerRole().isBlank()){
             return ResponseEntity.badRequest().body(
                     Map.of("error", "Player role is required")
             );
@@ -70,7 +70,8 @@ public class PlayerService {
     }
     public ResponseEntity<?> getAllPlayers() {
 
-        List<Player> players = playerInterface.findAll();
+        // Use optimized repository method to avoid N+1 queries
+        List<Player> players = playerInterface.findAllWithRequestsAndAccounts();
         List<PlayerDto> result = new ArrayList<>();
 
         for (Player i : players) {
@@ -80,30 +81,29 @@ public class PlayerService {
             p2.setName(i.getName());
             p2.setPlayerRole(i.getPlayerRole());
 
-
             p2.setPlayerRequests(new ArrayList<>());
 
-            List<PlayerRequest> requests =
-                    playerRequestInterface.findbyPlayer_Id(i.getId());
+            // playerRequests should already be fetched because of the JOIN FETCH in the query
+            if (i.getPlayerRequests() != null) {
+                for (PlayerRequest j : i.getPlayerRequests()) {
 
-            for (PlayerRequest j : requests) {
+                    if (j == null) continue;
 
-                ShowRequestDto pr1 = new ShowRequestDto();
-                pr1.setRequestId(j.getId());
-                pr1.setStatus(j.getStatus());
+                    ShowRequestDto pr1 = new ShowRequestDto();
+                    pr1.setRequestId(j.getId());
+                    pr1.setStatus(j.getStatus());
 
+                    if (j.getTeam() != null) {
+                        pr1.setTeamId(j.getTeam().getId());
+                        pr1.setTeamName(j.getTeam().getName());
+                    }
 
-                if (j.getTeam() != null) {
-                    pr1.setTeamId(j.getTeam().getId());
-                    pr1.setTeamName(j.getTeam().getName());
+                    if (j.getTournament() != null) {
+                        pr1.setTournamentId(j.getTournament().getId());
+                    }
+
+                    p2.getPlayerRequests().add(pr1);
                 }
-
-
-                if (j.getTournament() != null) {
-                    pr1.setTournamentId(j.getTournament().getId());
-                }
-
-                p2.getPlayerRequests().add(pr1);
             }
 
             result.add(p2);
