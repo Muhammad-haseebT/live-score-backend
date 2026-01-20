@@ -20,7 +20,7 @@ public class MatchDTO {
     private Long team2Id;
     private String team2Name;
 
-    private Long scorerId;
+    private String scorerId;
     private String status;
     private String venue;
     private LocalDate date;

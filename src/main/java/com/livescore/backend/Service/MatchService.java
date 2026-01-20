@@ -47,7 +47,7 @@ public class MatchService {
         if (matchDTO == null || matchDTO.getScorerId() == null) {
             return ResponseEntity.badRequest().body("scorerId is required");
         }
-        if (accountInterface.findActiveById(matchDTO.getScorerId()).isEmpty()) {
+        if (accountInterface.findActiveByUsername(matchDTO.getScorerId()).isEmpty()) {
             return ResponseEntity.badRequest().body("Account with id " + matchDTO.getScorerId() + " does not exist");
         }
         if (matchDTO.getTeam1Id() == null || teamInterface.findById(matchDTO.getTeam1Id()).isEmpty()) {
@@ -77,7 +77,7 @@ public class MatchService {
         match.setDate(matchDTO.getDate());
         match.setTime(matchDTO.getTime());
         match.setOvers(matchDTO.getOvers());
-        match.setScorer(accountInterface.findActiveById(matchDTO.getScorerId()).orElse(null));
+        match.setScorer(accountInterface.findActiveByUsername(matchDTO.getScorerId()).orElse(null));
         match.setSets(matchDTO.getSets());
         matchInterface.save(match);
         return ResponseEntity.ok().body("Match created successfully");
@@ -91,7 +91,7 @@ public class MatchService {
         if (matchDTO == null || matchDTO.getScorerId() == null) {
             return ResponseEntity.badRequest().body("scorerId is required");
         }
-        if (accountInterface.findActiveById(matchDTO.getScorerId()).isEmpty()) {
+        if (accountInterface.findActiveByUsername(matchDTO.getScorerId()).isEmpty()) {
             return ResponseEntity.badRequest().body("Account with id " + matchDTO.getScorerId() + " does not exist");
         }
         if (matchDTO.getTeam1Id() == null || teamInterface.findById(matchDTO.getTeam1Id()).isEmpty()) {
@@ -118,7 +118,7 @@ public class MatchService {
         match.setTournament(tournamentInterface.findById(matchDTO.getTournamentId()).orElse(null));
         match.setTeam1(teamInterface.findById(matchDTO.getTeam1Id()).orElse(null));
         match.setTeam2(teamInterface.findById(matchDTO.getTeam2Id()).orElse(null));
-        match.setScorer(accountInterface.findActiveById(matchDTO.getScorerId()).orElse(null));
+        match.setScorer(accountInterface.findActiveByUsername(matchDTO.getScorerId()).orElse(null));
         match.setVenue(matchDTO.getVenue());
         match.setDate(matchDTO.getDate());
         match.setTime(matchDTO.getTime());
@@ -152,7 +152,7 @@ public class MatchService {
         matchDTO.setTeam1Name(match.getTeam1().getName());
         matchDTO.setTeam2Id(match.getTeam2().getId());
         matchDTO.setTeam2Name(match.getTeam2().getName());
-        matchDTO.setScorerId(match.getScorer().getId());
+        matchDTO.setScorerId(match.getScorer().getUsername());
         matchDTO.setStatus(match.getStatus().toUpperCase());
         matchDTO.setVenue(match.getVenue());
         matchDTO.setDate(match.getDate());
@@ -214,10 +214,10 @@ public class MatchService {
             return ResponseEntity.badRequest().body("Match with id " + id + " does not exist");
         }
         match.setStatus("LIVE");
-        if (m.getScorerId() == null || accountInterface.findActiveById(m.getScorerId()).isEmpty()) {
+        if (m.getScorerId() == null || accountInterface.findActiveByUsername(m.getScorerId()).isEmpty()) {
             return ResponseEntity.badRequest().body("Scorer account not found");
         }
-        match.setScorer(accountInterface.findActiveById(m.getScorerId()).orElse(null));
+        match.setScorer(accountInterface.findActiveByUsername(m.getScorerId()).orElse(null));
 
         if (m.getTossWinnerId() == null || teamInterface.findById(m.getTossWinnerId()).isEmpty()) {
             return ResponseEntity.badRequest().body("Toss winner team not found");
@@ -354,7 +354,7 @@ public class MatchService {
             matchDTO.setTeam1Name(match.getTeam1().getName());
             matchDTO.setTeam2Id(match.getTeam2().getId());
             matchDTO.setTeam2Name(match.getTeam2().getName());
-            matchDTO.setScorerId(match.getScorer().getId());
+            matchDTO.setScorerId(match.getScorer().getUsername());
             matchDTO.setStatus(match.getStatus().toUpperCase());
             matchDTO.setVenue(match.getVenue());
             matchDTO.setDate(match.getDate());

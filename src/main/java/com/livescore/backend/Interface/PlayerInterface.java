@@ -50,5 +50,13 @@ public interface PlayerInterface extends JpaRepository<Player,Long> {
             "WHERE p.isDeleted = false")
     List<Player> findAllWithAccounts();
 
+    @Query("SELECT DISTINCT p FROM Player p " +
+            "LEFT JOIN FETCH p.playerRequests pr " +
+            "LEFT JOIN FETCH pr.team t " +
+            "LEFT JOIN FETCH pr.tournament tor " +
+            "LEFT JOIN FETCH p.account a " +
+            "WHERE p.isDeleted = false")
+    List<Player> findAllWithRequestsAndAccounts();
+
 
 }

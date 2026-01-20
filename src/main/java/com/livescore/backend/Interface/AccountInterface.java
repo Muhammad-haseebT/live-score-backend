@@ -31,6 +31,9 @@ public interface AccountInterface extends JpaRepository<Account,Long> {
 
     @Query("SELECT a FROM Account a WHERE a.id = :id AND a.isDeleted = false")
     Optional<Account> findActiveById(@Param("id") Long id);
+    
+    @Query("SELECT a FROM Account a WHERE a.username = :id AND a.isDeleted = false")
+    Optional<Account> findActiveByUsername(@Param("id") String id);
 
     @Query("SELECT a FROM Account a WHERE a.isDeleted = false")
     List<Account> findAllActive();
