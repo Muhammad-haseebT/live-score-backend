@@ -22,10 +22,7 @@ public class TeamRequestController {
     public ResponseEntity<?> deleteTeamRequest(@PathVariable Long id) {
         return teamRequestService.deleteTeamRequest(id);
     }
-    @GetMapping("/teamRequest")
-    public ResponseEntity<?> getAllTeamRequests() {
-        return teamRequestService.getAllTeamRequests();
-    }
+
     @GetMapping("/teamRequest/{id}")
     public ResponseEntity<?> getTeamRequestById(@PathVariable Long id) {
         return teamRequestService.getTeamRequestById(id);
@@ -41,5 +38,9 @@ public class TeamRequestController {
         return teamRequestService.rejectTeamRequest(id);
     }
 
+    @GetMapping("/teamRequest")
+    public ResponseEntity<?> getTeamRequestsByTournamentId() {
+        return teamRequestService.getTeamRequestsByTournamentId();
+    }
 
 }

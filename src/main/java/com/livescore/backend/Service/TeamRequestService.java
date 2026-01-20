@@ -97,39 +97,7 @@ public class TeamRequestService {
         }
         return ResponseEntity.notFound().build();
     }
-    public ResponseEntity<?> getAllTeamRequests() {
 
-        List<TeamRequest> requests = teamRequestInterface.findAll();
-
-        List<HashMap<String, Object>> response = requests.stream().map(r -> {
-            HashMap<String, Object> m = new HashMap<>();
-
-            Team team = r.getTeam();
-
-            m.put("requestId", r.getId());
-            m.put("teamName", team != null ? team.getName() : null);
-
-            String tournamentName = null;
-            if (team != null && team.getTournament() != null) {
-                // Tournament entity me field "name" assume hai
-                tournamentName = team.getTournament().getName();
-            }
-            m.put("tournamentName", tournamentName);
-
-            List<String> playerNames = new ArrayList<>();
-            if (team != null && team.getPlayers() != null) {
-                for (Player p : team.getPlayers()) {
-                    if (p.getIsDeleted() != null && p.getIsDeleted()) continue;
-                    playerNames.add(p.getName());
-                }
-            }
-            m.put("playerNames", playerNames);
-
-            return m;
-        }).toList();
-
-        return ResponseEntity.ok(response);
-    }
 
     public ResponseEntity<?> getTeamRequestById(Long id) {
         return teamRequestInterface.findById(id)
@@ -162,5 +130,46 @@ public class TeamRequestService {
 
         teamRequestInterface.save(teamRequest);
         return ResponseEntity.ok().build();
+    }
+
+    public ResponseEntity<?> getTeamRequestsByTournamentId() {
+        List<TeamRequest> requests = teamRequestInterface.findAllByStatus("PENDING");
+
+        List<HashMap<String, Object>> response = requests.stream().map(r -> {
+            HashMap<String, Object> m = new HashMap<>();
+
+            Team team = r.getTeam();
+
+            m.put("requestId", r.getId());
+            m.put("teamName", team != null ? team.getName() : null);
+
+            String tournamentName = null;
+            if (team != null && team.getTournament() != null) {
+                // Tournament entity me field "name" assume hai
+                tournamentName = team.getTournament().getName();
+            }
+            m.put("tournamentName", tournamentName);
+
+            //player names and usernames
+            List<Map<String, String>> players = new ArrayList<>();
+            if (team != null && team.getPlayers() != null) {
+                for (Player p : team.getPlayers()) {
+                    if (p.getIsDeleted() != null && p.getIsDeleted()) continue;
+                    Map<String, String> playerInfo = new HashMap<>();
+                    playerInfo.put("name", p.getName());
+                    if (p.getAccount() != null) {
+                        playerInfo.put("username", p.getAccount().getUsername());
+                    } else {
+                        playerInfo.put("username", null);
+                    }
+                    players.add(playerInfo);
+                }
+            }
+            m.put("players", players);
+
+            return m;
+        }).toList();
+
+        return ResponseEntity.ok(response);
     }
 }

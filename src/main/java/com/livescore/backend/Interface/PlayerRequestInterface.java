@@ -27,7 +27,7 @@ AND pr.player.isDeleted = false
     PlayerRequest findExistingRequest(Long playerId, Long tournamentId);
 
 
-    @Query("SELECT pr FROM PlayerRequest pr WHERE pr.player.id = :playerId AND pr.player.isDeleted = false")
+    @Query("SELECT pr FROM PlayerRequest pr WHERE pr.player.id = :playerId AND pr.player.isDeleted = false and pr.status='PENDING'")
     List<PlayerRequest> findbyPlayer_Id(@Param("playerId") Long playerId);
 
     Optional<PlayerRequest> findByPlayer_IdAndTeam_Id(Long playerId, Long teamId);

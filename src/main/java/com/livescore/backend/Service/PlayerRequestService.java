@@ -166,5 +166,17 @@ public class PlayerRequestService {
     }
 
 
+    public ResponseEntity<?> rejectPlayerRequest(Long id) {
+        PlayerRequest playerRequest=playerRequestInterface.findById(id).orElse(null);
+        if(playerRequest==null){
+            return ResponseEntity.notFound().build();
+        }
+        if(playerRequest.getStatus().equals("REJECTED")){
+            return ResponseEntity.badRequest().body("Player already rejected");
+        }
+        playerRequest.setStatus("REJECTED");
+        playerRequestInterface.save(playerRequest);
+        return ResponseEntity.ok().build();
+    }
 }
 
