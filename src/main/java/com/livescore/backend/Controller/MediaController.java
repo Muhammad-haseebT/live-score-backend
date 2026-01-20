@@ -3,6 +3,7 @@ package com.livescore.backend.Controller;
 import com.livescore.backend.DTO.MediaDTo;
 import com.livescore.backend.Entity.Media;
 import com.livescore.backend.Service.MediaService;
+import io.imagekit.sdk.exceptions.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -20,7 +21,7 @@ public class MediaController {
     @PostMapping(value = "/media", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> createMedia(
             @RequestPart("file") MultipartFile file,
-            @RequestParam("matchId") Long matchId) throws IOException {
+            @RequestParam("matchId") Long matchId) throws IOException, ForbiddenException, TooManyRequestsException, InternalServerException, UnauthorizedException, BadRequestException, UnknownException {
 
         MediaDTo media = new MediaDTo();
         media.setMatchId(matchId);
@@ -30,7 +31,7 @@ public class MediaController {
 
     @GetMapping("/media/{id}")
     public ResponseEntity<?> getMediaById(@PathVariable Long id) {
-        return mediaService.getMediaById(id);
+        return mediaService.getMediaByMatchId(id);
     }
 
     @GetMapping("/media")
@@ -38,21 +39,26 @@ public class MediaController {
         return mediaService.getAllMedia();
     }
 
-
-    @DeleteMapping("/media/{id}")
-    public ResponseEntity<?> deleteMedia(@PathVariable Long id) {
-        return mediaService.deleteMedia(id);
-    }
-
-    //get media by match id(send files from path to api caller)
-    @GetMapping("media/match/{id}")
-    public ResponseEntity<?> getMediaByMatchId(@PathVariable Long id) {
-        return mediaService.getMediaByMatchId(id);
-    }
+//
+//    @DeleteMapping("/media/{id}")
+//    public ResponseEntity<?> deleteMedia(@PathVariable Long id) {
+//        return mediaService.deleteMedia(id);
+//    }
+//
+//    //get media by match id(send files from path to api caller)
+//    @GetMapping("media/match/{id}")
+//    public ResponseEntity<?> getMediaByMatchId(@PathVariable Long id) {
+//        return mediaService.getMediaByMatchId(id);
+//    }
     @GetMapping("media/season/{id}")
     public ResponseEntity<?> getMediaBySeasonId(@PathVariable Long id) {
         return mediaService.getMediaBySeasonId(id);
     }
+    @GetMapping("media/tournament/{id}")
+    public ResponseEntity<?> getMediaByTournamentId(@PathVariable Long id) {
+        return mediaService.getMediaByTournamentId(id);
+    }
+
 
 
 
