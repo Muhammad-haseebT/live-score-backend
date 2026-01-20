@@ -4,17 +4,13 @@ import com.livescore.backend.DTO.PtsTableDTO;
 import com.livescore.backend.Entity.*;
 import com.livescore.backend.Interface.*;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
-import java.math.RoundingMode;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.stream.Collectors;
 
 
 @Service
@@ -215,9 +211,10 @@ public class PtsTableService {
     }
 
     public ResponseEntity<?> getPtsTablesByTournament(Long tournamentId) {
-        List<PtsTable> p=ptsTableInterface.findByTournamentId(tournamentId);
-        List<PtsTableDTO> ptDtoList=p.stream().map(pt->{
-            PtsTableDTO dto=new PtsTableDTO();
+        List<PtsTable> p = ptsTableInterface.findByTournamentId(tournamentId);
+
+        List<PtsTableDTO> ptDtoList = p.stream().map(pt -> {
+            PtsTableDTO dto = new PtsTableDTO();
             dto.setTeamName(pt.getTeam().getName());
             dto.setId(pt.getId());
             dto.setTournamentId(pt.getTournament().getId());
@@ -228,21 +225,23 @@ public class PtsTableService {
             dto.setPoints(pt.getPoints());
             dto.setNrr(pt.getNrr());
             return dto;
-        }).toList();
+        }).sorted(Comparator.comparingInt(PtsTableDTO::getPoints)
+                .thenComparingDouble(PtsTableDTO::getNrr)).collect(Collectors.toList()).reversed();
+
         return ResponseEntity.ok(ptDtoList);
-    }
+     }
 
 
-    // changed InningsData to use long runs for safety
-    private static class InningsData {
-        long runs;
-        double overs;
-        public InningsData() {}
-        public InningsData(long runs, double overs) {
-            this.runs = runs;
-            this.overs = overs;
-        }
-    }
+    // end of public methods
+     private static class InningsData {
+         long runs;
+         double overs;
+         public InningsData() {}
+         public InningsData(long runs, double overs) {
+             this.runs = runs;
+             this.overs = overs;
+         }
+     }
 
 
     private InningsData calculateInningsStats(CricketInnings innings) {
