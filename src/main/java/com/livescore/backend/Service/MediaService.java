@@ -172,6 +172,8 @@ import io.imagekit.sdk.models.FileCreateRequest;
 import io.imagekit.sdk.models.results.Result;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -317,8 +319,9 @@ public class MediaService {
         return ResponseEntity.ok(mediaToDto(m));
     }
 
-    public ResponseEntity<?> getMediaBySeasonId(Long id) {
-        List<Media> mediaList = mediaInterface.findMediaBySeasonId(id);
+    public ResponseEntity<?> getMediaBySeasonId(Long id,int page,int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        List<Media> mediaList = mediaInterface.findMediaBySeasonId(id,pageable);
         if(mediaList.stream().count()==0){
             return ResponseEntity.notFound().build();
         }
@@ -339,16 +342,18 @@ public class MediaService {
         return responses;
     }
 
-    public ResponseEntity<?> getMediaByTournamentId(Long id) {
-        List<Media> mediaList = mediaInterface.findMediaByTournamentId(id);
+    public ResponseEntity<?> getMediaByTournamentId(Long id,int page,int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        List<Media> mediaList = mediaInterface.findMediaByTournamentId(id,pageable);
         if(mediaList.stream().count()==0){
             return ResponseEntity.notFound().build();
         }
         return ResponseEntity.ok(mediaToDto(mediaList));
     }
 
-    public ResponseEntity<?> getMediaBySportId(Long id) {
-        List<Media> mediaList = mediaInterface.findMediaBySportId(id);
+    public ResponseEntity<?> getMediaBySportId(Long id,int page,int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        List<Media> mediaList = mediaInterface.findMediaBySportId(id,pageable);
         if(mediaList.stream().count()==0){
             return ResponseEntity.notFound().build();
         }

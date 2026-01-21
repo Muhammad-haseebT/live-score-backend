@@ -51,18 +51,18 @@ public class MediaController {
 //    public ResponseEntity<?> getMediaByMatchId(@PathVariable Long id) {
 //        return mediaService.getMediaByMatchId(id);
 //    }
-    @GetMapping("media/season/{id}")
-    public ResponseEntity<?> getMediaBySeasonId(@PathVariable Long id) {
-        return mediaService.getMediaBySeasonId(id);
+    @GetMapping("media/season/{id}/{page}/{size}")
+    public ResponseEntity<?> getMediaBySeasonId(@PathVariable Long id, @PathVariable int page, @PathVariable int size) {
+        return mediaService.getMediaBySeasonId(id, page, size);
     }
-    @GetMapping("media/tournament/{id}")
-    public ResponseEntity<?> getMediaByTournamentId(@PathVariable Long id) {
-        return mediaService.getMediaByTournamentId(id);
+    @GetMapping("media/tournament/{id}/{page}/{size}")
+    public ResponseEntity<?> getMediaByTournamentId(@PathVariable Long id, @PathVariable int page, @PathVariable int size) {
+        return mediaService.getMediaByTournamentId(id, page, size);
     }
     //get by sport id
-    @GetMapping("media/sport/{id}")
-    public ResponseEntity<?> getMediaBySportId(@PathVariable Long id) {
-        return mediaService.getMediaBySportId(id);
+    @GetMapping("media/sport/{id}/{page}/{size}")
+    public ResponseEntity<?> getMediaBySportId(@PathVariable Long id, @PathVariable int page, @PathVariable int size) {
+        return mediaService.getMediaBySportId(id, page, size);
     }
 
 
