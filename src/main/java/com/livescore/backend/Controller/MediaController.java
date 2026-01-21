@@ -18,7 +18,8 @@ public class MediaController {
     @Autowired
     private MediaService mediaService;
 
-    @PostMapping(value = "/media", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    //10 mb limit
+    @PostMapping(value = "/media", consumes = MediaType.MULTIPART_FORM_DATA_VALUE )
     public ResponseEntity<?> createMedia(
             @RequestPart("file") MultipartFile file,
             @RequestParam("matchId") Long matchId) throws IOException, ForbiddenException, TooManyRequestsException, InternalServerException, UnauthorizedException, BadRequestException, UnknownException {
