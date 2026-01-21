@@ -21,5 +21,14 @@ public class PlayerStatsController {
         PlayerStatsDTO dto = statsService.getPlayerTournamentStats(playerId, tournamentId, matchId);
         return ResponseEntity.ok(dto);
     }
+    @GetMapping("/{playerId}/Cricket" )
+    public ResponseEntity<?> getPlayerCricketStats(
+            @PathVariable Long playerId,
+            @RequestParam Long tournamentId,
+            @RequestParam(required=false) Long matchId
+    ) {
+        PlayerStatsDTO dto = statsService.getPlayerCricketTournamentStats(playerId, tournamentId, matchId);
+        return ResponseEntity.ok(dto);
+    }
 
 }

@@ -11,6 +11,7 @@ public class PlayerStatsDTO {
     public int sixes;
     public int highest;
     public int notOut;
+    public double battingAvg;
 
     public int wickets;
     public int ballsBowled;
@@ -19,6 +20,8 @@ public class PlayerStatsDTO {
     public double bowlingAverage; // runsConceded / wickets (inf if 0)
 
     public int points; // your points calc
+    public int matchesPlayed;
+
 
 
 }

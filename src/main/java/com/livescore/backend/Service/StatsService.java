@@ -230,6 +230,7 @@ public class StatsService {
         statsInterface.delete(stats);
         return ResponseEntity.ok().build();
     }
+
     @Transactional
     public void updateTournamentStats(CricketBall ball) {
         if (ball == null) return;
@@ -550,7 +551,7 @@ public class StatsService {
         }
         dto.playerName = p.getName();
 
-        // BATTING: aggregate batsman balls in tournament or optional match
+
         List<CricketBall> batsmanBalls = (matchId != null)
                 ? cricketBallInterface.findByBatsmanIdAndMatchId(playerId, matchId)
                 : cricketBallInterface.findBatsmanBallsByTournamentAndPlayer(tournamentId, playerId);
@@ -560,6 +561,7 @@ public class StatsService {
 
         int fours = (int) batsmanBalls.stream().filter(b -> Boolean.TRUE.equals(b.getIsFour())).count();
         int sixes = (int) batsmanBalls.stream().filter(b -> Boolean.TRUE.equals(b.getIsSix())).count();
+
         Map<Long,Integer> runsPerInnings = batsmanBalls.stream()
                 .filter(b -> b.getInnings() != null)
                 .collect(Collectors.groupingBy(b -> b.getInnings().getId(), Collectors.summingInt(b -> b.getRuns()==null?0:b.getRuns())));
@@ -569,6 +571,16 @@ public class StatsService {
         Set<Long> inningsWithBalls = batsmanBalls.stream().filter(b -> b.getInnings()!=null).map(b -> b.getInnings().getId()).collect(Collectors.toSet());
         Set<Long> inningsWhereOut = batsmanBalls.stream().filter(b -> b.getDismissalType()!=null && b.getInnings()!=null).map(b -> b.getInnings().getId()).collect(Collectors.toSet());
         int notOut = (int) inningsWithBalls.stream().filter(id -> !inningsWhereOut.contains(id)).count();
+        double battingAvg = (runs == 0 || (inningsWithBalls.size() - notOut) == 0) ? 0.0
+                : roundTo2((double) runs / (double) (inningsWithBalls.size() - notOut));
+        int matchesPlayed = 0;
+        if (matchId != null) {
+            matchesPlayed = cricketBallInterface.countDistinctMatchesByBatsmanIdAndMatchId(playerId, matchId);
+        } else {
+            matchesPlayed = cricketBallInterface.countDistinctMatchesByBatsmanIdAndTournamentId(playerId, tournamentId);
+        }
+        dto.matchesPlayed = matchesPlayed;
+
 
         dto.runs = runs;
         dto.ballsFaced = ballsFaced;
@@ -577,6 +589,7 @@ public class StatsService {
         dto.highest = highest;
         dto.notOut = notOut;
         dto.strikeRate = (ballsFaced == 0) ? 0.0 : roundTo2((double) runs * 100.0 / (double) ballsFaced);
+        dto.battingAvg = battingAvg;
 
         // BOWLING
         List<CricketBall> bowlerBalls = (matchId != null)
@@ -610,6 +623,7 @@ public class StatsService {
 
 
 
+
         return dto;
     }
 
@@ -622,4 +636,7 @@ public class StatsService {
     }
 
 
+    public PlayerStatsDTO getPlayerCricketTournamentStats(Long playerId, Long tournamentId, Long matchId) {
+        return getPlayerTournamentStats(playerId, tournamentId, matchId);
+    }
 }

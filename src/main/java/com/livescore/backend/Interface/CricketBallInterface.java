@@ -97,4 +97,11 @@ public interface CricketBallInterface extends JpaRepository<CricketBall, Long> {
 //select top 1 from cricket ball where match id and innings no order by id desc
     @Query("SELECT cb FROM CricketBall cb WHERE cb.match.id = :matchId AND cb.innings.no = :inningsNo ORDER BY cb.id Desc LIMIT 1")
     CricketBall findFirstbyMatch_IdAndInnings_no(@Param("matchId") Long matchId, @Param("inningsNo") int inningsNo);
+
+    @Query("SELECT COUNT(DISTINCT cb.match.id) FROM CricketBall cb WHERE cb.batsman.id = :playerId AND cb.innings.match.tournament.id = :tournamentId")
+    int countDistinctMatchesByBatsmanIdAndTournamentId(Long playerId, Long tournamentId);
+
+
+    @Query("SELECT COUNT(DISTINCT cb.match.id) FROM CricketBall cb WHERE cb.batsman.id = :playerId AND cb.match.id = :matchId")
+    int countDistinctMatchesByBatsmanIdAndMatchId(Long playerId, Long matchId);
 }
