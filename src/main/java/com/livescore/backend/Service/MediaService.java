@@ -346,5 +346,13 @@ public class MediaService {
         }
         return ResponseEntity.ok(mediaToDto(mediaList));
     }
+
+    public ResponseEntity<?> getMediaBySportId(Long id) {
+        List<Media> mediaList = mediaInterface.findMediaBySportId(id);
+        if(mediaList.stream().count()==0){
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(mediaToDto(mediaList));
+    }
 }
 

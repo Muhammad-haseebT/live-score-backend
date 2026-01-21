@@ -58,6 +58,11 @@ public class MediaController {
     public ResponseEntity<?> getMediaByTournamentId(@PathVariable Long id) {
         return mediaService.getMediaByTournamentId(id);
     }
+    //get by sport id
+    @GetMapping("media/sport/{id}")
+    public ResponseEntity<?> getMediaBySportId(@PathVariable Long id) {
+        return mediaService.getMediaBySportId(id);
+    }
 
 
 
