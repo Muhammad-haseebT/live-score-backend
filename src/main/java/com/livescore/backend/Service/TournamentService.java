@@ -14,7 +14,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.PageRequest;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class TournamentService {
@@ -194,6 +196,19 @@ public class TournamentService {
         overViewDTO.setTop(a == null ? List.of() : a);
         return ResponseEntity.ok(overViewDTO);
 
+    }
+
+    public ResponseEntity<?> getTournamentByName() {
+        List<Map<Long,String>> t =new ArrayList<>();
+        List<Tournament>at=tournamentInterface.findAllNames();
+        for (Tournament tournament : at) {
+            Map<Long,String> mp=new HashMap<>();
+            mp.put(tournament.getId(),tournament.getName());
+            t.add(mp);
+        }
+
+
+        return ResponseEntity.ok(t);
     }
 }
 

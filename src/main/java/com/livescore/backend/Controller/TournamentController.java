@@ -43,4 +43,11 @@ public class TournamentController {
         return tournamentService.getOverview(id);
     }
 
+    @GetMapping("/tournament/namesAndIds")
+    public ResponseEntity<?> getNames(){
+        return tournamentService.getTournamentByName();
+    }
+
+
+
 }
