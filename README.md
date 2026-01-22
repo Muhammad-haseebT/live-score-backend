@@ -86,10 +86,8 @@ If using ImageKit:
 ### Player/tournament stats
 
 - `StatsService`
-  - `optimizePlayerStats(...)`
-  - `getPlayerTournamentStats(...)`
-  - `getTournamentPlayerStatsDto(...)` (complete per-player tournament stats)
-  - `getMatchScorecard(matchId)`
+  - `getPlayerFullStats(playerId, tournamentId)`
+    - `tournamentId` optional (overall stats if not provided)
 
 ### Awards/leaders
 
@@ -139,28 +137,65 @@ Backward compatibility:
 
 Caches:
 
-- `tournamentStats` (key: `tournamentId`)
 - `tournamentAwards` (key: `tournamentId`)
-- `playerStats` (key: `tournamentId:playerId`)
-- `tournamentPlayerStats` (key: `tournamentId:playerId`)
 
 Eviction happens in:
 
 - `LiveSCoringService.scoring()`
 
-It evicts tournament caches and player caches for batsman/bowler/fielder.
+It evicts the tournament awards cache after saving a ball.
 
 ## Main Endpoints
 
+## Stats API (Separated)
+
+Only the following **2 stats endpoints** are supported.
+
+### 1) Player Stats (overall or tournament)
+
+- `GET /player/{playerId}/stats`
+  - Optional query param: `tournamentId`
+
+Example:
+
+```http
+GET /player/10/stats?tournamentId=1
+GET /player/10/stats
+```
+
+Response fields:
+
+- `playerId`, `playerName`
+- `totalRuns`, `highest`, `ballsFaced`
+- `ballsBowled`, `runsConceded`
+- `strikeRate`, `economy`
+- `battingAvg`, `bowlingAverage`
+- `notOuts`, `matchesPlayed`
+- `wickets`, `fours`, `sixes`
+- `pomCount`
+
+### 2) Tournament Stats (awards + top 5 lists)
+
+- `GET /tournament/{tournamentId}/stats`
+
+Example:
+
+```http
+GET /tournament/1/stats
+```
+
+Returns `TournamentAwardsDTO` including:
+
+- `manOfTournament`
+- `bestBowler`
+- `bestBatsman`
+- `highestScorer`
+- `topBatsmen` (top 5)
+- `topBowlers` (top 5)
+
 ### Tournament
 
-- `GET /tournament/{id}/stats`
-- `GET /tournament/{id}/awards`
-
 ### Player
-
-- `GET /player/{playerId}/Cricket?tournamentId=...`
-- `GET /player/{playerId}/tournamentStats?tournamentId=...`
 
 ## Complete Endpoint List
 
@@ -262,9 +297,7 @@ Notes:
 
 ### Player Stats
 
-- `GET /player/{playerId}/stats?tournamentId=...&matchId=...` (matchId optional)
-- `GET /player/{playerId}/Cricket?tournamentId=...&matchId=...` (matchId optional)
-- `GET /player/{playerId}/tournamentStats?tournamentId=...`
+- `GET /player/{playerId}/stats` (optional: `tournamentId`)
 
 ### Team
 
@@ -334,12 +367,6 @@ Notes:
 - `GET /match/sport?name=...&status=...`
 - `GET /match/scorer/{id}`
 
-### Match Stats / Awards
-
-- `GET /match/{matchId}/scorecard`
-- `GET /match/{matchId}/awards`
-- `GET /match/tournaments/{tournamentId}/awards`
-
 ### Tournament
 
 - `POST /tournament`
@@ -348,8 +375,6 @@ Notes:
 - `PUT /tournament/{id}`
 - `DELETE /tournament/{id}`
 - `GET /tournament/overview/{id}`
-- `GET /tournament/{id}/stats`
-- `GET /tournament/{id}/awards`
 
 ### Points Table
 
@@ -364,11 +389,6 @@ Notes:
 
 - `GET /cricketBall`
 - `GET /cricketBall/{over}/{balls}/{matchID}/{inningsId}`
-
-### Stats (raw)
-
-- `GET /stats`
-- `GET /stats/{id}`
 
 ### Media
 

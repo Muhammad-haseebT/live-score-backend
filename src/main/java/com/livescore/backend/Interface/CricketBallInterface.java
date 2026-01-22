@@ -226,6 +226,68 @@ ORDER BY SUM(cb.runs) DESC
                                         Pageable pageable);
 
 
+    @Query("""
+SELECT SUM(cb.runs) as totalRuns,
+       SUM(CASE WHEN LOWER(cb.extraType) LIKE '%wide%' THEN 0 ELSE 1 END) as ballsFaced,
+       SUM(CASE WHEN cb.isFour = true THEN 1 ELSE 0 END) as fours,
+       SUM(CASE WHEN cb.isSix = true THEN 1 ELSE 0 END) as sixes
+FROM CricketBall cb
+WHERE cb.batsman.id = :playerId
+""")
+    Object[] getBattingAggregateOverall(@Param("playerId") Long playerId);
+
+
+    @Query("""
+SELECT SUM(cb.runs + CASE WHEN LOWER(cb.extraType) LIKE '%wide%' OR LOWER(cb.extraType) LIKE '%no%' THEN cb.extra ELSE 0 END) as runsConceded,
+       SUM(CASE WHEN cb.legalDelivery = true THEN 1 ELSE 0 END) as ballsBowled,
+       SUM(CASE WHEN cb.dismissalType IS NOT NULL
+                AND LOWER(cb.dismissalType) IN ('bowled','lbw','stumped','caught','hit wicket','hitwicket')
+           THEN 1 ELSE 0 END) as wickets
+FROM CricketBall cb
+WHERE cb.bowler.id = :playerId
+""")
+    Object[] getBowlingAggregateOverall(@Param("playerId") Long playerId);
+
+
+    @Query("""
+SELECT COUNT(DISTINCT cb.innings.id)
+FROM CricketBall cb
+WHERE cb.batsman.id = :playerId
+  AND cb.innings.id NOT IN (
+    SELECT DISTINCT cb2.innings.id
+    FROM CricketBall cb2
+    WHERE cb2.batsman.id = :playerId
+      AND cb2.dismissalType IS NOT NULL
+  )
+""")
+    Integer countNotOutInningsOverall(@Param("playerId") Long playerId);
+
+
+    @Query("""
+SELECT SUM(cb.runs)
+FROM CricketBall cb
+WHERE cb.batsman.id = :playerId
+GROUP BY cb.innings.id
+ORDER BY SUM(cb.runs) DESC
+""")
+    List<Integer> getRunsPerInningsDescOverall(@Param("playerId") Long playerId,
+                                              Pageable pageable);
+
+
+    @Query("SELECT COUNT(DISTINCT cb.innings.id) FROM CricketBall cb WHERE cb.batsman.id = :playerId")
+    int countDistinctInningsBattedOverall(@Param("playerId") Long playerId);
+
+
+    @Query("""
+SELECT COUNT(DISTINCT b.match.id)
+FROM CricketBall b
+WHERE (b.batsman.id = :playerId
+       OR b.bowler.id = :playerId
+       OR b.fielder.id = :playerId)
+""")
+    int countMatchesPlayedOverall(@Param("playerId") Long playerId);
+
+
 
 
 }

@@ -1,6 +1,6 @@
 package com.livescore.backend.Controller;
 
-import com.livescore.backend.DTO.PlayerStatsDTO;
+import com.livescore.backend.DTO.PlayerFullStatsDTO;
 import com.livescore.backend.Service.StatsService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -13,36 +13,12 @@ public class PlayerStatsController {
     private StatsService statsService;
 
     @GetMapping("/{playerId}/stats")
-    public ResponseEntity<?> getPlayerStats(
+    public ResponseEntity<PlayerFullStatsDTO> getPlayerStats(
             @PathVariable Long playerId,
-            @RequestParam Long tournamentId,
-            @RequestParam(required=false) Long matchId
+            @RequestParam(required = false) Long tournamentId
     ) {
-        PlayerStatsDTO dto = statsService.getPlayerTournamentStats(playerId, tournamentId, matchId);
+        PlayerFullStatsDTO dto = statsService.getPlayerFullStats(playerId, tournamentId);
         return ResponseEntity.ok(dto);
-    }
-
-
-    //both are same
-
-
-
-    @GetMapping("/{playerId}/Cricket" )
-    public ResponseEntity<?> getPlayerCricketStats(
-            @PathVariable Long playerId,
-            @RequestParam Long tournamentId,
-            @RequestParam(required=false) Long matchId
-    ) {
-        return  statsService.optimizePlayerStats(playerId, tournamentId);
-
-    }
-
-    @GetMapping("/{playerId}/tournamentStats")
-    public ResponseEntity<?> getPlayerTournamentCompleteStats(
-            @PathVariable Long playerId,
-            @RequestParam Long tournamentId
-    ) {
-        return statsService.getTournamentPlayerStats(tournamentId, playerId);
     }
 
 }

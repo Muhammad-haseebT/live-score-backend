@@ -43,14 +43,4 @@ public class TournamentController {
         return tournamentService.getOverview(id);
     }
 
-    @GetMapping("/tournament/{id}/stats")
-    public ResponseEntity<?> getTournamentStats(@PathVariable Long id) {
-        return tournamentService.getTournamentStats(id);
-    }
-
-    @GetMapping("/tournament/{id}/awards")
-    public ResponseEntity<?> getTournamentAwards(@PathVariable Long id) {
-        return tournamentService.getTournamentAwards(id);
-    }
-
 }

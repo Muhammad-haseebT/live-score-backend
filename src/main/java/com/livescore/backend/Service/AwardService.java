@@ -1,6 +1,5 @@
 package com.livescore.backend.Service;
 
-import com.livescore.backend.DTO.AwardsDTO;
 import com.livescore.backend.DTO.PlayerStatDTO;
 import com.livescore.backend.DTO.TournamentAwardsDTO;
 import com.livescore.backend.Entity.CricketBall;
@@ -11,6 +10,7 @@ import com.livescore.backend.Interface.MatchInterface;
 import com.livescore.backend.Interface.PlayerInterface;
 import com.livescore.backend.Util.CricketRules;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,8 +26,6 @@ public class AwardService {
     private PlayerInterface playerRepo;
     @Autowired
     private MatchInterface matchRepo;
-    @Autowired
-    private StatsService statsService;
 
     // ----------------- MATCH-LEVEL AWARDS -----------------
     @Transactional
@@ -260,6 +258,7 @@ public class AwardService {
 
     // ----------------- TOURNAMENT-LEVEL AWARDS -----------------
     @Transactional(readOnly = true)
+    @Cacheable(cacheNames = "tournamentAwards", key = "#tournamentId")
     public TournamentAwardsDTO ensureAndGetTournamentAwards(Long tournamentId) {
         return computeTournamentAwards(tournamentId);
     }
@@ -542,38 +541,4 @@ public class AwardService {
         return dto;
     }
 
-    // ----------------- MATCH AWARDS DTO HELPER -----------------
-    public AwardsDTO ensureAndGetAwards(Long matchId) {
-        AwardsDTO dto = new AwardsDTO();
-        dto.matchId = matchId;
-        if (matchId == null) {
-            return dto;
-        }
-
-        Match m = matchRepo.findById(matchId).orElse(null);
-        if (m == null) {
-            return dto;
-        }
-        // If awards not set on match, compute
-        if (m.getManOfMatch() == null || m.getBestBatsman() == null || m.getBestBowler() == null) {
-            computeMatchAwards(matchId); // this will set match fields
-            m = matchRepo.findById(matchId).orElse(null);
-            if (m == null) {
-                return dto;
-            }
-        }
-        if (m.getManOfMatch() != null) {
-            dto.manOfMatchId = m.getManOfMatch().getId();
-            dto.manOfMatchName = m.getManOfMatch().getName();
-        }
-        if (m.getBestBatsman() != null) {
-            dto.bestBatsmanId = m.getBestBatsman().getId();
-            dto.bestBatsmanName = m.getBestBatsman().getName();
-        }
-        if (m.getBestBowler() != null) {
-            dto.bestBowlerId = m.getBestBowler().getId();
-            dto.bestBowlerName = m.getBestBowler().getName();
-        }
-        return dto;
-    }
 }

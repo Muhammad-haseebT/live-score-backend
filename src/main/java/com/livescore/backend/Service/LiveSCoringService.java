@@ -244,22 +244,10 @@ public class LiveSCoringService {
         cricketBallInterface.save(ball);
         statsService.updateTournamentStats(ball);
 
-        if (m.getTournament() != null && m.getTournament().getId() != null) {
+        if (m.getTournament() != null && m.getTournament().getId() != null)
+        {
             Long tournamentId = m.getTournament().getId();
-            cacheEvictionService.evictTournament(tournamentId);
             cacheEvictionService.evictTournamentAwards(tournamentId);
-            if (ball.getBatsman() != null && ball.getBatsman().getId() != null) {
-                cacheEvictionService.evictPlayerStats(tournamentId, ball.getBatsman().getId());
-                cacheEvictionService.evictTournamentPlayerStats(tournamentId, ball.getBatsman().getId());
-            }
-            if (ball.getBowler() != null && ball.getBowler().getId() != null) {
-                cacheEvictionService.evictPlayerStats(tournamentId, ball.getBowler().getId());
-                cacheEvictionService.evictTournamentPlayerStats(tournamentId, ball.getBowler().getId());
-            }
-            if (ball.getFielder() != null && ball.getFielder().getId() != null) {
-                cacheEvictionService.evictPlayerStats(tournamentId, ball.getFielder().getId());
-                cacheEvictionService.evictTournamentPlayerStats(tournamentId, ball.getFielder().getId());
-            }
         }
 
         int inningsRuns = cricketBallInterface.sumRunsAndExtrasByInningsId(currentInnings.getId());
