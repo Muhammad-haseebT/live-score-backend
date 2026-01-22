@@ -4,9 +4,13 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.livescore.backend.DTO.ScoreDTO;
 import com.livescore.backend.Service.LiveSCoringService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.*;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
+
+import jakarta.annotation.PreDestroy;
 import java.net.URI;
 import java.util.*;
 import java.util.concurrent.*;
@@ -16,6 +20,8 @@ public class LiveScoringHandler extends TextWebSocketHandler {
 
     private final LiveSCoringService liveScoringService;
     private final ObjectMapper mapper = new ObjectMapper();
+
+    private static final Logger log = LoggerFactory.getLogger(LiveScoringHandler.class);
 
 
     private final Map<Long, Set<WebSocketSession>> subscriptions = new ConcurrentHashMap<>();
@@ -29,6 +35,11 @@ public class LiveScoringHandler extends TextWebSocketHandler {
 
     public LiveScoringHandler(LiveSCoringService liveScoringService) {
         this.liveScoringService = liveScoringService;
+    }
+
+    @PreDestroy
+    public void shutdown() {
+        executor.shutdown();
     }
 
     @Override
@@ -121,8 +132,7 @@ public class LiveScoringHandler extends TextWebSocketHandler {
             ScoreDTO updated = liveScoringService.scoring(score);
             broadcast(updated);
         } catch (Exception e) {
-
-            e.printStackTrace();
+            log.warn("Failed to process score", e);
         }
     }
 
@@ -142,7 +152,7 @@ public class LiveScoringHandler extends TextWebSocketHandler {
                 }
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            log.warn("Failed to broadcast score update", e);
         }
     }
 

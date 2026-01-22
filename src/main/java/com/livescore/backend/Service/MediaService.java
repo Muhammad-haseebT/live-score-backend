@@ -200,7 +200,8 @@ public class MediaService {
     @Value("${upload.mode:local}") // local ya imagekit
     private String uploadMode;
 
-    private String localPath = "E:\\FYP\\Backend\\media";
+    @Value("${media.local.path:${MEDIA_LOCAL_PATH:/tmp/livescore-media}}")
+    private String localPath;
 
     public ResponseEntity<?> createMedia(MultipartFile f, MediaDTo media) throws IOException, ForbiddenException, TooManyRequestsException, InternalServerException, UnauthorizedException, BadRequestException, UnknownException {
 
@@ -267,15 +268,36 @@ public class MediaService {
     // Local upload helper (aapka existing code)
     private String uploadToLocal(MultipartFile f) throws IOException {
         String fileName = f.getOriginalFilename();
-        String filePath = localPath + File.separator + fileName;
-        File file = new File(filePath);
+        if (fileName == null || fileName.isBlank()) {
+            throw new IOException("Invalid file name");
+        }
 
-        if(file.exists()){
-            throw new IOException("File already exists");
+        File dir = new File(localPath);
+        if (!dir.exists() && !dir.mkdirs()) {
+            throw new IOException("Failed to create upload directory: " + localPath);
+        }
+
+        String safeName = fileName.replaceAll("[^a-zA-Z0-9._-]", "_");
+        File file = new File(dir, safeName);
+        if (file.exists()) {
+            String unique = System.currentTimeMillis() + "_" + UUID.randomUUID();
+            file = new File(dir, unique + "_" + safeName);
         }
 
         f.transferTo(file);
-        return filePath;
+        return file.getAbsolutePath();
+    }
+
+
+    public ResponseEntity<?> getMediaById(Long id) {
+        if (id == null) {
+            return ResponseEntity.badRequest().body(
+                    Map.of("error", "id is required")
+            );
+        }
+        return mediaInterface.findById(id)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
     }
 
 
@@ -312,7 +334,7 @@ public class MediaService {
     //get all media
     public ResponseEntity<?> getAllMedia() {
         List<Media> m= mediaInterface.findAll();
-        if(m.stream().count()==0){
+        if (m == null || m.isEmpty()) {
             return ResponseEntity.notFound().build();
         }
 
@@ -322,7 +344,7 @@ public class MediaService {
     public ResponseEntity<?> getMediaBySeasonId(Long id,int page,int size) {
         Pageable pageable = PageRequest.of(page, size);
         List<Media> mediaList = mediaInterface.findMediaBySeasonId(id,pageable);
-        if(mediaList.stream().count()==0){
+        if (mediaList == null || mediaList.isEmpty()) {
             return ResponseEntity.notFound().build();
         }
         return ResponseEntity.ok(mediaToDto(mediaList));
@@ -345,7 +367,7 @@ public class MediaService {
     public ResponseEntity<?> getMediaByTournamentId(Long id,int page,int size) {
         Pageable pageable = PageRequest.of(page, size);
         List<Media> mediaList = mediaInterface.findMediaByTournamentId(id,pageable);
-        if(mediaList.stream().count()==0){
+        if (mediaList == null || mediaList.isEmpty()) {
             return ResponseEntity.notFound().build();
         }
         return ResponseEntity.ok(mediaToDto(mediaList));
@@ -354,7 +376,7 @@ public class MediaService {
     public ResponseEntity<?> getMediaBySportId(Long id,int page,int size) {
         Pageable pageable = PageRequest.of(page, size);
         List<Media> mediaList = mediaInterface.findMediaBySportId(id,pageable);
-        if(mediaList.stream().count()==0){
+        if (mediaList == null || mediaList.isEmpty()) {
             return ResponseEntity.notFound().build();
         }
         return ResponseEntity.ok(mediaToDto(mediaList));

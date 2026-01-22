@@ -10,8 +10,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -42,8 +40,8 @@ public class MatchService {
     private CricketInningsInterface cricketInningsRepo;
 
 
-    public ResponseEntity<?> createMatch(MatchDTO matchDTO) {
-        boolean check = true;
+    // -------------------- Helpers --------------------
+    private ResponseEntity<String> validateMatchDTO(MatchDTO matchDTO) {
         if (matchDTO == null || matchDTO.getScorerId() == null) {
             return ResponseEntity.badRequest().body("scorerId is required");
         }
@@ -59,122 +57,71 @@ public class MatchService {
         if (matchDTO.getTournamentId() == null || tournamentInterface.findById(matchDTO.getTournamentId()).isEmpty()) {
             return ResponseEntity.badRequest().body("Tournament with id " + matchDTO.getTournamentId() + " does not exist");
         }
-
-        if (matchDTO.getDate().isBefore(LocalDate.now())) {
+        if (matchDTO.getDate() == null) {
+            return ResponseEntity.badRequest().body("date is required");
+        }
+        if (matchDTO.getTime() == null) {
+            return ResponseEntity.badRequest().body("time is required");
+        }
+        LocalDate today = LocalDate.now();
+        if (matchDTO.getDate().isBefore(today)) {
             return ResponseEntity.badRequest().body("Match date " + matchDTO.getDate() + " does not belong to the future");
         }
-        if (matchDTO.getDate().isAfter(LocalDate.now()) || matchDTO.getDate().isEqual(LocalDate.now())) {
-            check = false;
-        }
-        if (matchDTO.getTime().isBefore(LocalTime.now()) && check) {
+        if (matchDTO.getDate().isEqual(today) && matchDTO.getTime().isBefore(LocalTime.now())) {
             return ResponseEntity.badRequest().body("Match time " + matchDTO.getTime() + " does not belong to the future");
         }
-        Match match = new Match();
+        return null;
+    }
+
+    private void applyMatchDTO(Match match, MatchDTO matchDTO) {
         match.setTournament(tournamentInterface.findById(matchDTO.getTournamentId()).orElse(null));
         match.setTeam1(teamInterface.findById(matchDTO.getTeam1Id()).orElse(null));
         match.setTeam2(teamInterface.findById(matchDTO.getTeam2Id()).orElse(null));
+        match.setScorer(accountInterface.findActiveByUsername(matchDTO.getScorerId()).orElse(null));
         match.setVenue(matchDTO.getVenue());
         match.setDate(matchDTO.getDate());
         match.setTime(matchDTO.getTime());
         match.setOvers(matchDTO.getOvers());
-        match.setScorer(accountInterface.findActiveByUsername(matchDTO.getScorerId()).orElse(null));
         match.setSets(matchDTO.getSets());
+    }
+
+    // -------------------- Public API --------------------
+    public ResponseEntity<?> createMatch(MatchDTO matchDTO) {
+        ResponseEntity<String> validation = validateMatchDTO(matchDTO);
+        if (validation != null) return validation;
+        Match match = new Match();
+        applyMatchDTO(match, matchDTO);
         matchInterface.save(match);
         return ResponseEntity.ok().body("Match created successfully");
     }
 
     public ResponseEntity<?> updateMatch(Long id, MatchDTO matchDTO) {
-        Match match = matchInterface.getById(id);
+        Match match = matchInterface.findById(id).orElse(null);
         if (match == null) {
-            return ResponseEntity.badRequest().body("Match with id " + id + " does not exist");
+            return ResponseEntity.notFound().build();
         }
-        if (matchDTO == null || matchDTO.getScorerId() == null) {
-            return ResponseEntity.badRequest().body("scorerId is required");
-        }
-        if (accountInterface.findActiveByUsername(matchDTO.getScorerId()).isEmpty()) {
-            return ResponseEntity.badRequest().body("Account with id " + matchDTO.getScorerId() + " does not exist");
-        }
-        if (matchDTO.getTeam1Id() == null || teamInterface.findById(matchDTO.getTeam1Id()).isEmpty()) {
-            return ResponseEntity.badRequest().body("Team with id " + matchDTO.getTeam1Id() + " does not exist");
-        }
-        if (matchDTO.getTeam2Id() == null || teamInterface.findById(matchDTO.getTeam2Id()).isEmpty()) {
-            return ResponseEntity.badRequest().body("Team with id " + matchDTO.getTeam2Id() + " does not exist");
-        }
-        if (matchDTO.getTournamentId() == null || tournamentInterface.findById(matchDTO.getTournamentId()).isEmpty()) {
-            return ResponseEntity.badRequest().body("Tournament with id " + matchDTO.getTournamentId() + " does not exist");
-        }
-        if (matchDTO.getDate().isBefore(LocalDate.now())) {
-            return ResponseEntity.badRequest().body("Match date " + matchDTO.getDate() + " does not belong to the future");
-        }
-
-        boolean check = true;
-        if (matchDTO.getDate().isAfter(LocalDate.now()) || matchDTO.getDate().isEqual(LocalDate.now())) {
-            check = false;
-        }
-
-        if (matchDTO.getTime().isBefore(LocalTime.now()) && check) {
-            return ResponseEntity.badRequest().body("Match time " + matchDTO.getTime() + " does not belong to the future");
-        }
-
-        match.setTournament(tournamentInterface.findById(matchDTO.getTournamentId()).orElse(null));
-        match.setTeam1(teamInterface.findById(matchDTO.getTeam1Id()).orElse(null));
-        match.setTeam2(teamInterface.findById(matchDTO.getTeam2Id()).orElse(null));
-        match.setScorer(accountInterface.findActiveByUsername(matchDTO.getScorerId()).orElse(null));
-        match.setVenue(matchDTO.getVenue());
-        match.setDate(matchDTO.getDate());
-        match.setTime(matchDTO.getTime());
-        match.setOvers(matchDTO.getOvers());
-        match.setSets(matchDTO.getSets());
-
+        ResponseEntity<String> validation = validateMatchDTO(matchDTO);
+        if (validation != null) return validation;
+        applyMatchDTO(match, matchDTO);
         matchInterface.save(match);
         return ResponseEntity.ok().body("Match updated successfully");
     }
 
     public ResponseEntity<?> deleteMatch(Long id) {
-        Match match = matchInterface.getById(id);
+        Match match = matchInterface.findById(id).orElse(null);
         if (match == null) {
-            return ResponseEntity.badRequest().body("Match with id " + id + " does not exist");
+            return ResponseEntity.notFound().build();
         }
         matchInterface.delete(match);
         return ResponseEntity.ok().body("Match deleted successfully");
     }
 
     public ResponseEntity<?> getMatch(Long id) {
-
         Match match = matchInterface.findById(id).orElse(null);
-        if (match==null){
-            return  ResponseEntity.notFound().build();
+        if (match == null) {
+            return ResponseEntity.notFound().build();
         }
-        MatchDTO matchDTO = new MatchDTO();
-        matchDTO.setId(match.getId());
-        matchDTO.setTournamentId(match.getTournament().getId());
-        matchDTO.setTournamentName(match.getTournament().getName());
-        matchDTO.setTeam1Id(match.getTeam1().getId());
-        matchDTO.setTeam1Name(match.getTeam1().getName());
-        matchDTO.setTeam2Id(match.getTeam2().getId());
-        matchDTO.setTeam2Name(match.getTeam2().getName());
-        matchDTO.setScorerId(match.getScorer().getUsername());
-        matchDTO.setStatus(match.getStatus().toUpperCase());
-        matchDTO.setVenue(match.getVenue());
-        matchDTO.setDate(match.getDate());
-        matchDTO.setTime(match.getTime());
-        matchDTO.setDecision(match.getDecision());
-        matchDTO.setOvers(match.getOvers());
-        matchDTO.setSets(match.getSets());
-        matchDTO.setSportId(match.getTournament().getSport().getId());
-        if (match.getTossWinner() != null) {
-            matchDTO.setTossWinnerId(match.getTossWinner().getId());
-        } else {
-            matchDTO.setTossWinnerId(null);
-        }
-        if (match.getWinnerTeam() != null) {
-            matchDTO.setWinnerTeamId(match.getWinnerTeam().getId());
-            matchDTO.setWinnerTeamName(match.getWinnerTeam().getName());
-        }
-
-
-
-        return ResponseEntity.ok(matchDTO);
+        return ResponseEntity.ok(convertToDTO(match));
     }
 
 
@@ -212,7 +159,7 @@ public class MatchService {
         }
         Match match = matchInterface.findById(id).orElse(null);
         if (match == null) {
-            return ResponseEntity.badRequest().body("Match with id " + id + " does not exist");
+            return ResponseEntity.notFound().build();
         }
         match.setStatus("LIVE");
         if (m.getScorerId() == null || accountInterface.findActiveByUsername(m.getScorerId()).isEmpty()) {
@@ -298,7 +245,7 @@ public class MatchService {
     }
 
     public ResponseEntity<?> abandonMatch(Long id) {
-        Match match = matchInterface.getById(id);
+        Match match = matchInterface.findById(id).orElse(null);
         if (match == null) {
             return ResponseEntity.badRequest().body("Match with id " + id + " does not exist");
         }
@@ -344,39 +291,37 @@ public class MatchService {
 
 
 
-    public List<MatchDTO> convertToDTO(List<Match> matches) {
-        List<MatchDTO> matchDTOs = new ArrayList<>();
-        for (Match match : matches) {
-            MatchDTO matchDTO = new MatchDTO();
-            matchDTO.setId(match.getId());
-            matchDTO.setTournamentId(match.getTournament().getId());
-            matchDTO.setTournamentName(match.getTournament().getName());
-            matchDTO.setTeam1Id(match.getTeam1().getId());
-            matchDTO.setTeam1Name(match.getTeam1().getName());
-            matchDTO.setTeam2Id(match.getTeam2().getId());
-            matchDTO.setTeam2Name(match.getTeam2().getName());
-            matchDTO.setScorerId(match.getScorer().getUsername());
-            matchDTO.setStatus(match.getStatus().toUpperCase());
-            matchDTO.setVenue(match.getVenue());
-            matchDTO.setDate(match.getDate());
-            matchDTO.setTime(match.getTime());
-            matchDTO.setDecision(match.getDecision());
-            matchDTO.setOvers(match.getOvers());
-            matchDTO.setSets(match.getSets());
-            matchDTO.setSportId(match.getTournament().getSport().getId());
-            if (match.getTossWinner() != null) {
-                matchDTO.setTossWinnerId(match.getTossWinner().getId());
-            } else {
-                matchDTO.setTossWinnerId(null);
-            }
-            if (match.getWinnerTeam() != null) {
-                matchDTO.setWinnerTeamId(match.getWinnerTeam().getId());
-                matchDTO.setWinnerTeamName(match.getWinnerTeam().getName());
-            }
-
-            matchDTOs.add(matchDTO);
-
+    private MatchDTO convertToDTO(Match match) {
+        MatchDTO matchDTO = new MatchDTO();
+        matchDTO.setId(match.getId());
+        matchDTO.setTournamentId(match.getTournament().getId());
+        matchDTO.setTournamentName(match.getTournament().getName());
+        matchDTO.setTeam1Id(match.getTeam1().getId());
+        matchDTO.setTeam1Name(match.getTeam1().getName());
+        matchDTO.setTeam2Id(match.getTeam2().getId());
+        matchDTO.setTeam2Name(match.getTeam2().getName());
+        matchDTO.setScorerId(match.getScorer().getUsername());
+        matchDTO.setStatus(match.getStatus().toUpperCase());
+        matchDTO.setVenue(match.getVenue());
+        matchDTO.setDate(match.getDate());
+        matchDTO.setTime(match.getTime());
+        matchDTO.setDecision(match.getDecision());
+        matchDTO.setOvers(match.getOvers());
+        matchDTO.setSets(match.getSets());
+        matchDTO.setSportId(match.getTournament().getSport().getId());
+        if (match.getTossWinner() != null) {
+            matchDTO.setTossWinnerId(match.getTossWinner().getId());
+        } else {
+            matchDTO.setTossWinnerId(null);
         }
-        return matchDTOs;
+        if (match.getWinnerTeam() != null) {
+            matchDTO.setWinnerTeamId(match.getWinnerTeam().getId());
+            matchDTO.setWinnerTeamName(match.getWinnerTeam().getName());
+        }
+        return matchDTO;
+    }
+
+    public List<MatchDTO> convertToDTO(List<Match> matches) {
+        return matches.stream().map(this::convertToDTO).toList();
     }
 }

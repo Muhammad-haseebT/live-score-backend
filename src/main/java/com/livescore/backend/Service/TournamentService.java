@@ -1,12 +1,18 @@
 package com.livescore.backend.Service;
 
 import com.livescore.backend.DTO.TournamentRequestDTO;
+import com.livescore.backend.DTO.TournamentAwardsDTO;
+import com.livescore.backend.DTO.TournamentStatsDTO;
+import com.livescore.backend.DTO.PtsTableDTO;
 import com.livescore.backend.Entity.Season;
 import com.livescore.backend.Entity.Sports;
 import com.livescore.backend.Entity.Tournament;
+import com.livescore.backend.Entity.PtsTable;
 import com.livescore.backend.Interface.*;
 import lombok.Data;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
@@ -15,6 +21,7 @@ import org.springframework.data.domain.PageRequest;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class TournamentService {
@@ -28,6 +35,12 @@ public class TournamentService {
     private SeasonInterface seasonInterface;
     @Autowired
     private PtsTableInterface ptsTableInterface;
+
+    @Autowired
+    private MatchInterface matchInterface;
+
+    @Autowired
+    private AwardService awardService;
 
     public ResponseEntity<?> createTournament(TournamentRequestDTO tournament) {
         if (tournament == null) {
@@ -194,6 +207,89 @@ public class TournamentService {
         overViewDTO.setTop(a == null ? List.of() : a);
         return ResponseEntity.ok(overViewDTO);
 
+    }
+
+    public ResponseEntity<?> getTournamentStats(Long tournamentId) {
+        if (tournamentId == null) {
+            return ResponseEntity.badRequest().body("tournamentId is required");
+        }
+        TournamentStatsDTO dto = getTournamentStatsDto(tournamentId);
+        if (dto == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Tournament not found");
+        }
+        return ResponseEntity.ok(dto);
+    }
+
+    public ResponseEntity<?> getTournamentAwards(Long tournamentId) {
+        if (tournamentId == null) {
+            return ResponseEntity.badRequest().body("tournamentId is required");
+        }
+        TournamentAwardsDTO dto = getTournamentAwardsDto(tournamentId);
+        return ResponseEntity.ok(dto);
+    }
+
+    @Cacheable(cacheNames = "tournamentAwards", key = "#tournamentId")
+    public TournamentAwardsDTO getTournamentAwardsDto(Long tournamentId) {
+        return awardService.ensureAndGetTournamentAwards(tournamentId);
+    }
+
+    @Cacheable(cacheNames = "tournamentStats", key = "#tournamentId")
+    public TournamentStatsDTO getTournamentStatsDto(Long tournamentId) {
+        Tournament tournament = tournamentInterface.findById(tournamentId).orElse(null);
+        if (tournament == null) {
+            return null;
+        }
+
+        TournamentStatsDTO dto = new TournamentStatsDTO();
+        dto.tournamentId = tournament.getId();
+        dto.tournamentName = tournament.getName();
+        dto.playerType = tournament.getPlayerType();
+        dto.startDate = tournament.getStartDate();
+        dto.endDate = tournament.getEndDate();
+        dto.sportName = tournament.getSport() == null ? null : tournament.getSport().getName();
+
+        dto.approvedTeams = tournament.getTeams() == null ? 0 : (int) tournament.getTeams().stream()
+                .filter(team -> team != null && "APPROVED".equals(team.getStatus()))
+                .count();
+
+        List<com.livescore.backend.Entity.Match> matches = matchInterface.findByTournament_Id(tournamentId);
+        dto.matches = matches == null ? 0 : matches.size();
+
+        List<PtsTable> ptsTables = ptsTableInterface.findByTournamentId(tournamentId);
+        List<PtsTableDTO> ptsTableDtos = (ptsTables == null ? List.<PtsTableDTO>of() : ptsTables.stream().map(pt -> {
+            PtsTableDTO d = new PtsTableDTO();
+            d.setTeamName(pt.getTeam() == null ? null : pt.getTeam().getName());
+            d.setId(pt.getId());
+            d.setTournamentId(pt.getTournament() == null ? null : pt.getTournament().getId());
+            d.setTeamId(pt.getTeam() == null ? null : pt.getTeam().getId());
+            d.setPlayed(pt.getPlayed());
+            d.setWins(pt.getWins());
+            d.setLosses(pt.getLosses());
+            d.setPoints(pt.getPoints());
+            d.setNrr(pt.getNrr());
+            return d;
+        }).sorted((a, b) -> {
+            int c = Integer.compare(b.getPoints(), a.getPoints());
+            if (c != 0) return c;
+            return Double.compare(b.getNrr(), a.getNrr());
+        }).collect(Collectors.toList()));
+
+        dto.pointsTable = ptsTableDtos;
+
+        Pageable topPage = PageRequest.of(0, 3);
+        List<Abc> top = ptsTableInterface.findByTournamentId(tournamentId, topPage);
+        dto.topTeams = (top == null ? List.<TournamentStatsDTO.TopTeamDTO>of() : top.stream().map(x -> {
+            TournamentStatsDTO.TopTeamDTO t = new TournamentStatsDTO.TopTeamDTO();
+            t.teamName = x.getName();
+            t.points = x.getPoints();
+            return t;
+        }).collect(Collectors.toList()));
+
+        if (dto.sportName != null && dto.sportName.equalsIgnoreCase("CRICKET")) {
+            dto.awards = awardService.ensureAndGetTournamentAwards(tournamentId);
+        }
+
+        return dto;
     }
 
 }

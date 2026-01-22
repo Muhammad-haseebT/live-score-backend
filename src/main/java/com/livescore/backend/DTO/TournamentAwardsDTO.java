@@ -11,6 +11,10 @@ public class TournamentAwardsDTO {
     public Long manOfTournamentId;
     public String manOfTournamentName;
 
+    public Long highestScorerId;
+    public String highestScorerName;
+    public Integer highestRuns;
+
     public Long bestBatsmanId;
     public String bestBatsmanName;
     public Integer bestBatsmanRuns;
@@ -18,7 +22,6 @@ public class TournamentAwardsDTO {
     public Long bestBowlerId;
     public String bestBowlerName;
     public Integer bestBowlerWickets;
-
 
     public List<PlayerStatDTO> topBatsmen;
     public List<PlayerStatDTO> topBowlers;

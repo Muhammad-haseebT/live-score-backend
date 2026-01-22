@@ -9,6 +9,7 @@ import com.livescore.backend.Entity.Player;
 import com.livescore.backend.Interface.CricketBallInterface;
 import com.livescore.backend.Interface.MatchInterface;
 import com.livescore.backend.Interface.PlayerInterface;
+import com.livescore.backend.Util.CricketRules;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -78,7 +79,7 @@ public class AwardService {
                 if (a != null) {
                     int r = (b.getRuns() == null ? 0 : b.getRuns());
                     a.runs += r;
-                    if (Boolean.TRUE.equals(b.getLegalDelivery())) a.ballsFaced += 1;
+                    if (CricketRules.isBallFaced(b)) a.ballsFaced += 1;
                     if (Boolean.TRUE.equals(b.getIsFour())) a.fours += 1;
                     if (Boolean.TRUE.equals(b.getIsSix())) a.sixes += 1;
                     if (inningsId != null) {
@@ -91,18 +92,12 @@ public class AwardService {
             if (b.getBowler() != null) {
                 Agg a = getAgg.apply(b.getBowler());
                 if (a != null) {
-                    int runsConcededThisBall = (b.getRuns() == null ? 0 : b.getRuns()) + (b.getExtra() == null ? 0 : b.getExtra());
-                    a.runsConceded += runsConcededThisBall;
+                    a.runsConceded += CricketRules.runsConcededThisBall(b);
                     if (Boolean.TRUE.equals(b.getLegalDelivery())) a.ballsBowled += 1;
 
                     String d = b.getDismissalType();
                     if (d != null) {
-                        String dl = d.toLowerCase();
-                        // credit wicket only to bowler-credited dismissals (exclude runout)
-                        if (dl.contains("bowled") || dl.contains("lbw") || dl.contains("stumped")
-                                || dl.contains("caught") || dl.contains("hit wicket") || dl.contains("hitwicket")) {
-                            a.wickets += 1;
-                        }
+                        if (CricketRules.isBowlerCreditedWicket(d)) a.wickets += 1;
                     }
                 }
             }
@@ -327,7 +322,7 @@ public class AwardService {
                     if (a != null) {
                         int r = (b.getRuns() == null ? 0 : b.getRuns());
                         a.runs += r;
-                        if (Boolean.TRUE.equals(b.getLegalDelivery())) a.ballsFaced += 1;
+                        if (CricketRules.isBallFaced(b)) a.ballsFaced += 1;
                         if (Boolean.TRUE.equals(b.getIsFour())) a.fours += 1;
                         if (Boolean.TRUE.equals(b.getIsSix())) a.sixes += 1;
                         if (inningsId != null) {
@@ -339,16 +334,12 @@ public class AwardService {
                 if (b.getBowler() != null) {
                     Agg a = getAgg.apply(b.getBowler());
                     if (a != null) {
-                        int runsConcededThisBall = (b.getRuns() == null ? 0 : b.getRuns()) + (b.getExtra() == null ? 0 : b.getExtra());
-                        a.runsConceded += runsConcededThisBall;
+                        a.runsConceded += CricketRules.runsConcededThisBall(b);
                         if (Boolean.TRUE.equals(b.getLegalDelivery())) a.ballsBowled += 1;
 
                         String d = b.getDismissalType();
                         if (d != null) {
-                            String dl = d.toLowerCase();
-                            if (dl.contains("bowled") || dl.contains("caught") || dl.contains("lbw") || dl.contains("stumped") || dl.contains("hit-wicket") || dl.contains("hitwicket")) {
-                                a.wickets += 1;
-                            }
+                            if (CricketRules.isBowlerCreditedWicket(d)) a.wickets += 1;
                         }
                     }
                 }
@@ -414,7 +405,7 @@ public class AwardService {
         List<PlayerStatDTO> topBatsmen = metrics.stream()
                 .filter(m -> m.ballsFaced > 0) // or >=10 if you want to ignore very short innings
                 .sorted(batComp)               // use the single, well-defined comparator
-                .limit(3)
+                .limit(5)
                 .map(m -> {
                     Player p = playerRepo.findActiveById(m.playerId).orElse(null);
                     PlayerStatDTO ps = new PlayerStatDTO();
@@ -443,6 +434,20 @@ public class AwardService {
                 }).collect(Collectors.toList());
 
         dto.topBatsmen = topBatsmen;
+
+        // highest scorer: purely maximum total runs
+        PlayerMetrics highestScorer = metrics.stream()
+                .max(Comparator.comparingInt((PlayerMetrics m) -> m.runs)
+                        .thenComparingInt(m -> m.highestInnings)
+                        .thenComparingLong(m -> m.playerId))
+                .orElse(null);
+        if (highestScorer != null) {
+            Player p = playerRepo.findActiveById(highestScorer.playerId).orElse(null);
+            dto.highestScorerId = highestScorer.playerId;
+            dto.highestScorerName = p != null ? p.getName() : "Unknown";
+            dto.highestRuns = highestScorer.runs;
+        }
+
         if (!topBatsmen.isEmpty()) {
             dto.bestBatsmanId = topBatsmen.get(0).playerId;
             dto.bestBatsmanName = topBatsmen.get(0).playerName;
@@ -450,7 +455,7 @@ public class AwardService {
         }
 
 
-        // Top bowlers (top 3) - wickets DESC, economy ASC, bowlingAverage ASC
+        // Top bowlers (top 5) - wickets DESC, economy ASC, bowlingAverage ASC
         Comparator<PlayerMetrics> bowlComp = Comparator
                 .comparingInt((PlayerMetrics m) -> m.wickets).reversed()
                 .thenComparingDouble(m -> m.economy)
@@ -459,7 +464,7 @@ public class AwardService {
         List<PlayerStatDTO> topBowlers = metrics.stream()
                 .filter(m -> m.ballsBowled > 0)
                 .sorted(bowlComp)
-                .limit(3)
+                .limit(5)
                 .map(m -> {
                     Player p = playerRepo.findActiveById(m.playerId).orElse(null);
                     PlayerStatDTO ps = new PlayerStatDTO();

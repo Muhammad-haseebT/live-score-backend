@@ -48,6 +48,9 @@ public interface MatchInterface extends JpaRepository<Match,Long> {
     @Query("SELECT m.manOfMatch.id, COUNT(m) FROM Match m WHERE m.tournament.id = :tournamentId AND m.manOfMatch IS NOT NULL GROUP BY m.manOfMatch.id ORDER BY COUNT(m) DESC")
     List<Object[]> countPlayerOfMatchByPlayer(@Param("tournamentId") Long tournamentId);
 
+    @Query("SELECT COUNT(m) FROM Match m WHERE m.tournament.id = :tournamentId AND m.manOfMatch.id = :playerId")
+    long countManOfMatchForPlayer(@Param("tournamentId") Long tournamentId, @Param("playerId") Long playerId);
+
     List<Match> findByTournament_Id(Long tournamentId);
 
 

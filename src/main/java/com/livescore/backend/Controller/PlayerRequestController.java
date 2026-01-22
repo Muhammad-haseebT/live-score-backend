@@ -17,7 +17,6 @@ public class PlayerRequestController {
     }
     @PutMapping("/playerRequest/{id}")
     public ResponseEntity<?> updatePlayerRequest(@PathVariable Long id, @RequestBody PlayerRequestDTO playerRequest) {
-        System.out.println(id);
         return playerRequestService.updatePlayerRequest(id, playerRequest);
     }
     @DeleteMapping("/playerRequest/{id}")

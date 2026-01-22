@@ -127,8 +127,6 @@ public class PtsTableService {
 
         ptsTableInterface.save(ptsWinner);
         ptsTableInterface.save(ptsLoser);
-        System.out.println(ptsWinner);
-        System.out.println(ptsLoser);
 
         // --- SUCCESS RESPONSE ---
         Map<String, Object> response = new HashMap<>();

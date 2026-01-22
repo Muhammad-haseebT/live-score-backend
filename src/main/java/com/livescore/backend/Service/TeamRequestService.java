@@ -32,6 +32,11 @@ public class TeamRequestService {
     }
 
     public ResponseEntity<?> createTeamRequest(TeamRequestDTO teamRequest) {
+        if (teamRequest == null) {
+            return ResponseEntity.badRequest().body(
+                    Map.of("error", "Team request details are required")
+            );
+        }
         if(teamRequest.getTeamId()==null){
             return ResponseEntity.badRequest().body(
                     Map.of("error", "Team id is required")
@@ -65,25 +70,40 @@ public class TeamRequestService {
         TeamRequest teamRequest1=new TeamRequest();
         teamRequest1.setTeam(team);
         teamRequest1.setPlayerAccount(player);
+        teamRequest1.setStatus("PENDING");
         teamRequestInterface.save(teamRequest1);
         return ResponseEntity.ok().build();
     }
     public ResponseEntity<?> updateTeamRequest(Long id, TeamRequestDTO teamRequest) {
+        if (id == null) {
+            return ResponseEntity.badRequest().body(
+                    Map.of("error", "id is required")
+            );
+        }
+        if (teamRequest == null) {
+            return ResponseEntity.badRequest().body(
+                    Map.of("error", "Team request details are required")
+            );
+        }
         TeamRequest teamRequest1=teamRequestInterface.findById(id).orElse(null);
         if(teamRequest1==null){
             return ResponseEntity.notFound().build();
         }
-        String status = toUpper(teamRequest == null ? null : teamRequest.getStatus());
+        String status = toUpper(teamRequest.getStatus());
         if("APPROVE".equals(status) || "APPROVED".equals(status)){
-            Team t = teamInterface.findById(teamRequest.getTeamId()).orElse(null);
+            Team t = (teamRequest.getTeamId() == null) ? null : teamInterface.findById(teamRequest.getTeamId()).orElse(null);
             if (t != null) {
                 t.setStatus("APPROVED");
                 teamInterface.save(t);
             }
 
         }
-        teamRequest1.setTeam(teamInterface.findById(teamRequest.getTeamId()).orElse(null));
-        teamRequest1.setPlayerAccount(playerInterface.findActiveById(teamRequest.getPlayerId()).orElse(null));
+        if (teamRequest.getTeamId() != null) {
+            teamRequest1.setTeam(teamInterface.findById(teamRequest.getTeamId()).orElse(null));
+        }
+        if (teamRequest.getPlayerId() != null) {
+            teamRequest1.setPlayerAccount(playerInterface.findActiveById(teamRequest.getPlayerId()).orElse(null));
+        }
         if (status != null) {
             teamRequest1.setStatus(status);
         }
@@ -120,13 +140,18 @@ public class TeamRequestService {
         if(teamRequest==null){
             return ResponseEntity.notFound().build();
         }
+        if (teamRequest.getTeam() == null || teamRequest.getTeam().getId() == null) {
+            return ResponseEntity.badRequest().body("Team not found");
+        }
         teamRequest.setStatus("APPROVED");
         Team t = teamInterface.findById(teamRequest.getTeam().getId()).orElse(null);
         if (t != null) {
             t.setStatus("APPROVED");
             teamInterface.save(t);
         }
-        ptsTableService.createPtsTable(new PtsTable(teamRequest.getTeam(),teamRequest.getTeam().getTournament()));
+        if (teamRequest.getTeam().getTournament() != null) {
+            ptsTableService.createPtsTable(new PtsTable(teamRequest.getTeam(), teamRequest.getTeam().getTournament()));
+        }
 
         teamRequestInterface.save(teamRequest);
         return ResponseEntity.ok().build();
@@ -150,7 +175,7 @@ public class TeamRequestService {
             }
             m.put("tournamentName", tournamentName);
 
-            m.put("CaptainName", r.getTeam().getCreator().getName());
+            m.put("CaptainName", (team != null && team.getCreator() != null) ? team.getCreator().getName() : null);
             //player names and usernames
             List<Map<String, String>> players = new ArrayList<>();
             if (team != null && team.getPlayers() != null) {

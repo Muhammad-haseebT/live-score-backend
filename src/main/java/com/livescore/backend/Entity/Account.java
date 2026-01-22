@@ -1,14 +1,11 @@
 package com.livescore.backend.Entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.Where;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.List;
 
 @Entity
@@ -19,8 +16,7 @@ import java.util.List;
 @ToString(exclude = {
         "seasonsCreated",
         "tournamentsCreated",
-        "scoredMatches",
-        "player"})
+        "scoredMatches"})
 //@Where(clause = "is_deleted = false")
 public class Account {
     @Id

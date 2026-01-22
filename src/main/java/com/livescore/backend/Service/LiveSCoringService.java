@@ -29,6 +29,8 @@ public class LiveSCoringService {
     @Autowired
     private StatsService statsService;
     @Autowired
+    private CacheEvictionService cacheEvictionService;
+    @Autowired
     private AwardService awardService;
     @Autowired
     private MatchService matchService;
@@ -82,13 +84,12 @@ public class LiveSCoringService {
         int maxBallsPerInnings = (m.getOvers() == 0 ? 0 : m.getOvers() * 6);
 
         long legalBallsSoFar = cricketBallInterface.countLegalBallsByInningsId(currentInnings.getId());
-        long wicketsSoFar = cricketBallInterface.countWicketsByInningsId(currentInnings.getId());
 
 
 
 
 
-        if (legalBallsSoFar >= maxBallsPerInnings) {
+        if (maxBallsPerInnings > 0 && legalBallsSoFar >= maxBallsPerInnings) {
 
             s.setStatus("END");
 
@@ -145,7 +146,11 @@ public class LiveSCoringService {
         ball.setIsFour(Boolean.FALSE);
         ball.setIsSix(Boolean.FALSE);
 
-        switch (s.getEventType().toLowerCase()) {
+        String normalizedEventType = s.getEventType().trim().toLowerCase()
+                .replace("_", "")
+                .replace("-", "");
+
+        switch (normalizedEventType) {
             case "run": {
                 int r = parseIntSafe(s.getEvent());
                 ball.setRuns(r);
@@ -154,7 +159,8 @@ public class LiveSCoringService {
                 ball.setLegalDelivery(true);
                 break;
             }
-            case "boundary": {
+            case "boundary":
+            case "boundry": {
                 int b = parseIntSafe(s.getEvent()); // expect 4 or 6
                 ball.setRuns(b);
                 ball.setExtra(0);
@@ -166,16 +172,22 @@ public class LiveSCoringService {
             }
             case "wide": {
                 int w = parseIntSafe(s.getEvent());
+                int extras = s.getExtrasThisBall() > 0 ? s.getExtrasThisBall() : (w + 1);
+                if (extras <= 0) extras = 1;
                 ball.setRuns(0);
-                ball.setExtra(w + 1);
+                ball.setExtra(extras);
                 ball.setExtraType("WIDE");
                 ball.setLegalDelivery(false);
                 break;
             }
-            case "noball": {
+            case "noball":
+            case "nb": {
                 int nb = parseIntSafe(s.getEvent());
-                ball.setRuns(0);
-                ball.setExtra(nb + 1); // 1 + any runs
+                int batRuns = s.getRunsOnThisBall() > 0 ? s.getRunsOnThisBall() : nb;
+                int extras = s.getExtrasThisBall() > 0 ? s.getExtrasThisBall() : 1;
+                if (extras <= 0) extras = 1;
+                ball.setRuns(batRuns);
+                ball.setExtra(extras);
                 ball.setExtraType("NO_BALL");
                 ball.setLegalDelivery(false);
                 break;
@@ -183,7 +195,7 @@ public class LiveSCoringService {
             case "bye": {
                 int by = parseIntSafe(s.getEvent());
                 ball.setRuns(0);
-                ball.setExtra(by);
+                ball.setExtra(s.getExtrasThisBall() > 0 ? s.getExtrasThisBall() : by);
                 ball.setExtraType("BYE");
                 ball.setLegalDelivery(true);
                 break;
@@ -191,13 +203,15 @@ public class LiveSCoringService {
             case "legbye": {
                 int lb = parseIntSafe(s.getEvent());
                 ball.setRuns(0);
-                ball.setExtra(lb);
+                ball.setExtra(s.getExtrasThisBall() > 0 ? s.getExtrasThisBall() : lb);
                 ball.setExtraType("LEGBYE");
                 ball.setLegalDelivery(true);
                 break;
             }
             case "wicket": {
-                String dismissal = s.getEvent();
+                String dismissal = (s.getDismissalType() != null && !s.getDismissalType().isBlank())
+                        ? s.getDismissalType()
+                        : s.getEvent();
                 ball.setDismissalType(dismissal);
                 Player outPlayer = null;
                 if (s.getOutPlayerId() != null) outPlayer = playerRepo.findActiveById(s.getOutPlayerId()).orElse(null);
@@ -208,7 +222,11 @@ public class LiveSCoringService {
 
                 ball.setRuns(s.getRunsOnThisBall());
                 ball.setExtra(s.getExtrasThisBall());
-                ball.setLegalDelivery(true);
+                if (s.getExtraType() != null && !s.getExtraType().isBlank()) {
+                    ball.setExtraType(s.getExtraType());
+                }
+
+                ball.setLegalDelivery(s.getIsLegal() != null ? s.getIsLegal() : Boolean.TRUE);
 
                 if (dismissal != null && (dismissal.equalsIgnoreCase("caught") || dismissal.equalsIgnoreCase("runout") || dismissal.equalsIgnoreCase("stumped"))) {
                     ball.setFielder(s.getFielderId() == null ? null : playerRepo.findActiveById(s.getFielderId()).orElse(null));
@@ -226,13 +244,27 @@ public class LiveSCoringService {
         cricketBallInterface.save(ball);
         statsService.updateTournamentStats(ball);
 
-        List<CricketBall> inningsBalls = cricketBallInterface.findByMatch_IdAndInnings_Id(m.getId(), currentInnings.getId());
+        if (m.getTournament() != null && m.getTournament().getId() != null) {
+            Long tournamentId = m.getTournament().getId();
+            cacheEvictionService.evictTournament(tournamentId);
+            cacheEvictionService.evictTournamentAwards(tournamentId);
+            if (ball.getBatsman() != null && ball.getBatsman().getId() != null) {
+                cacheEvictionService.evictPlayerStats(tournamentId, ball.getBatsman().getId());
+                cacheEvictionService.evictTournamentPlayerStats(tournamentId, ball.getBatsman().getId());
+            }
+            if (ball.getBowler() != null && ball.getBowler().getId() != null) {
+                cacheEvictionService.evictPlayerStats(tournamentId, ball.getBowler().getId());
+                cacheEvictionService.evictTournamentPlayerStats(tournamentId, ball.getBowler().getId());
+            }
+            if (ball.getFielder() != null && ball.getFielder().getId() != null) {
+                cacheEvictionService.evictPlayerStats(tournamentId, ball.getFielder().getId());
+                cacheEvictionService.evictTournamentPlayerStats(tournamentId, ball.getFielder().getId());
+            }
+        }
 
-        int inningsRuns = inningsBalls.stream().mapToInt(b -> (b.getRuns() == null ? 0 : b.getRuns()) + (b.getExtra() == null ? 0 : b.getExtra())).sum();
-
-        int legalBallsNow = (int) inningsBalls.stream().filter(b -> Boolean.TRUE.equals(b.getLegalDelivery())).count();
-
-        int wicketsNow = (int) inningsBalls.stream().filter(b -> b.getDismissalType() != null && !b.getDismissalType().trim().isEmpty()).count();
+        int inningsRuns = cricketBallInterface.sumRunsAndExtrasByInningsId(currentInnings.getId());
+        int legalBallsNow = (int) cricketBallInterface.countLegalBallsByInningsId(currentInnings.getId());
+        int wicketsNow = (int) cricketBallInterface.countWicketsByInningsId(currentInnings.getId());
 
         // Update DTO live values
         s.setRuns(inningsRuns);
@@ -250,8 +282,7 @@ public class LiveSCoringService {
             CricketInnings firstInnings = cricketInningsRepo.findByMatchIdAndNo(m.getId(), 1);
             int firstRuns = 0;
             if (firstInnings != null) {
-                List<CricketBall> firstBalls = cricketBallInterface.findByMatch_IdAndInnings_Id(m.getId(), firstInnings.getId());
-                firstRuns = firstBalls.stream().mapToInt(b -> (b.getRuns() == null ? 0 : b.getRuns()) + (b.getExtra() == null ? 0 : b.getExtra())).sum();
+                firstRuns = cricketBallInterface.sumRunsAndExtrasByInningsId(firstInnings.getId());
             }
             int target = firstRuns + 1;
             int remainingRuns = target - inningsRuns;

@@ -24,6 +24,11 @@ public class PlayerService {
     @Autowired
     private PlayerRequestInterface playerRequestInterface;
     public ResponseEntity<?> createPlayer(PlayerDto player) {
+        if (player == null) {
+            return ResponseEntity.badRequest().body(
+                    Map.of("error", "Player details are required")
+            );
+        }
         if(player.getName() == null || player.getName().isBlank()){
             return ResponseEntity.badRequest().body(
                     Map.of("error", "Player name is required")
@@ -32,6 +37,11 @@ public class PlayerService {
         if(player.getPlayerRole() == null || player.getPlayerRole().isBlank()){
             return ResponseEntity.badRequest().body(
                     Map.of("error", "Player role is required")
+            );
+        }
+        if (player.getUsername() == null || player.getUsername().isBlank()) {
+            return ResponseEntity.badRequest().body(
+                    Map.of("error", "Username is required")
             );
         }
         Player p1=new Player();
@@ -43,7 +53,13 @@ public class PlayerService {
                     Map.of("error", "Player with this username already exists")
             );
         }
-        p1.setAccount(accountInterface.findByUsername(player.getUsername()));
+        var account = accountInterface.findByUsername(player.getUsername());
+        if (account == null) {
+            return ResponseEntity.badRequest().body(
+                    Map.of("error", "Account not found")
+            );
+        }
+        p1.setAccount(account);
 
         Player savedPlayer = playerInterface.save(p1);
         return ResponseEntity.ok(Map.of(
@@ -53,9 +69,23 @@ public class PlayerService {
         ));
     }
     public ResponseEntity<?> updatePlayer(Long id, PlayerDto player) {
+        if (id == null) {
+            return ResponseEntity.badRequest().body(
+                    Map.of("error", "Player id is required")
+            );
+        }
+        if (player == null) {
+            return ResponseEntity.badRequest().body(
+                    Map.of("error", "Player details are required")
+            );
+        }
         return playerInterface.findActiveById(id).map(playerEntity -> {
-            playerEntity.setName(player.getName());
-            playerEntity.setPlayerRole(player.getPlayerRole());
+            if (player.getName() != null && !player.getName().isBlank()) {
+                playerEntity.setName(player.getName());
+            }
+            if (player.getPlayerRole() != null && !player.getPlayerRole().isBlank()) {
+                playerEntity.setPlayerRole(player.getPlayerRole());
+            }
             return ResponseEntity.ok(playerInterface.save(playerEntity));
         }).orElse(ResponseEntity.notFound().build());
     }

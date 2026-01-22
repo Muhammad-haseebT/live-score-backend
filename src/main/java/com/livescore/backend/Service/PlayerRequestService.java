@@ -16,7 +16,6 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 @Service
 public class PlayerRequestService {
@@ -30,7 +29,20 @@ public class PlayerRequestService {
     TournamentInterface tournamentInterface;
     @Autowired
     StatsService statsService;
+
+    private String normalizeStatus(String status) {
+        if (status == null) return null;
+        String t = status.trim();
+        if (t.isEmpty()) return null;
+        return t.toUpperCase();
+    }
+
     public ResponseEntity<?> createPlayerRequest(PlayerRequestDTO playerRequest) {
+        if (playerRequest == null) {
+            return ResponseEntity.badRequest().body(
+                    Map.of("error", "Player request details are required")
+            );
+        }
         if(playerRequest.getPlayerId()==null){
             return ResponseEntity.badRequest().body(
                     Map.of("error", "Player id is required")
@@ -72,6 +84,7 @@ public class PlayerRequestService {
         playerRequest1.setPlayer(player);
         playerRequest1.setTeam(team);
         playerRequest1.setTournament(tournament);
+        playerRequest1.setStatus("PENDING");
         playerRequestInterface.save(playerRequest1);
         return ResponseEntity.ok().build();
 
@@ -80,15 +93,33 @@ public class PlayerRequestService {
     }
 
     public ResponseEntity<?> updatePlayerRequest(Long id, PlayerRequestDTO playerRequest) {
-        System.out.println(id);
+        if (id == null) {
+            return ResponseEntity.badRequest().body(
+                    Map.of("error", "id is required")
+            );
+        }
+        if (playerRequest == null) {
+            return ResponseEntity.badRequest().body(
+                    Map.of("error", "Player request details are required")
+            );
+        }
         PlayerRequest playerRequest1=playerRequestInterface.findById(id).orElse(null);
         if(playerRequest1==null){
             return ResponseEntity.notFound().build();
         }
-        playerRequest1.setPlayer(playerInterface.findActiveById(playerRequest.getPlayerId()).orElse(null));
-        playerRequest1.setTeam(teamInterface.findById(playerRequest.getTeamId()).orElse(null));
-        playerRequest1.setTournament(tournamentInterface.findById(playerRequest.getTournamentId()).orElse(null));
-        playerRequest1.setStatus(playerRequest.getStatus());
+        if (playerRequest.getPlayerId() != null) {
+            playerRequest1.setPlayer(playerInterface.findActiveById(playerRequest.getPlayerId()).orElse(null));
+        }
+        if (playerRequest.getTeamId() != null) {
+            playerRequest1.setTeam(teamInterface.findById(playerRequest.getTeamId()).orElse(null));
+        }
+        if (playerRequest.getTournamentId() != null) {
+            playerRequest1.setTournament(tournamentInterface.findById(playerRequest.getTournamentId()).orElse(null));
+        }
+        String status = normalizeStatus(playerRequest.getStatus());
+        if (status != null) {
+            playerRequest1.setStatus(status);
+        }
         playerRequestInterface.save(playerRequest1);
         return ResponseEntity.ok().build();
     }
@@ -114,10 +145,17 @@ public class PlayerRequestService {
         if(playerRequest==null){
             return ResponseEntity.notFound().build();
         }
+        if (playerRequest.getTournament() == null || playerRequest.getTournament().getId() == null) {
+            return ResponseEntity.badRequest().body("Tournament not found");
+        }
+        if (playerRequest.getTeam() == null || playerRequest.getTeam().getId() == null) {
+            return ResponseEntity.badRequest().body("Team not found");
+        }
         if (playerRequest.getPlayer() == null || Boolean.TRUE.equals(playerRequest.getPlayer().getIsDeleted())) {
             return ResponseEntity.badRequest().body("Player not found");
         }
-        if(playerRequest.getStatus().equals("APPROVED")){
+        String status = normalizeStatus(playerRequest.getStatus());
+        if("APPROVED".equals(status)){
             return ResponseEntity.badRequest().body("Player already approved");
         }
         PlayerRequest existing = playerRequestInterface.findExistingRequest(playerRequest.getPlayer().getId(), playerRequest.getTournament().getId());
@@ -172,7 +210,8 @@ public class PlayerRequestService {
         if(playerRequest==null){
             return ResponseEntity.notFound().build();
         }
-        if(playerRequest.getStatus().equals("REJECTED")){
+        String status = normalizeStatus(playerRequest.getStatus());
+        if("REJECTED".equals(status)){
             return ResponseEntity.badRequest().body("Player already rejected");
         }
         playerRequest.setStatus("REJECTED");

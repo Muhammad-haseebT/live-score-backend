@@ -21,14 +21,28 @@ public class PlayerStatsController {
         PlayerStatsDTO dto = statsService.getPlayerTournamentStats(playerId, tournamentId, matchId);
         return ResponseEntity.ok(dto);
     }
+
+
+    //both are same
+
+
+
     @GetMapping("/{playerId}/Cricket" )
     public ResponseEntity<?> getPlayerCricketStats(
             @PathVariable Long playerId,
             @RequestParam Long tournamentId,
             @RequestParam(required=false) Long matchId
     ) {
-        PlayerStatsDTO dto = statsService.getPlayerCricketTournamentStats(playerId, tournamentId, matchId);
-        return ResponseEntity.ok(dto);
+        return  statsService.optimizePlayerStats(playerId, tournamentId);
+
+    }
+
+    @GetMapping("/{playerId}/tournamentStats")
+    public ResponseEntity<?> getPlayerTournamentCompleteStats(
+            @PathVariable Long playerId,
+            @RequestParam Long tournamentId
+    ) {
+        return statsService.getTournamentPlayerStats(tournamentId, playerId);
     }
 
 }

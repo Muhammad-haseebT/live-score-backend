@@ -9,14 +9,21 @@ import com.livescore.backend.Interface.AccountInterface;
 import com.livescore.backend.Interface.PlayerInterface;
 import com.livescore.backend.Interface.PlayerRequestInterface;
 import com.livescore.backend.Interface.TeamInterface;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
 
 @Service
 public class AccountService {
+    private static final Logger log = LoggerFactory.getLogger(AccountService.class);
+
+    private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+
     @Autowired
     private AccountInterface accountInterface;
     @Autowired
@@ -27,6 +34,10 @@ public class AccountService {
     @Autowired
     private PlayerRequestInterface playerRequestInterface;
 
+    private boolean isBcryptHash(String value) {
+        return value != null && value.startsWith("$2");
+    }
+
 
     public ResponseEntity<?> createAccount(Account account) {
         if (account == null) {
@@ -35,21 +46,25 @@ public class AccountService {
         if (account.getUsername() == null || account.getUsername().isBlank() || account.getPassword() == null || account.getPassword().isBlank()) {
             return ResponseEntity.badRequest().body("Username and password are required");
         }
+        String username = account.getUsername().trim().toLowerCase();
+        if (username.isBlank()) {
+            return ResponseEntity.badRequest().body("Username and password are required");
+        }
         // username column is unique, so we must reject even if the account is soft-deleted
-        if (accountInterface.existsByUsername(account.getUsername())) {
+        if (accountInterface.existsByUsername(username)) {
             return ResponseEntity.badRequest().body("Username already exists");
         }
         //if username is email then role = admin else user
-        if (account.getUsername().matches("[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}")) {
+        if (username.matches("[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}")) {
             account.setRole("ADMIN");
         } else {
             account.setRole("USER");
         }
-        account.setUsername(account.getUsername().toLowerCase());
-        account.setPassword(Base64.getEncoder().encodeToString(account.getPassword().getBytes()));
+        account.setUsername(username);
+        account.setPassword(passwordEncoder.encode(account.getPassword()));
         Account a=accountInterface.save(account);
         PlayerDto playerDto=new PlayerDto();
-        playerDto.setUsername(account.getUsername());
+        playerDto.setUsername(username);
         playerDto.setName(account.getName());
         playerDto.setPlayerRole("player");
         playerService.createPlayer(playerDto);
@@ -68,8 +83,6 @@ public class AccountService {
     }
 
     public ResponseEntity<?> updateAccount(Long id, Account account) {
-
-        System.out.println(id);
         if (account == null) {
             return ResponseEntity.badRequest().body("Account details are required");
         }
@@ -82,16 +95,21 @@ public class AccountService {
         Account ac = optional.get();
 
         if (account.getUsername() != null && !account.getUsername().isBlank()) {
-            ac.setUsername(account.getUsername());
+            String username = account.getUsername().trim().toLowerCase();
+            if (!username.isBlank()) {
+                if (ac.getUsername() != null && !ac.getUsername().equalsIgnoreCase(username)
+                        && accountInterface.existsByUsername(username)) {
+                    return ResponseEntity.badRequest().body("Username already exists");
+                }
+                ac.setUsername(username);
+            }
         }
 
         if (account.getName() != null)
             ac.setName(account.getName());
 
         if (account.getPassword() != null && !account.getPassword().isEmpty()) {
-            ac.setPassword(
-                    Base64.getEncoder().encodeToString(account.getPassword().getBytes())
-            );
+            ac.setPassword(passwordEncoder.encode(account.getPassword()));
         }
 
         if (account.getRole() != null && !account.getRole().isBlank()) {
@@ -154,32 +172,46 @@ public class AccountService {
         if (account == null || account.getUsername() == null || account.getUsername().isBlank() || account.getPassword() == null || account.getPassword().isBlank()) {
             return ResponseEntity.badRequest().body("Username and password are required");
         }
-        if (accountInterface.existsActiveByUsername(account.getUsername())) {
-            Account ac = accountInterface.findByUsername(account.getUsername());
+        String username = account.getUsername().trim().toLowerCase();
+        if (username.isBlank()) {
+            return ResponseEntity.badRequest().body("Username and password are required");
+        }
+        if (accountInterface.existsActiveByUsername(username)) {
+            Account ac = accountInterface.findByUsername(username);
             if (ac == null || ac.getPassword() == null) {
                 return ResponseEntity.notFound().build();
             }
-            String encoded = Base64.getEncoder().encodeToString(account.getPassword().getBytes());
-            if (ac.getPassword().equals(encoded)) {
+            boolean ok;
+            if (isBcryptHash(ac.getPassword())) {
+                ok = passwordEncoder.matches(account.getPassword(), ac.getPassword());
+            } else {
+                String encoded = Base64.getEncoder().encodeToString(account.getPassword().getBytes());
+                ok = ac.getPassword().equals(encoded);
+                if (ok) {
+                    ac.setPassword(passwordEncoder.encode(account.getPassword()));
+                    accountInterface.save(ac);
+                }
+            }
+
+            if (ok) {
 
                 accountDTO accountDTO=new accountDTO();
                 accountDTO.setId(ac.getId());
                 accountDTO.setName(ac.getName());
                 accountDTO.setRole(ac.getRole());
-                Optional<Player> pOpt = playerInterface.findByAccount_Id(ac.getId());
-                if (pOpt.isPresent() && pOpt.get().getId() != null) {
-                    accountDTO.setPlayerId(pOpt.get().getId());
-                }
+                playerInterface.findActiveByAccount_Id(ac.getId())
+                        .map(Player::getId)
+                        .ifPresent(accountDTO::setPlayerId);
                 accountDTO.setUsername(ac.getUsername());
 
                 return ResponseEntity.ok(accountDTO);
             } else {
-                System.out.println(account.getUsername() + account.getPassword());
+                log.warn("Login failed: invalid password for username={}", username);
                 return ResponseEntity.badRequest().body("Invalid password");
             }
 
         } else {
-            System.out.println(account.getUsername() + account.getPassword());
+            log.warn("Login failed: account not found for username={}", username);
             return ResponseEntity.notFound().build();
         }
     }
