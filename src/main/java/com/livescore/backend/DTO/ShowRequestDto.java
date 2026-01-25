@@ -5,7 +5,7 @@ import lombok.Data;
 
 @Data
 
-public class ShowRequestDto {
+public class ShowRequestDTO {
 
     private Long requestId;
     private String teamName;

@@ -4,6 +4,7 @@ import com.livescore.backend.DTO.*;
 import com.livescore.backend.Entity.*;
 import com.livescore.backend.Interface.*;
 import com.livescore.backend.Util.CricketRules;
+import com.livescore.backend.Util.Constants;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.ResponseEntity;
@@ -32,9 +33,44 @@ public class StatsService {
     private MatchInterface matchRepo;
     @Autowired
     private CricketInningsInterface cricketInningsRepo;
-
     @Autowired
     private TournamentInterface tournamentInterface;
+
+    /**
+     * Creates a new Stats entity with all fields initialized to zero/default values.
+     * Prevents NullPointerException when accessing numeric fields.
+     *
+     * @param tournament Tournament entity
+     * @param player     Player entity
+     * @param sport      Sport type
+     * @return Initialized Stats entity
+     */
+    private Stats createInitializedStats(Tournament tournament, Player player, Sports sport) {
+        Stats s = new Stats();
+        s.setTournament(tournament);
+        s.setPlayer(player);
+        s.setSportType(sport);
+        
+        // Initialize all numeric fields to prevent NullPointerException
+        s.setRuns(0);
+        s.setWickets(0);
+        s.setHighest(0);
+        s.setNotOut(0);
+        s.setStrikeRate(0);
+        s.setBallsFaced(0);
+        s.setBallsBowled(0);
+        s.setRunsConceded(0);
+        s.setFours(0);
+        s.setSixes(0);
+        s.setPoints(0);
+        s.setGoals(0);
+        s.setAssists(0);
+        s.setFouls(0);
+        s.setYellowCards(0);
+        s.setRedCards(0);
+        
+        return s;
+    }
 
 
     public PlayerFullStatsDTO getPlayerFullStats(Long playerId, Long tournamentId) {
@@ -275,6 +311,12 @@ public class StatsService {
 
 
 
+    /**
+     * Updates tournament statistics for a single cricket ball delivery.
+     * Creates new Stats entities if they don't exist for the players involved.
+     *
+     * @param ball CricketBall entity to process
+     */
     @Transactional
     public void updateTournamentStats(CricketBall ball) {
         if (ball == null) return;
@@ -282,109 +324,87 @@ public class StatsService {
         if (match == null || match.getTournament() == null) return;
         Tournament tournament = match.getTournament();
 
-        // --- Batsman updates ---
+        // Update batsman statistics
+        updateBatsmanStats(ball, tournament);
+
+        // Update bowler statistics
+        updateBowlerStats(ball, tournament);
+    }
+
+    /**
+     * Updates batsman statistics for a single ball.
+     */
+    private void updateBatsmanStats(CricketBall ball, Tournament tournament) {
         Player batsman = ball.getBatsman();
-        if (batsman != null) {
-            Stats batStats = statsInterface.findByTournamentIdAndPlayerId(tournament.getId(), batsman.getId())
-                    .orElseGet(() -> {
-                        Stats s = new Stats();
-                        s.setTournament(tournament);
-                        s.setPlayer(batsman);
-                        s.setSportType(match.getTournament().getSport()); // adjust getter
-                        // Initialize all numeric fields to 0 to prevent NullPointerException
-                        s.setRuns(0);
-                        s.setWickets(0);
-                        s.setHighest(0);
-                        s.setNotOut(0);
-                        s.setStrikeRate(0);
-                        s.setBallsFaced(0);
-                        s.setBallsBowled(0);
-                        s.setRunsConceded(0);
-                        s.setFours(0);
-                        s.setSixes(0);
-                        s.setPoints(0);
-                        s.setGoals(0);
-                        s.setAssists(0);
-                        s.setFouls(0);
-                        s.setYellowCards(0);
-                        s.setRedCards(0);
-                        return s;
-                    });
-            // runs off bat
-            int runs = (ball.getRuns() == null ? 0 : ball.getRuns());
-            batStats.setRuns(batStats.getRuns() + runs);
+        if (batsman == null) return;
 
-            // balls faced only increment on legal delivery where this player was batsman
-            if (CricketRules.isBallFaced(ball)) {
-                batStats.setBallsFaced(batStats.getBallsFaced() + 1);
-            }
+        Stats batStats = statsInterface.findByTournamentIdAndPlayerId(tournament.getId(), batsman.getId())
+                .orElseGet(() -> createInitializedStats(tournament, batsman, tournament.getSport()));
 
-            // boundaries
-            if (Boolean.TRUE.equals(ball.getIsFour())) batStats.setFours(batStats.getFours() + 1);
-            if (Boolean.TRUE.equals(ball.getIsSix())) batStats.setSixes(batStats.getSixes() + 1);
+        // Update runs
+        int runs = (ball.getRuns() == null ? 0 : ball.getRuns());
+        batStats.setRuns(batStats.getRuns() + runs);
 
-            if (ball.getInnings() != null && ball.getInnings().getId() != null) {
-                Integer inningsRuns = cricketBallInterface.sumBatsmanRunsByInnings(batsman.getId(), ball.getInnings().getId());
-                int inns = inningsRuns == null ? 0 : inningsRuns;
-                if (inns > batStats.getHighest()) batStats.setHighest(inns);
-            }
-
-            statsInterface.save(batStats);
+        // Update balls faced
+        if (CricketRules.isBallFaced(ball)) {
+            batStats.setBallsFaced(batStats.getBallsFaced() + 1);
         }
 
+        // Update boundaries
+        if (Boolean.TRUE.equals(ball.getIsFour())) {
+            batStats.setFours(batStats.getFours() + 1);
+        }
+        if (Boolean.TRUE.equals(ball.getIsSix())) {
+            batStats.setSixes(batStats.getSixes() + 1);
+        }
+
+        // Update highest score per innings
+        if (ball.getInnings() != null && ball.getInnings().getId() != null) {
+            Integer inningsRuns = cricketBallInterface.sumBatsmanRunsByInnings(
+                    batsman.getId(), ball.getInnings().getId());
+            int inns = inningsRuns == null ? 0 : inningsRuns;
+            if (inns > batStats.getHighest()) {
+                batStats.setHighest(inns);
+            }
+        }
+
+        statsInterface.save(batStats);
+    }
+
+    /**
+     * Updates bowler statistics for a single ball.
+     */
+    private void updateBowlerStats(CricketBall ball, Tournament tournament) {
         Player bowler = ball.getBowler();
-        if (bowler != null) {
-            Stats bowlStats = statsInterface.findByTournamentIdAndPlayerId(tournament.getId(), bowler.getId())
-                    .orElseGet(() -> {
-                        Stats s = new Stats();
-                        s.setTournament(tournament);
-                        s.setPlayer(bowler);
-                        s.setSportType(match.getTournament().getSport());
-                        // Initialize all numeric fields to 0 to prevent NullPointerException
-                        s.setRuns(0);
-                        s.setWickets(0);
-                        s.setHighest(0);
-                        s.setNotOut(0);
-                        s.setStrikeRate(0);
-                        s.setBallsFaced(0);
-                        s.setBallsBowled(0);
-                        s.setRunsConceded(0);
-                        s.setFours(0);
-                        s.setSixes(0);
-                        s.setPoints(0);
-                        s.setGoals(0);
-                        s.setAssists(0);
-                        s.setFouls(0);
-                        s.setYellowCards(0);
-                        s.setRedCards(0);
-                        return s;
-                    });
+        if (bowler == null) return;
 
-            bowlStats.setRunsConceded(bowlStats.getRunsConceded() + CricketRules.runsConcededThisBall(ball));
+        Stats bowlStats = statsInterface.findByTournamentIdAndPlayerId(tournament.getId(), bowler.getId())
+                .orElseGet(() -> createInitializedStats(tournament, bowler, tournament.getSport()));
 
-            // legal delivery -> counts as ball bowled
-            if (Boolean.TRUE.equals(ball.getLegalDelivery())) {
-                bowlStats.setBallsBowled(bowlStats.getBallsBowled() + 1);
-            }
+        // Update runs conceded
+        bowlStats.setRunsConceded(bowlStats.getRunsConceded() + CricketRules.runsConcededThisBall(ball));
 
-            // wicket credited to bowler? exclude runout as bowler wicket unless rules say otherwise
-            String dismissal = ball.getDismissalType();
-            if (dismissal != null) {
-                if (CricketRules.isBowlerCreditedWicket(dismissal)) {
-                    bowlStats.setWickets(bowlStats.getWickets() + 1);
-                }
-            }
-
-            statsInterface.save(bowlStats);
+        // Update balls bowled (legal deliveries only)
+        if (Boolean.TRUE.equals(ball.getLegalDelivery())) {
+            bowlStats.setBallsBowled(bowlStats.getBallsBowled() + 1);
         }
+
+        // Update wickets (only if credited to bowler)
+        String dismissal = ball.getDismissalType();
+        if (dismissal != null && CricketRules.isBowlerCreditedWicket(dismissal)) {
+            bowlStats.setWickets(bowlStats.getWickets() + 1);
+        }
+
+        statsInterface.save(bowlStats);
     }
 
 
 
     private double roundTo2(double val) {
-        if (Double.isInfinite(val) || Double.isNaN(val)) return val;
+        if (Double.isInfinite(val) || Double.isNaN(val)) {
+            return val;
+        }
         BigDecimal bd = BigDecimal.valueOf(val).setScale(2, RoundingMode.HALF_UP);
         return bd.doubleValue();
     }
-
 }

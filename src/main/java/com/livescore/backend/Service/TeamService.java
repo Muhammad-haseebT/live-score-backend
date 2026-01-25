@@ -8,6 +8,8 @@ import com.livescore.backend.Interface.PlayerInterface;
 import com.livescore.backend.Interface.PlayerRequestInterface;
 import com.livescore.backend.Interface.TeamInterface;
 import com.livescore.backend.Interface.TournamentInterface;
+import com.livescore.backend.Util.Constants;
+import com.livescore.backend.Util.ValidationUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
@@ -28,43 +30,31 @@ public class TeamService {
     @Autowired
     private TournamentInterface tournamentInterface;
     public ResponseEntity<?> createTeam(Team team,Long tournamentId,Long playerId) {
-        if (team == null) {
-            return ResponseEntity.badRequest().body(
-                    Map.of("error", "Team details are required")
-            );
-        }
-        if (tournamentId == null) {
-            return ResponseEntity.badRequest().body(
-                    Map.of("error", "Tournament id is required")
-            );
-        }
-        if (playerId == null) {
-            return ResponseEntity.badRequest().body(
-                    Map.of("error", "Player id is required")
-            );
-        }
-        if (team.getName() == null || team.getName().isBlank()) {
-            return ResponseEntity.badRequest().body(
-                    Map.of("error", "Team name is required")
-            );
-        }
+        // Validate input
+        ResponseEntity<?> validation = ValidationUtils.validateNotNull(team, "Team details");
+        if (validation != null) return validation;
+
+        validation = ValidationUtils.validateRequiredId(tournamentId, "Tournament id");
+        if (validation != null) return validation;
+
+        validation = ValidationUtils.validateRequiredId(playerId, "Player id");
+        if (validation != null) return validation;
+
+        validation = ValidationUtils.validateRequired(team.getName(), "Team name");
+        if (validation != null) return validation;
         Optional<Tournament> tournamentOpt = tournamentInterface.findById(tournamentId);
         if (tournamentOpt.isEmpty()) {
-            return ResponseEntity.badRequest().body(
-                    Map.of("error", "Tournament not found with ID: " + tournamentId)
-            );
+            return ValidationUtils.badRequest("Tournament not found with ID: " + tournamentId);
         }
         Optional<Player> playerOpt = playerInterface.findActiveById(playerId);
         if (playerOpt.isEmpty()) {
-            return ResponseEntity.badRequest().body(
-                    Map.of("error", "Player not found with ID: " + playerId)
-            );
+            return ValidationUtils.badRequest("Player not found with ID: " + playerId);
         }
         Player p1 = playerOpt.get();
         team.setTournament(tournamentOpt.get());
         team.setCreator(p1);
         Team savedTeam = teamInterface.save(team);
-       p1.setPlayerRole("CAPTAIN");
+       p1.setPlayerRole(Constants.ROLE_CAPTAIN);
        playerInterface.save(p1);
 
         return ResponseEntity.ok(Map.of(
@@ -77,11 +67,8 @@ public class TeamService {
 
     }
     public ResponseEntity<?> updateTeam(Long id, Team team) {
-        if (team == null) {
-            return ResponseEntity.badRequest().body(
-                    Map.of("error", "Team details are required")
-            );
-        }
+        ResponseEntity<?> validation = ValidationUtils.validateNotNull(team, "Team details");
+        if (validation != null) return validation;
         return teamInterface.findById(id).map(teamEntity -> {
             if (team.getName() != null && !team.getName().isBlank()) {
                 teamEntity.setName(team.getName());
@@ -120,11 +107,8 @@ public class TeamService {
 
     public ResponseEntity<?> getTeamByTournamentId(Long tid) {
         List<Map<String, Object>> response = new ArrayList<>();
-        if (tid == null) {
-            return ResponseEntity.badRequest().body(
-                    Map.of("error", "Tournament id is required")
-            );
-        }
+        ResponseEntity<?> validation = ValidationUtils.validateRequiredId(tid, "Tournament id");
+        if (validation != null) return validation;
         List<Team> teams = teamInterface.findByTournamentId(tid);
         if (teams == null || teams.isEmpty()) {
             return ResponseEntity.ok(response);
@@ -144,10 +128,9 @@ public class TeamService {
     }
 
     public ResponseEntity<?> getTeamByTournamentIdAndAccountId(Long tid, Long aid) {
+        // Validate input
         if (tid == null || aid == null) {
-            return ResponseEntity.badRequest().body(
-                    Map.of("error", "Tournament id and account id are required")
-            );
+            return ValidationUtils.badRequest("Tournament id and account id are required");
         }
 
         // Get player ID

@@ -1,12 +1,13 @@
 package com.livescore.backend.Service;
 
-import com.livescore.backend.DTO.PlayerDto;
-import com.livescore.backend.DTO.ShowRequestDto;
+import com.livescore.backend.DTO.PlayerDTO;
+import com.livescore.backend.DTO.ShowRequestDTO;
 import com.livescore.backend.Entity.Player;
 import com.livescore.backend.Entity.PlayerRequest;
 import com.livescore.backend.Interface.AccountInterface;
 import com.livescore.backend.Interface.PlayerInterface;
 import com.livescore.backend.Interface.PlayerRequestInterface;
+import com.livescore.backend.Util.ValidationUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
@@ -23,41 +24,32 @@ public class PlayerService {
     private AccountInterface accountInterface;
     @Autowired
     private PlayerRequestInterface playerRequestInterface;
-    public ResponseEntity<?> createPlayer(PlayerDto player) {
-        if (player == null) {
-            return ResponseEntity.badRequest().body(
-                    Map.of("error", "Player details are required")
-            );
-        }
-        if(player.getName() == null || player.getName().isBlank()){
-            return ResponseEntity.badRequest().body(
-                    Map.of("error", "Player name is required")
-            );
-        }
-        if(player.getPlayerRole() == null || player.getPlayerRole().isBlank()){
-            return ResponseEntity.badRequest().body(
-                    Map.of("error", "Player role is required")
-            );
-        }
-        if (player.getUsername() == null || player.getUsername().isBlank()) {
-            return ResponseEntity.badRequest().body(
-                    Map.of("error", "Username is required")
-            );
-        }
+    public ResponseEntity<?> createPlayer(PlayerDTO player) {
+        // Validate input
+        ResponseEntity<?> validation = ValidationUtils.validateNotNull(player, "Player details");
+        if (validation != null) return validation;
+
+        validation = ValidationUtils.validateRequired(player.getName(), "Player name");
+        if (validation != null) return validation;
+
+        validation = ValidationUtils.validateRequired(player.getPlayerRole(), "Player role");
+        if (validation != null) return validation;
+
+        validation = ValidationUtils.validateRequired(player.getUsername(), "Username");
+        if (validation != null) return validation;
         Player p1=new Player();
         p1.setName(player.getName());
         p1.setPlayerRole(player.getPlayerRole());
 
+        // Check if player already exists
         if(playerInterface.existsByAccount_Username(player.getUsername())){
-            return ResponseEntity.badRequest().body(
-                    Map.of("error", "Player with this username already exists")
-            );
+            return ValidationUtils.badRequest("Player with this username already exists");
         }
+
+        // Verify account exists
         var account = accountInterface.findByUsername(player.getUsername());
         if (account == null) {
-            return ResponseEntity.badRequest().body(
-                    Map.of("error", "Account not found")
-            );
+            return ValidationUtils.badRequest("Account not found");
         }
         p1.setAccount(account);
 
@@ -68,17 +60,13 @@ public class PlayerService {
                 "name", savedPlayer.getName()
         ));
     }
-    public ResponseEntity<?> updatePlayer(Long id, PlayerDto player) {
-        if (id == null) {
-            return ResponseEntity.badRequest().body(
-                    Map.of("error", "Player id is required")
-            );
-        }
-        if (player == null) {
-            return ResponseEntity.badRequest().body(
-                    Map.of("error", "Player details are required")
-            );
-        }
+    public ResponseEntity<?> updatePlayer(Long id, PlayerDTO player) {
+        // Validate input
+        ResponseEntity<?> validation = ValidationUtils.validateRequiredId(id, "Player id");
+        if (validation != null) return validation;
+
+        validation = ValidationUtils.validateNotNull(player, "Player details");
+        if (validation != null) return validation;
         return playerInterface.findActiveById(id).map(playerEntity -> {
             if (player.getName() != null && !player.getName().isBlank()) {
                 playerEntity.setName(player.getName());
@@ -102,11 +90,11 @@ public class PlayerService {
 
         // Use optimized repository method to avoid N+1 queries
         List<Player> players = playerInterface.findAllWithRequestsAndAccounts();
-        List<PlayerDto> result = new ArrayList<>();
+        List<PlayerDTO> result = new ArrayList<>();
 
         for (Player i : players) {
 
-            PlayerDto p2 = new PlayerDto();
+            PlayerDTO p2 = new PlayerDTO();
             p2.setId(i.getId());
             p2.setName(i.getName());
             p2.setPlayerRole(i.getPlayerRole());
@@ -119,7 +107,7 @@ public class PlayerService {
 
                     if (j == null) continue;
 
-                    ShowRequestDto pr1 = new ShowRequestDto();
+                    ShowRequestDTO pr1 = new ShowRequestDTO();
                     pr1.setRequestId(j.getId());
                     pr1.setStatus(j.getStatus());
 
@@ -149,11 +137,8 @@ public class PlayerService {
     }
 
     public ResponseEntity<?> restorePlayer(Long id) {
-        if (id == null) {
-            return ResponseEntity.badRequest().body(
-                    Map.of("error", "Player id is required")
-            );
-        }
+        ResponseEntity<?> validation = ValidationUtils.validateRequiredId(id, "Player id");
+        if (validation != null) return validation;
         Player p = playerInterface.findByIdIncludingDeleted(id).orElse(null);
         if (p == null) {
             return ResponseEntity.notFound().build();

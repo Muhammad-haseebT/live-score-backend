@@ -1,6 +1,6 @@
 //package com.livescore.backend.Service;
 //
-//import com.livescore.backend.DTO.MediaDTo;
+//import com.livescore.backend.DTO.MediaDTO;
 //import com.livescore.backend.Entity.Match;
 //import com.livescore.backend.Entity.Media;
 //import com.livescore.backend.Interface.MatchInterface;
@@ -29,7 +29,7 @@
 //    private TournamentInterface tournamentInterface;
 //    private String path = "E:\\FYP\\Backend\\media";
 //
-//    public ResponseEntity<?> createMedia(MultipartFile f, MediaDTo media) throws IOException {
+//    public ResponseEntity<?> createMedia(MultipartFile f, MediaDTO media) throws IOException {
 //
 //        if (f == null || f.isEmpty()) {
 //            return ResponseEntity.badRequest().body(
@@ -161,7 +161,7 @@
 
 package com.livescore.backend.Service;
 
-import com.livescore.backend.DTO.MediaDTo;
+import com.livescore.backend.DTO.MediaDTO;
 import com.livescore.backend.Entity.Match;
 import com.livescore.backend.Entity.Media;
 import com.livescore.backend.Interface.MatchInterface;
@@ -203,7 +203,7 @@ public class MediaService {
     @Value("${media.local.path:${MEDIA_LOCAL_PATH:/tmp/livescore-media}}")
     private String localPath;
 
-    public ResponseEntity<?> createMedia(MultipartFile f, MediaDTo media) throws IOException, ForbiddenException, TooManyRequestsException, InternalServerException, UnauthorizedException, BadRequestException, UnknownException {
+    public ResponseEntity<?> createMedia(MultipartFile f, MediaDTO media) throws IOException, ForbiddenException, TooManyRequestsException, InternalServerException, UnauthorizedException, BadRequestException, UnknownException {
 
         // Validation checks (aapke existing checks)
         if (f == null || f.isEmpty()) {

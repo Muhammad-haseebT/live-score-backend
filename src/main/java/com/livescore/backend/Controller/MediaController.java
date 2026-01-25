@@ -1,6 +1,6 @@
 package com.livescore.backend.Controller;
 
-import com.livescore.backend.DTO.MediaDTo;
+import com.livescore.backend.DTO.MediaDTO;
 import com.livescore.backend.Entity.Media;
 import com.livescore.backend.Service.MediaService;
 import io.imagekit.sdk.exceptions.*;
@@ -24,7 +24,7 @@ public class MediaController {
             @RequestPart("file") MultipartFile file,
             @RequestParam("matchId") Long matchId) throws IOException, ForbiddenException, TooManyRequestsException, InternalServerException, UnauthorizedException, BadRequestException, UnknownException {
 
-        MediaDTo media = new MediaDTo();
+        MediaDTO media = new MediaDTO();
         media.setMatchId(matchId);
 
         return mediaService.createMedia(file, media);

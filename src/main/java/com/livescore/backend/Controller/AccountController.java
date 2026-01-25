@@ -1,6 +1,6 @@
 package com.livescore.backend.Controller;
 
-import com.livescore.backend.DTO.accountDTO;
+import com.livescore.backend.DTO.AccountDTO;
 import com.livescore.backend.Entity.Account;
 import com.livescore.backend.Service.AccountService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,7 +21,7 @@ public class AccountController {
     }
 
     @PostMapping("/account/login")
-    public ResponseEntity<?> loginAccount(@RequestBody accountDTO account) {
+    public ResponseEntity<?> loginAccount(@RequestBody AccountDTO account) {
         return accountService.loginAccount(account);
     }
 
@@ -52,7 +52,7 @@ public class AccountController {
     }
 
     @GetMapping("/account/players/{tid}")
-    public ResponseEntity<List<accountDTO>> getAllPlayerAccounts(@PathVariable Long tid) {
+    public ResponseEntity<List<AccountDTO>> getAllPlayerAccounts(@PathVariable Long tid) {
         return accountService.getAllPlayerAccounts(tid);
     }
 

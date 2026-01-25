@@ -6,7 +6,7 @@ import lombok.Data;
 import java.io.File;
 
 @Data
-public class MediaDTo {
+public class MediaDTO {
     private Long id;
     private Long matchId;
 }

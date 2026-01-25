@@ -7,6 +7,7 @@ import com.livescore.backend.Entity.Match;
 import com.livescore.backend.Entity.Team;
 import com.livescore.backend.Entity.Player;
 import com.livescore.backend.Interface.*;
+import com.livescore.backend.Util.Constants;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -37,396 +38,78 @@ public class LiveSCoringService {
     @Autowired
     private MediaInterface mediaRepo;
 
+    /**
+     * Main scoring method that processes a single cricket ball delivery.
+     * Validates input, updates match state, and handles end-of-innings logic.
+     *
+     * @param s The ScoreDTO containing ball information
+     * @return Updated ScoreDTO with current match state
+     */
     @Transactional
     public ScoreDTO scoring(ScoreDTO s) {
+        // 1. Validate input
+        ScoreDTO validationError = validateScoringInput(s);
+        if (validationError != null) return validationError;
 
-        if (s == null) {
-            ScoreDTO err = new ScoreDTO();
-            err.setStatus("ERROR");
-            err.setComment("ScoreDTO required");
-            return err;
-        }
-        if (s.getMatchId() == null) {
-            s.setStatus("ERROR");
-            s.setComment("matchId required");
-            return s;
-        }
-        if (s.getInningsId() == null) {
-            s.setStatus("ERROR");
-            s.setComment("inningsId required");
-            return s;
-        }
-
+        // 2. Get and validate match
         Match m = matchRepo.findById(s.getMatchId()).orElse(null);
         if (m == null) {
-            s.setStatus("ERROR");
-            s.setComment("Match not found");
-            return s;
+            return createError(s, Constants.ERROR_MATCH_NOT_FOUND);
         }
         if (isMatchFinal(m)) {
-            s.setStatus("ERROR");
-            s.setComment("Match already ended");
-            return s;
+            return createError(s, Constants.ERROR_MATCH_ALREADY_ENDED);
         }
+
+        // 3. Get and validate innings
         CricketInnings currentInnings = cricketInningsRepo.findById(s.getInningsId()).orElse(null);
         if (currentInnings == null) {
-            s.setStatus("ERROR");
-            s.setComment("Innings not found");
-            return s;
+            return createError(s, Constants.ERROR_INNINGS_NOT_FOUND);
         }
-        if (currentInnings.getMatch() == null || currentInnings.getMatch().getId() == null
-                || !currentInnings.getMatch().getId().equals(m.getId())) {
-            s.setStatus("ERROR");
-            s.setComment("Innings does not belong to match");
-            return s;
+        if (!isInningsBelongsToMatch(currentInnings, m)) {
+            return createError(s, "Innings does not belong to match");
         }
 
-        int maxBallsPerInnings = (m.getOvers() == 0 ? 0 : m.getOvers() * 6);
-
+        // 4. Check if innings already completed
+        int maxBallsPerInnings = calculateMaxBalls(m);
         long legalBallsSoFar = cricketBallInterface.countLegalBallsByInningsId(currentInnings.getId());
 
-
-
-
-
         if (maxBallsPerInnings > 0 && legalBallsSoFar >= maxBallsPerInnings) {
-
-            s.setStatus("END");
-
+            s.setStatus(Constants.STATUS_END);
             return handleEndOfInningsAndMaybeCreateNext(s, m, currentInnings);
         }
 
+        // 5. Validate over and ball numbers
         if (s.getOvers() < 0 || s.getBalls() < 0) {
-            s.setStatus("ERROR");
-            s.setComment("Invalid over/ball number");
-            return s;
+            return createError(s, "Invalid over/ball number");
         }
 
-        int inningsNo = currentInnings.getNo();
-        List<CricketBall> existing = cricketBallInterface.findByOverNumberAndBallNumberAndMatch_Id(
-                s.getOvers(),
-                s.getBalls(),
-                m.getId(),
-                inningsNo
-        );
-        if (existing != null && !existing.isEmpty()) {
-            s.setStatus("ERROR");
-            s.setComment("Duplicate ball");
-            return s;
+        // 6. Check for duplicate ball
+        if (isDuplicateBall(s, m, currentInnings.getNo())) {
+            return createError(s, Constants.ERROR_DUPLICATE_BALL);
         }
 
-        CricketBall ball = new CricketBall();
-        ball.setInnings(currentInnings);
-        ball.setBatsman(s.getBatsmanId() == null ? null : playerRepo.findActiveById(s.getBatsmanId()).orElse(null));
-        ball.setBowler(s.getBowlerId() == null ? null : playerRepo.findActiveById(s.getBowlerId()).orElse(null));
-        ball.setFielder(s.getFielderId() == null ? null : playerRepo.findActiveById(s.getFielderId()).orElse(null));
-        ball.setMatch(m);
-        ball.setOverNumber(s.getOvers());
-        ball.setBallNumber(s.getBalls());
-        ball.setComment(s.getComment());
+        // 7. Create and process ball
+        CricketBall ball = createBallEntity(s, m, currentInnings);
+        ScoreDTO eventError = processBallEvent(s, ball);
+        if (eventError != null) return eventError;
 
-        if (s.getEventType() == null || s.getEventType().isBlank()) {
-            s.setStatus("ERROR");
-            s.setComment("eventType required");
-            return s;
-        }
-
-        // basic sanity: wicket without a batsman/out-player is meaningless
-        if ("wicket".equalsIgnoreCase(s.getEventType()) && ball.getBatsman() == null && s.getOutPlayerId() == null) {
-            s.setStatus("ERROR");
-            s.setComment("batsmanId or outPlayerId required for wicket");
-            return s;
-        }
-
-
-        ball.setRuns(0);
-        ball.setExtra(0);
-        ball.setExtraType(null);
-        ball.setLegalDelivery(Boolean.FALSE);
-        ball.setIsFour(Boolean.FALSE);
-        ball.setIsSix(Boolean.FALSE);
-
-        String normalizedEventType = s.getEventType().trim().toLowerCase()
-                .replace("_", "")
-                .replace("-", "");
-
-        switch (normalizedEventType) {
-            case "run": {
-                int r = parseIntSafe(s.getEvent());
-                ball.setRuns(r);
-                ball.setExtra(0);
-                ball.setExtraType(null);
-                ball.setLegalDelivery(true);
-                break;
-            }
-            case "boundary":
-            case "boundry": {
-                int b = parseIntSafe(s.getEvent()); // expect 4 or 6
-                ball.setRuns(b);
-                ball.setExtra(0);
-                ball.setExtraType(null);
-                ball.setLegalDelivery(true);
-                if (b == 4) ball.setIsFour(true);
-                if (b == 6) ball.setIsSix(true);
-                break;
-            }
-            case "wide": {
-                int w = parseIntSafe(s.getEvent());
-                int extras = s.getExtrasThisBall() > 0 ? s.getExtrasThisBall() : (w + 1);
-                if (extras <= 0) extras = 1;
-                ball.setRuns(0);
-                ball.setExtra(extras);
-                ball.setExtraType("WIDE");
-                ball.setLegalDelivery(false);
-                break;
-            }
-            case "noball":
-            case "nb": {
-                int nb = parseIntSafe(s.getEvent());
-                int batRuns = s.getRunsOnThisBall() > 0 ? s.getRunsOnThisBall() : nb;
-                int extras = s.getExtrasThisBall() > 0 ? s.getExtrasThisBall() : 1;
-                if (extras <= 0) extras = 1;
-                ball.setRuns(batRuns);
-                ball.setExtra(extras);
-                ball.setExtraType("NO_BALL");
-                ball.setLegalDelivery(false);
-                break;
-            }
-            case "bye": {
-                int by = parseIntSafe(s.getEvent());
-                ball.setRuns(0);
-                ball.setExtra(s.getExtrasThisBall() > 0 ? s.getExtrasThisBall() : by);
-                ball.setExtraType("BYE");
-                ball.setLegalDelivery(true);
-                break;
-            }
-            case "legbye": {
-                int lb = parseIntSafe(s.getEvent());
-                ball.setRuns(0);
-                ball.setExtra(s.getExtrasThisBall() > 0 ? s.getExtrasThisBall() : lb);
-                ball.setExtraType("LEGBYE");
-                ball.setLegalDelivery(true);
-                break;
-            }
-            case "wicket": {
-                String dismissal = (s.getDismissalType() != null && !s.getDismissalType().isBlank())
-                        ? s.getDismissalType()
-                        : s.getEvent();
-                ball.setDismissalType(dismissal);
-                Player outPlayer = null;
-                if (s.getOutPlayerId() != null) outPlayer = playerRepo.findActiveById(s.getOutPlayerId()).orElse(null);
-                if (outPlayer == null) {
-                    outPlayer = ball.getBatsman();
-                }
-                ball.setOutPlayer(outPlayer);
-
-                ball.setRuns(s.getRunsOnThisBall());
-                ball.setExtra(s.getExtrasThisBall());
-                if (s.getExtraType() != null && !s.getExtraType().isBlank()) {
-                    ball.setExtraType(s.getExtraType());
-                }
-
-                ball.setLegalDelivery(s.getIsLegal() != null ? s.getIsLegal() : Boolean.TRUE);
-
-                if (dismissal != null && (dismissal.equalsIgnoreCase("caught") || dismissal.equalsIgnoreCase("runout") || dismissal.equalsIgnoreCase("stumped"))) {
-                    ball.setFielder(s.getFielderId() == null ? null : playerRepo.findActiveById(s.getFielderId()).orElse(null));
-                }
-                break;
-            }
-            default:
-                s.setStatus("ERROR");
-                s.setComment("Invalid event type: " + s.getEventType());
-                return s;
-        }
-        if(s.getMediaId()!=null){
-            ball.setMedia(mediaRepo.findById(s.getMediaId()).orElse(null));
-        }
+        // 8. Save ball and update stats
         cricketBallInterface.save(ball);
         statsService.updateTournamentStats(ball);
+        evictCacheIfNeeded(m);
 
-        if (m.getTournament() != null && m.getTournament().getId() != null)
-        {
-            Long tournamentId = m.getTournament().getId();
-            cacheEvictionService.evictTournamentAwards(tournamentId);
-        }
+        // 9. Calculate current innings state
+        updateInningsState(s, currentInnings);
 
-        int inningsRuns = cricketBallInterface.sumRunsAndExtrasByInningsId(currentInnings.getId());
-        int legalBallsNow = (int) cricketBallInterface.countLegalBallsByInningsId(currentInnings.getId());
-        int wicketsNow = (int) cricketBallInterface.countWicketsByInningsId(currentInnings.getId());
-
-        // Update DTO live values
-        s.setRuns(inningsRuns);
-        s.setBalls(legalBallsNow % 6); // current ball in over
-        s.setOvers(legalBallsNow / 6);
-        s.setWickets(wicketsNow);
-
-        // compute CRR (current run rate) for this innings: runs per over (runs * 6 / legalBalls)
-        double crr = legalBallsNow == 0 ? 0.0 : ((double) inningsRuns * 6.0) / (double) legalBallsNow;
-        s.setCrr(round2(crr));
-
-
+        // 10. Handle second innings logic
         if (!s.isFirstInnings()) {
-
-            CricketInnings firstInnings = cricketInningsRepo.findByMatchIdAndNo(m.getId(), 1);
-            int firstRuns = 0;
-            if (firstInnings != null) {
-                firstRuns = cricketBallInterface.sumRunsAndExtrasByInningsId(firstInnings.getId());
-            }
-            int target = firstRuns + 1;
-            int remainingRuns = target - inningsRuns;
-
-            int remainingBalls = Math.max(0, maxBallsPerInnings - legalBallsNow);
-
-            if (remainingRuns < 0) {
-
-                Team chasingTeam = currentInnings.getTeam();
-                if (!isMatchFinal(m)) {
-                    m.setWinnerTeam(chasingTeam);
-                    m.setStatus("COMPLETED");
-                    matchRepo.save(m);
-                    awardService.computeMatchAwards(m.getId());
-                    matchService.endMatch(m.getId());
-                }
-
-                s.setStatus("END_MATCH");
-                s.setTarget(0);
-                s.setRrr(0.0);
-                return s;
-            } else {
-                // not yet won
-                if (remainingBalls == 0) {
-                    // overs finished and target not reached -> match over, determine winner by runs
-                    Team otherTeam = m.getTeam1().getId().equals(currentInnings.getTeam().getId()) ? m.getTeam2() : m.getTeam1();
-                    // winner is team with higher runs
-                    if (inningsRuns > firstRuns) {
-                        m.setWinnerTeam(currentInnings.getTeam());
-                    } else if (inningsRuns < firstRuns) {
-                        m.setWinnerTeam(otherTeam);
-                    } else {
-                        // tie -> handle as per rules; mark draw or tie
-                        m.setWinnerTeam(null);
-                        m.setStatus("TIED");
-                    }
-                    if (!isMatchFinal(m)) {
-                        if (!"TIED".equalsIgnoreCase(m.getStatus())) {
-                            m.setStatus("COMPLETED");
-                        }
-                        matchRepo.save(m);
-                        awardService.computeMatchAwards(m.getId());
-                        matchService.endMatch(m.getId());
-                    }
-
-                    s.setStatus("END_MATCH");
-                    s.setTarget(remainingRuns);
-                    s.setRrr(Double.POSITIVE_INFINITY);
-                    return s;
-                } else {
-                    // compute required run rate
-                    double rrr = ((double) remainingRuns * 6.0) / (double) remainingBalls;
-                    s.setRrr(round2(rrr));
-                    s.setTarget(remainingRuns);
-                }
-            }
+            return handleSecondInnings(s, m, currentInnings, maxBallsPerInnings);
         } else {
-            s.setTarget(inningsRuns);
+            s.setTarget(s.getRuns());
         }
 
-        int teamPlayers = 11;
-        try {
-            Team t = currentInnings.getTeam();
-            if (t != null) {
-                Optional<Team> teamOpt = teamRepo.findById(t.getId());
-                if (teamOpt.isPresent()) {
-                    Team teamEntity = teamOpt.get();
-                    if (teamEntity.getPlayers() != null) {
-                        teamPlayers = teamEntity.getPlayers().size();
-                    }
-                }
-            }
-        } catch (Exception ignored) {
-        }
-
-        int maxWickets = Math.max(0, teamPlayers - 1);
-
-        if (wicketsNow >= maxWickets) {
-            // innings ended by all-out
-            if (s.isFirstInnings()) {
-
-                return handleEndOfInningsAndMaybeCreateNext(s, m, currentInnings);
-            } else {
-
-                CricketInnings firstInnings = cricketInningsRepo.findByMatchIdAndNo(m.getId(), 1);
-                int firstRuns = 0;
-                if (firstInnings != null) {
-                    List<CricketBall> firstBalls = cricketBallInterface.findByMatch_IdAndInnings_Id(m.getId(), firstInnings.getId());
-                    firstRuns = firstBalls.stream().mapToInt(b -> (b.getRuns() == null ? 0 : b.getRuns()) + (b.getExtra() == null ? 0 : b.getExtra())).sum();
-                }
-
-                if (inningsRuns > firstRuns) {
-                    m.setWinnerTeam(currentInnings.getTeam());
-                } else if (inningsRuns < firstRuns) {
-                    Team other = m.getTeam1().getId().equals(currentInnings.getTeam().getId()) ? m.getTeam2() : m.getTeam1();
-                    m.setWinnerTeam(other);
-                } else {
-                    // tie
-                    m.setWinnerTeam(null);
-                    m.setStatus("TIED");
-                }
-
-                if (!isMatchFinal(m)) {
-                    if (!"TIED".equalsIgnoreCase(m.getStatus())) {
-                        m.setStatus("COMPLETED");
-                    }
-                    matchRepo.save(m);
-                    awardService.computeMatchAwards(m.getId());
-                    matchService.endMatch(m.getId());
-                }
-
-                s.setStatus("END_MATCH");
-                s.setTarget(Math.max(0, (firstRuns + 1) - inningsRuns));
-                s.setRrr(Double.POSITIVE_INFINITY);
-                return s;
-            }
-        }
-
-        // If overs limit reached AFTER saving this ball
-        if (legalBallsNow >= maxBallsPerInnings) {
-            // if first innings -> create second innings
-            if (s.isFirstInnings()) {
-                return handleEndOfInningsAndMaybeCreateNext(s, m, currentInnings);
-            } else {
-                // second innings -> match finished on overs
-                CricketInnings firstInnings = cricketInningsRepo.findByMatchIdAndNo(m.getId(), 1);
-                int firstRuns = 0;
-                if (firstInnings != null) {
-                    List<CricketBall> firstBalls = cricketBallInterface.findByMatch_IdAndInnings_Id(m.getId(), firstInnings.getId());
-                    firstRuns = firstBalls.stream().mapToInt(b -> (b.getRuns() == null ? 0 : b.getRuns()) + (b.getExtra() == null ? 0 : b.getExtra())).sum();
-                }
-                if (inningsRuns > firstRuns) {
-                    m.setWinnerTeam(currentInnings.getTeam());
-                } else if (inningsRuns < firstRuns) {
-                    Team other = m.getTeam1().getId().equals(currentInnings.getTeam().getId()) ? m.getTeam2() : m.getTeam1();
-                    m.setWinnerTeam(other);
-                } else {
-                    m.setWinnerTeam(null);
-                    m.setStatus("TIED");
-                }
-                if (!isMatchFinal(m)) {
-                    if (!"TIED".equalsIgnoreCase(m.getStatus())) {
-                        m.setStatus("COMPLETED");
-                    }
-                    matchRepo.save(m);
-                    awardService.computeMatchAwards(m.getId());
-                    matchService.endMatch(m.getId());
-                }
-
-                s.setStatus("END_MATCH");
-                return s;
-            }
-        }
-
-
-        return s;
+        // 11. Check for all-out or overs completed
+        return checkInningsEnd(s, m, currentInnings, maxBallsPerInnings);
     }
 
 
@@ -434,36 +117,38 @@ public class LiveSCoringService {
 
 
 
+    /**
+     * Handles the end of an innings and creates the next innings if it's the first innings.
+     * For second innings, determines match winner and marks match as complete.
+     *
+     * @param s              ScoreDTO
+     * @param m              Match entity
+     * @param currentInnings Current innings entity
+     * @return Updated ScoreDTO
+     */
     private ScoreDTO handleEndOfInningsAndMaybeCreateNext(ScoreDTO s, Match m, CricketInnings currentInnings) {
 
-        CricketInnings firstInnings = cricketInningsRepo.findByMatchIdAndNo(m.getId(), 1);
-        int firstRuns = 0;
-        if (firstInnings != null) {
-            List<CricketBall> firstBalls = cricketBallInterface.findByMatch_IdAndInnings_Id(m.getId(), firstInnings.getId());
-            firstRuns = firstBalls.stream().mapToInt(b -> (b.getRuns() == null ? 0 : b.getRuns()) + (b.getExtra() == null ? 0 : b.getExtra())).sum();
-        }
-
+        CricketInnings firstInnings = cricketInningsRepo.findByMatchIdAndNo(m.getId(), Constants.FIRST_INNINGS);
+        int firstRuns = getInningsRuns(firstInnings);
 
         if (s.isFirstInnings()) {
-            CricketInnings existingSecond = cricketInningsRepo.findByMatchIdAndNo(m.getId(), 2);
+            CricketInnings existingSecond = cricketInningsRepo.findByMatchIdAndNo(m.getId(), Constants.SECOND_INNINGS);
             if (existingSecond != null && existingSecond.getId() != null) {
                 // idempotency: second innings already created
                 s.setInningsId(existingSecond.getId());
-                s.setStatus("END_FIRST");
+                s.setStatus(Constants.STATUS_END_FIRST);
                 s.setFirstInnings(false);
                 s.setTarget(firstRuns + 1);
                 return s;
             }
             CricketInnings innings = new CricketInnings();
             innings.setMatch(m);
-            innings.setNo(2);
+            innings.setNo(Constants.SECOND_INNINGS);
             // set chasing team: the other team
             Team t1 = m.getTeam1();
             Team t2 = m.getTeam2();
             if (t1 == null || t2 == null) {
-                s.setStatus("ERROR");
-                s.setComment("Match teams missing");
-                return s;
+                return createError(s, "Match teams missing");
             }
 
             Team chasing = (currentInnings.getTeam() != null && currentInnings.getTeam().getId().equals(t1.getId())) ? t2 : t1;
@@ -472,7 +157,7 @@ public class LiveSCoringService {
 
             // set DTO to represent second innings start
             s.setInningsId(innings.getId());
-            s.setStatus("END_FIRST");
+            s.setStatus(Constants.STATUS_END_FIRST);
 
             s.setRuns(0);
             s.setOvers(0);
@@ -493,37 +178,506 @@ public class LiveSCoringService {
             return s;
         } else {
             if (isMatchFinal(m)) {
-                s.setStatus("END_MATCH");
+                s.setStatus(Constants.STATUS_END_MATCH);
                 return s;
             }
 
-            CricketInnings second = cricketInningsRepo.findByMatchIdAndNo(m.getId(), 2);
-            int secondRuns = 0;
-            if (second != null) {
-                List<CricketBall> secondBalls = cricketBallInterface.findByMatch_IdAndInnings_Id(m.getId(), second.getId());
-                secondRuns = secondBalls.stream().mapToInt(b -> (b.getRuns() == null ? 0 : b.getRuns()) + (b.getExtra() == null ? 0 : b.getExtra())).sum();
-            }
+            CricketInnings second = cricketInningsRepo.findByMatchIdAndNo(m.getId(), Constants.SECOND_INNINGS);
+            int secondRuns = getInningsRuns(second);
 
-            if (secondRuns > firstRuns) m.setWinnerTeam(second.getTeam());
-            else if (secondRuns < firstRuns) m.setWinnerTeam(firstInnings.getTeam());
-            else {
-                m.setWinnerTeam(null);
-                m.setStatus("TIED");
-            }
+            determineMatchWinner(m, currentInnings, secondRuns, firstRuns);
 
             if (!isMatchFinal(m)) {
-                if (!"TIED".equalsIgnoreCase(m.getStatus())) {
-                    m.setStatus("COMPLETED");
+                if (!Constants.STATUS_TIED.equalsIgnoreCase(m.getStatus())) {
+                    m.setStatus(Constants.STATUS_COMPLETED);
                 }
                 matchRepo.save(m);
                 awardService.computeMatchAwards(m.getId());
                 matchService.endMatch(m.getId());
             }
 
-            s.setStatus("END_MATCH");
+            s.setStatus(Constants.STATUS_END_MATCH);
             s.setTarget(Math.max(0, (firstRuns + 1) - secondRuns));
             return s;
         }
+    }
+
+    /**
+     * Validates the scoring input data.
+     *
+     * @param s ScoreDTO to validate
+     * @return Error ScoreDTO if validation fails, null otherwise
+     */
+    private ScoreDTO validateScoringInput(ScoreDTO s) {
+        if (s == null) {
+            ScoreDTO err = new ScoreDTO();
+            err.setStatus(Constants.STATUS_ERROR);
+            err.setComment("ScoreDTO required");
+            return err;
+        }
+        if (s.getMatchId() == null) {
+            return createError(s, "matchId required");
+        }
+        if (s.getInningsId() == null) {
+            return createError(s, "inningsId required");
+        }
+        return null;
+    }
+
+    /**
+     * Creates an error ScoreDTO with the given message.
+     */
+    private ScoreDTO createError(ScoreDTO s, String message) {
+        s.setStatus(Constants.STATUS_ERROR);
+        s.setComment(message);
+        return s;
+    }
+
+    /**
+     * Checks if an innings belongs to a specific match.
+     */
+    private boolean isInningsBelongsToMatch(CricketInnings innings, Match match) {
+        return innings.getMatch() != null 
+            && innings.getMatch().getId() != null
+            && innings.getMatch().getId().equals(match.getId());
+    }
+
+    /**
+     * Calculates the maximum number of balls allowed in the innings.
+     */
+    private int calculateMaxBalls(Match match) {
+        return match.getOvers() == 0 ? 0 : match.getOvers() * Constants.BALLS_PER_OVER;
+    }
+
+    /**
+     * Checks if a ball with the same over and ball number already exists.
+     */
+    private boolean isDuplicateBall(ScoreDTO s, Match m, int inningsNo) {
+        List<CricketBall> existing = cricketBallInterface.findByOverNumberAndBallNumberAndMatch_Id(
+                s.getOvers(), s.getBalls(), m.getId(), inningsNo);
+        return existing != null && !existing.isEmpty();
+    }
+
+    /**
+     * Creates a CricketBall entity from ScoreDTO.
+     */
+    private CricketBall createBallEntity(ScoreDTO s, Match m, CricketInnings innings) {
+        CricketBall ball = new CricketBall();
+        ball.setInnings(innings);
+        ball.setBatsman(s.getBatsmanId() == null ? null : playerRepo.findActiveById(s.getBatsmanId()).orElse(null));
+        ball.setBowler(s.getBowlerId() == null ? null : playerRepo.findActiveById(s.getBowlerId()).orElse(null));
+        ball.setFielder(s.getFielderId() == null ? null : playerRepo.findActiveById(s.getFielderId()).orElse(null));
+        ball.setMatch(m);
+        ball.setOverNumber(s.getOvers());
+        ball.setBallNumber(s.getBalls());
+        ball.setComment(s.getComment());
+        
+        // Initialize defaults
+        ball.setRuns(0);
+        ball.setExtra(0);
+        ball.setExtraType(null);
+        ball.setLegalDelivery(Boolean.FALSE);
+        ball.setIsFour(Boolean.FALSE);
+        ball.setIsSix(Boolean.FALSE);
+        
+        if(s.getMediaId() != null) {
+            ball.setMedia(mediaRepo.findById(s.getMediaId()).orElse(null));
+        }
+        
+        return ball;
+    }
+
+    /**
+     * Processes the ball event and updates the ball entity accordingly.
+     *
+     * @param s    ScoreDTO containing event information
+     * @param ball CricketBall entity to update
+     * @return Error ScoreDTO if processing fails, null otherwise
+     */
+    private ScoreDTO processBallEvent(ScoreDTO s, CricketBall ball) {
+        if (s.getEventType() == null || s.getEventType().isBlank()) {
+            return createError(s, "eventType required");
+        }
+
+        // Validate wicket event
+        if (Constants.EVENT_WICKET.equalsIgnoreCase(s.getEventType()) 
+            && ball.getBatsman() == null 
+            && s.getOutPlayerId() == null) {
+            return createError(s, "batsmanId or outPlayerId required for wicket");
+        }
+
+        String normalizedEventType = normalizeEventType(s.getEventType());
+
+        switch (normalizedEventType) {
+            case Constants.EVENT_RUN:
+                processRunEvent(s, ball);
+                break;
+            case Constants.EVENT_BOUNDARY:
+            case Constants.EVENT_BOUNDRY:
+                processBoundaryEvent(s, ball);
+                break;
+            case Constants.EVENT_WIDE:
+                processWideEvent(s, ball);
+                break;
+            case Constants.EVENT_NO_BALL:
+            case Constants.EVENT_NB:
+                processNoBallEvent(s, ball);
+                break;
+            case Constants.EVENT_BYE:
+                processByeEvent(s, ball);
+                break;
+            case Constants.EVENT_LEG_BYE:
+                processLegByeEvent(s, ball);
+                break;
+            case Constants.EVENT_WICKET:
+                processWicketEvent(s, ball);
+                break;
+            default:
+                return createError(s, Constants.ERROR_INVALID_EVENT_TYPE + ": " + s.getEventType());
+        }
+        
+        return null;
+    }
+
+    /**
+     * Normalizes event type string for consistent processing.
+     */
+    private String normalizeEventType(String eventType) {
+        return eventType.trim().toLowerCase()
+                .replace("_", "")
+                .replace("-", "");
+    }
+
+    private void processRunEvent(ScoreDTO s, CricketBall ball) {
+        int runs = parseIntSafe(s.getEvent());
+        ball.setRuns(runs);
+        ball.setExtra(0);
+        ball.setExtraType(null);
+        ball.setLegalDelivery(true);
+    }
+
+    private void processBoundaryEvent(ScoreDTO s, CricketBall ball) {
+        int boundary = parseIntSafe(s.getEvent());
+        ball.setRuns(boundary);
+        ball.setExtra(0);
+        ball.setExtraType(null);
+        ball.setLegalDelivery(true);
+        if (boundary == Constants.BOUNDARY_FOUR) ball.setIsFour(true);
+        if (boundary == Constants.BOUNDARY_SIX) ball.setIsSix(true);
+    }
+
+    private void processWideEvent(ScoreDTO s, CricketBall ball) {
+        int wideRuns = parseIntSafe(s.getEvent());
+        int extras = s.getExtrasThisBall() > 0 ? s.getExtrasThisBall() : (wideRuns + 1);
+        if (extras <= 0) extras = 1;
+        ball.setRuns(0);
+        ball.setExtra(extras);
+        ball.setExtraType(Constants.EXTRA_WIDE);
+        ball.setLegalDelivery(false);
+    }
+
+    private void processNoBallEvent(ScoreDTO s, CricketBall ball) {
+        int noBallValue = parseIntSafe(s.getEvent());
+        int batRuns = s.getRunsOnThisBall() > 0 ? s.getRunsOnThisBall() : noBallValue;
+        int extras = s.getExtrasThisBall() > 0 ? s.getExtrasThisBall() : 1;
+        if (extras <= 0) extras = 1;
+        ball.setRuns(batRuns);
+        ball.setExtra(extras);
+        ball.setExtraType(Constants.EXTRA_NO_BALL);
+        ball.setLegalDelivery(false);
+    }
+
+    private void processByeEvent(ScoreDTO s, CricketBall ball) {
+        int byeRuns = parseIntSafe(s.getEvent());
+        ball.setRuns(0);
+        ball.setExtra(s.getExtrasThisBall() > 0 ? s.getExtrasThisBall() : byeRuns);
+        ball.setExtraType(Constants.EXTRA_BYE);
+        ball.setLegalDelivery(true);
+    }
+
+    private void processLegByeEvent(ScoreDTO s, CricketBall ball) {
+        int legByeRuns = parseIntSafe(s.getEvent());
+        ball.setRuns(0);
+        ball.setExtra(s.getExtrasThisBall() > 0 ? s.getExtrasThisBall() : legByeRuns);
+        ball.setExtraType(Constants.EXTRA_LEG_BYE);
+        ball.setLegalDelivery(true);
+    }
+
+    private void processWicketEvent(ScoreDTO s, CricketBall ball) {
+        String dismissal = (s.getDismissalType() != null && !s.getDismissalType().isBlank())
+                ? s.getDismissalType()
+                : s.getEvent();
+        ball.setDismissalType(dismissal);
+
+        Player outPlayer = null;
+        if (s.getOutPlayerId() != null) {
+            outPlayer = playerRepo.findActiveById(s.getOutPlayerId()).orElse(null);
+        }
+        if (outPlayer == null) {
+            outPlayer = ball.getBatsman();
+        }
+        ball.setOutPlayer(outPlayer);
+
+        ball.setRuns(s.getRunsOnThisBall());
+        ball.setExtra(s.getExtrasThisBall());
+        if (s.getExtraType() != null && !s.getExtraType().isBlank()) {
+            ball.setExtraType(s.getExtraType());
+        }
+
+        ball.setLegalDelivery(s.getIsLegal() != null ? s.getIsLegal() : Boolean.TRUE);
+
+        // Set fielder for relevant dismissals
+        if (dismissal != null && (dismissal.equalsIgnoreCase(Constants.DISMISSAL_CAUGHT) 
+            || dismissal.equalsIgnoreCase(Constants.DISMISSAL_RUNOUT) 
+            || dismissal.equalsIgnoreCase(Constants.DISMISSAL_STUMPED))) {
+            if (s.getFielderId() != null) {
+                ball.setFielder(playerRepo.findActiveById(s.getFielderId()).orElse(null));
+            }
+        }
+    }
+
+    /**
+     * Evicts tournament awards cache if match belongs to a tournament.
+     */
+    private void evictCacheIfNeeded(Match match) {
+        if (match.getTournament() != null && match.getTournament().getId() != null) {
+            Long tournamentId = match.getTournament().getId();
+            cacheEvictionService.evictTournamentAwards(tournamentId);
+        }
+    }
+
+    /**
+     * Updates the ScoreDTO with current innings state (runs, overs, wickets, CRR).
+     */
+    private void updateInningsState(ScoreDTO s, CricketInnings innings) {
+        int inningsRuns = cricketBallInterface.sumRunsAndExtrasByInningsId(innings.getId());
+        int legalBallsNow = (int) cricketBallInterface.countLegalBallsByInningsId(innings.getId());
+        int wicketsNow = (int) cricketBallInterface.countWicketsByInningsId(innings.getId());
+
+        s.setRuns(inningsRuns);
+        s.setBalls(legalBallsNow % Constants.BALLS_PER_OVER);
+        s.setOvers(legalBallsNow / Constants.BALLS_PER_OVER);
+        s.setWickets(wicketsNow);
+
+        // Calculate current run rate
+        double crr = legalBallsNow == 0 ? 0.0 : ((double) inningsRuns * Constants.BALLS_PER_OVER) / (double) legalBallsNow;
+        s.setCrr(round2(crr));
+    }
+
+    /**
+     * Handles second innings logic including target, required run rate, and match completion.
+     */
+    private ScoreDTO handleSecondInnings(ScoreDTO s, Match m, CricketInnings currentInnings, int maxBallsPerInnings) {
+        CricketInnings firstInnings = cricketInningsRepo.findByMatchIdAndNo(m.getId(), Constants.FIRST_INNINGS);
+        int firstRuns = getInningsRuns(firstInnings);
+        int target = firstRuns + 1;
+        int currentRuns = s.getRuns();
+        int remainingRuns = target - currentRuns;
+        int legalBallsNow = s.getOvers() * Constants.BALLS_PER_OVER + s.getBalls();
+        int remainingBalls = Math.max(0, maxBallsPerInnings - legalBallsNow);
+
+        // Target reached - chasing team wins
+        if (remainingRuns < 0) {
+            Team chasingTeam = currentInnings.getTeam();
+            if (!isMatchFinal(m)) {
+                m.setWinnerTeam(chasingTeam);
+                m.setStatus(Constants.STATUS_COMPLETED);
+                matchRepo.save(m);
+                awardService.computeMatchAwards(m.getId());
+                matchService.endMatch(m.getId());
+            }
+            s.setStatus(Constants.STATUS_END_MATCH);
+            s.setTarget(0);
+            s.setRrr(0.0);
+            return s;
+        }
+
+        // Overs finished - determine winner
+        if (remainingBalls == 0) {
+            return handleMatchEndByOvers(s, m, currentInnings, currentRuns, firstRuns, remainingRuns);
+        }
+
+        // Calculate required run rate
+        double rrr = ((double) remainingRuns * Constants.BALLS_PER_OVER) / (double) remainingBalls;
+        s.setRrr(round2(rrr));
+        s.setTarget(remainingRuns);
+
+        return s;
+    }
+
+    /**
+     * Handles match completion when overs are finished in second innings.
+     */
+    private ScoreDTO handleMatchEndByOvers(ScoreDTO s, Match m, CricketInnings currentInnings, 
+                                           int currentRuns, int firstRuns, int remainingRuns) {
+        Team otherTeam = getOpposingTeam(m, currentInnings.getTeam());
+        
+        if (currentRuns > firstRuns) {
+            m.setWinnerTeam(currentInnings.getTeam());
+        } else if (currentRuns < firstRuns) {
+            m.setWinnerTeam(otherTeam);
+        } else {
+            m.setWinnerTeam(null);
+            m.setStatus(Constants.STATUS_TIED);
+        }
+
+        if (!isMatchFinal(m)) {
+            if (!Constants.STATUS_TIED.equalsIgnoreCase(m.getStatus())) {
+                m.setStatus(Constants.STATUS_COMPLETED);
+            }
+            matchRepo.save(m);
+            awardService.computeMatchAwards(m.getId());
+            matchService.endMatch(m.getId());
+        }
+
+        s.setStatus(Constants.STATUS_END_MATCH);
+        s.setTarget(remainingRuns);
+        s.setRrr(Double.POSITIVE_INFINITY);
+        return s;
+    }
+
+    /**
+     * Checks if the innings has ended (all out or overs completed).
+     */
+    private ScoreDTO checkInningsEnd(ScoreDTO s, Match m, CricketInnings currentInnings, int maxBallsPerInnings) {
+        int teamPlayers = getTeamPlayerCount(currentInnings.getTeam());
+        int maxWickets = Math.max(0, teamPlayers - 1);
+        int legalBallsNow = s.getOvers() * Constants.BALLS_PER_OVER + s.getBalls();
+
+        // Check for all-out
+        if (s.getWickets() >= maxWickets) {
+            return handleAllOut(s, m, currentInnings);
+        }
+
+        // Check for overs completed
+        if (legalBallsNow >= maxBallsPerInnings) {
+            return handleOversCompleted(s, m, currentInnings);
+        }
+
+        return s;
+    }
+
+    /**
+     * Handles innings end when team is all out.
+     */
+    private ScoreDTO handleAllOut(ScoreDTO s, Match m, CricketInnings currentInnings) {
+        if (s.isFirstInnings()) {
+            return handleEndOfInningsAndMaybeCreateNext(s, m, currentInnings);
+        } else {
+            return handleSecondInningsAllOut(s, m, currentInnings);
+        }
+    }
+
+    /**
+     * Handles second innings all-out scenario.
+     */
+    private ScoreDTO handleSecondInningsAllOut(ScoreDTO s, Match m, CricketInnings currentInnings) {
+        CricketInnings firstInnings = cricketInningsRepo.findByMatchIdAndNo(m.getId(), Constants.FIRST_INNINGS);
+        int firstRuns = getInningsRuns(firstInnings);
+        int secondRuns = s.getRuns();
+
+        determineMatchWinner(m, currentInnings, secondRuns, firstRuns);
+
+        if (!isMatchFinal(m)) {
+            if (!Constants.STATUS_TIED.equalsIgnoreCase(m.getStatus())) {
+                m.setStatus(Constants.STATUS_COMPLETED);
+            }
+            matchRepo.save(m);
+            awardService.computeMatchAwards(m.getId());
+            matchService.endMatch(m.getId());
+        }
+
+        s.setStatus(Constants.STATUS_END_MATCH);
+        s.setTarget(Math.max(0, (firstRuns + 1) - secondRuns));
+        s.setRrr(Double.POSITIVE_INFINITY);
+        return s;
+    }
+
+    /**
+     * Handles innings end when overs are completed.
+     */
+    private ScoreDTO handleOversCompleted(ScoreDTO s, Match m, CricketInnings currentInnings) {
+        if (s.isFirstInnings()) {
+            return handleEndOfInningsAndMaybeCreateNext(s, m, currentInnings);
+        } else {
+            return handleSecondInningsOversComplete(s, m, currentInnings);
+        }
+    }
+
+    /**
+     * Handles second innings overs completed scenario.
+     */
+    private ScoreDTO handleSecondInningsOversComplete(ScoreDTO s, Match m, CricketInnings currentInnings) {
+        CricketInnings firstInnings = cricketInningsRepo.findByMatchIdAndNo(m.getId(), Constants.FIRST_INNINGS);
+        int firstRuns = getInningsRuns(firstInnings);
+        int secondRuns = s.getRuns();
+
+        determineMatchWinner(m, currentInnings, secondRuns, firstRuns);
+
+        if (!isMatchFinal(m)) {
+            if (!Constants.STATUS_TIED.equalsIgnoreCase(m.getStatus())) {
+                m.setStatus(Constants.STATUS_COMPLETED);
+            }
+            matchRepo.save(m);
+            awardService.computeMatchAwards(m.getId());
+            matchService.endMatch(m.getId());
+        }
+
+        s.setStatus(Constants.STATUS_END_MATCH);
+        return s;
+    }
+
+    /**
+     * Determines match winner based on runs scored.
+     */
+    private void determineMatchWinner(Match m, CricketInnings currentInnings, int currentRuns, int firstRuns) {
+        if (currentRuns > firstRuns) {
+            m.setWinnerTeam(currentInnings.getTeam());
+        } else if (currentRuns < firstRuns) {
+            Team otherTeam = getOpposingTeam(m, currentInnings.getTeam());
+            m.setWinnerTeam(otherTeam);
+        } else {
+            m.setWinnerTeam(null);
+            m.setStatus(Constants.STATUS_TIED);
+        }
+    }
+
+    /**
+     * Gets the total runs scored in an innings.
+     */
+    private int getInningsRuns(CricketInnings innings) {
+        if (innings == null) return 0;
+        return cricketBallInterface.sumRunsAndExtrasByInningsId(innings.getId());
+    }
+
+    /**
+     * Gets the opposing team in a match.
+     */
+    private Team getOpposingTeam(Match match, Team currentTeam) {
+        if (currentTeam == null || match.getTeam1() == null || match.getTeam2() == null) {
+            return null;
+        }
+        return match.getTeam1().getId().equals(currentTeam.getId()) ? match.getTeam2() : match.getTeam1();
+    }
+
+    /**
+     * Gets the number of players in a team.
+     */
+    private int getTeamPlayerCount(Team team) {
+        int teamPlayers = Constants.DEFAULT_TEAM_SIZE;
+        try {
+            if (team != null) {
+                Optional<Team> teamOpt = teamRepo.findById(team.getId());
+                if (teamOpt.isPresent()) {
+                    Team teamEntity = teamOpt.get();
+                    if (teamEntity.getPlayers() != null) {
+                        teamPlayers = teamEntity.getPlayers().size();
+                    }
+                }
+            }
+        } catch (Exception ignored) {
+        }
+        return teamPlayers;
     }
 
     private boolean isMatchFinal(Match m) {

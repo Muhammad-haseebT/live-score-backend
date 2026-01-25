@@ -1,6 +1,6 @@
 package com.livescore.backend.Controller;
 
-import com.livescore.backend.DTO.PlayerDto;
+import com.livescore.backend.DTO.PlayerDTO;
 import com.livescore.backend.Entity.Player;
 import com.livescore.backend.Service.PlayerService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -12,11 +12,11 @@ public class PlayerController {
     @Autowired
     private PlayerService playerService;
     @PostMapping("/player")
-    public ResponseEntity<?> createPlayer(@RequestBody PlayerDto player) {
+    public ResponseEntity<?> createPlayer(@RequestBody PlayerDTO player) {
         return playerService.createPlayer(player);
     }
     @PutMapping("/player/{id}")
-    public ResponseEntity<?> updatePlayer(@PathVariable Long id, @RequestBody PlayerDto player) {
+    public ResponseEntity<?> updatePlayer(@PathVariable Long id, @RequestBody PlayerDTO player) {
         return playerService.updatePlayer(id, player);
     }
     @DeleteMapping("/player/{id}")

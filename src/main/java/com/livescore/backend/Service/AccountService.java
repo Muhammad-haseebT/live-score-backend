@@ -1,7 +1,7 @@
 package com.livescore.backend.Service;
 
-import com.livescore.backend.DTO.PlayerDto;
-import com.livescore.backend.DTO.accountDTO;
+import com.livescore.backend.DTO.PlayerDTO;
+import com.livescore.backend.DTO.AccountDTO;
 import com.livescore.backend.Entity.Account;
 import com.livescore.backend.Entity.Player;
 import com.livescore.backend.Entity.PlayerRequest;
@@ -63,7 +63,7 @@ public class AccountService {
         account.setUsername(username);
         account.setPassword(passwordEncoder.encode(account.getPassword()));
         Account a=accountInterface.save(account);
-        PlayerDto playerDto=new PlayerDto();
+        PlayerDTO playerDto=new PlayerDTO();
         playerDto.setUsername(username);
         playerDto.setName(account.getName());
         playerDto.setPlayerRole("player");
@@ -168,7 +168,7 @@ public class AccountService {
         return ResponseEntity.ok().build();
     }
 
-    public ResponseEntity<?> loginAccount(accountDTO account) {
+    public ResponseEntity<?> loginAccount(AccountDTO account) {
         if (account == null || account.getUsername() == null || account.getUsername().isBlank() || account.getPassword() == null || account.getPassword().isBlank()) {
             return ResponseEntity.badRequest().body("Username and password are required");
         }
@@ -195,7 +195,7 @@ public class AccountService {
 
             if (ok) {
 
-                accountDTO accountDTO=new accountDTO();
+                AccountDTO accountDTO=new AccountDTO();
                 accountDTO.setId(ac.getId());
                 accountDTO.setName(ac.getName());
                 accountDTO.setRole(ac.getRole());
@@ -216,7 +216,7 @@ public class AccountService {
         }
     }
 
-    public ResponseEntity<List<accountDTO>> getAllPlayerAccounts(Long tournamentId) {
+    public ResponseEntity<List<AccountDTO>> getAllPlayerAccounts(Long tournamentId) {
         // Single query to get all players (not filtering by deleted here for simplicity)
         List<Player> allPlayers = playerInterface.findAllWithAccounts();
 
@@ -236,14 +236,14 @@ public class AccountService {
         }
 
         // Filter and map to DTOs
-        List<accountDTO> accountDTOs = allPlayers.stream()
+        List<AccountDTO> accountDTOs = allPlayers.stream()
                 .filter(player -> !Boolean.TRUE.equals(player.getIsDeleted()))
                 .filter(player -> !alreadyInTournament.contains(player.getId()))
                 .map(player -> {
                     Account account = player.getAccount();
                     if (account == null) return null;
 
-                    accountDTO dto = new accountDTO();
+                    AccountDTO dto = new AccountDTO();
                     dto.setId(playerIdToRequestId.get(player.getId())); // O(1) lookup
                     dto.setUsername(account.getUsername());
                     dto.setName(account.getName());

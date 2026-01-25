@@ -5,6 +5,8 @@ import com.livescore.backend.Entity.Season;
 import com.livescore.backend.Entity.Sports;
 import com.livescore.backend.Entity.Tournament;
 import com.livescore.backend.Interface.*;
+import com.livescore.backend.Util.Constants;
+import com.livescore.backend.Util.ValidationUtils;
 import lombok.Data;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -32,54 +34,56 @@ public class TournamentService {
     private PtsTableInterface ptsTableInterface;
 
     public ResponseEntity<?> createTournament(TournamentRequestDTO tournament) {
-        if (tournament == null) {
-            return ResponseEntity.badRequest().body("Tournament details are required");
-        }
-        if (tournament.getName() == null || tournament.getName().isBlank()) {
-            return ResponseEntity.badRequest().body("Tournament name is required");
-        }
-        if (tournament.getSeasonId() == null) {
-            return ResponseEntity.badRequest().body("Season id is required");
-        }
-        if (tournament.getSportsId() == null) {
-            return ResponseEntity.badRequest().body("Sports id is required");
-        }
-        if (tournament.getUsername() == null || tournament.getUsername().isBlank()) {
-            return ResponseEntity.badRequest().body("Username is required");
-        }
+        // Validate input
+        ResponseEntity<?> validation = ValidationUtils.validateNotNull(tournament, "Tournament details");
+        if (validation != null) return validation;
+
+        validation = ValidationUtils.validateRequired(tournament.getName(), "Tournament name");
+        if (validation != null) return validation;
+
+        validation = ValidationUtils.validateRequiredId(tournament.getSeasonId(), "Season id");
+        if (validation != null) return validation;
+
+        validation = ValidationUtils.validateRequiredId(tournament.getSportsId(), "Sports id");
+        if (validation != null) return validation;
+
+        validation = ValidationUtils.validateRequired(tournament.getUsername(), "Username");
+        if (validation != null) return validation;
+        // Check for duplicates and existing references
         if (tournamentInterface.existsByNameAndSeasonId(tournament.getName(), tournament.getSeasonId())) {
-            return ResponseEntity.badRequest().body("Tournament name already exists");
+            return ValidationUtils.badRequest("Tournament name already exists");
         }
         if (!accountInterface.existsActiveByUsername(tournament.getUsername())) {
-            return ResponseEntity.badRequest().body("User not found");
+            return ValidationUtils.badRequest("User not found");
         }
         if (!sportsInterface.existsById(tournament.getSportsId())) {
-            return ResponseEntity.badRequest().body("Sports not found");
+            return ValidationUtils.badRequest("Sports not found");
         }
         if (!seasonInterface.existsById(tournament.getSeasonId())) {
-            return ResponseEntity.badRequest().body("Season not found");
+            return ValidationUtils.badRequest("Season not found");
         }
         Tournament tournament1=new Tournament();
         tournament1.setName(tournament.getName());
-        //check role
+        
+        // Check user role
         var organizer = accountInterface.findByUsername(tournament.getUsername());
         if (organizer == null || organizer.getRole() == null) {
-            return ResponseEntity.badRequest().body("User role not found");
+            return ValidationUtils.badRequest("User role not found");
         }
         String role = organizer.getRole().trim().toUpperCase();
-        if (!role.equals("ADMIN")) {
-            return ResponseEntity.badRequest().body("Only admin can create a tournament");
+        if (!role.equals(Constants.ROLE_ADMIN)) {
+            return ValidationUtils.badRequest("Only admin can create a tournament");
         }
 
 
         tournament1.setOrganizer(organizer);
         Season season = seasonInterface.findById(tournament.getSeasonId()).orElse(null);
         if (season == null) {
-            return ResponseEntity.badRequest().body("Season not found");
+            return ValidationUtils.badRequest("Season not found");
         }
         Sports sport = sportsInterface.findById(tournament.getSportsId()).orElse(null);
         if (sport == null) {
-            return ResponseEntity.badRequest().body("Sport not found");
+            return ValidationUtils.badRequest("Sport not found");
         }
         tournament1.setSeason(season);
         tournament1.setSport(sport);
@@ -117,9 +121,8 @@ public class TournamentService {
         return ResponseEntity.ok(tournamentInterface.findAll());
     }
     public ResponseEntity<?> updateTournament(Long id, TournamentRequestDTO tournament) {
-        if (tournament == null) {
-            return ResponseEntity.badRequest().body("Tournament details are required");
-        }
+        ResponseEntity<?> validation = ValidationUtils.validateNotNull(tournament, "Tournament details");
+        if (validation != null) return validation;
         var opt = tournamentInterface.findById(id);
         if (opt.isEmpty()) {
             return ResponseEntity.notFound().build();
@@ -132,21 +135,21 @@ public class TournamentService {
         if (tournament.getUsername() != null && !tournament.getUsername().isBlank()) {
             var organizer = accountInterface.findByUsername(tournament.getUsername());
             if (organizer == null) {
-                return ResponseEntity.badRequest().body("User not found");
+                return ValidationUtils.badRequest("User not found");
             }
             tournament1.setOrganizer(organizer);
         }
         if (tournament.getSeasonId() != null) {
             Season season = seasonInterface.findById(tournament.getSeasonId()).orElse(null);
             if (season == null) {
-                return ResponseEntity.badRequest().body("Season not found");
+                return ValidationUtils.badRequest("Season not found");
             }
             tournament1.setSeason(season);
         }
         if (tournament.getSportsId() != null) {
             Sports sport = sportsInterface.findById(tournament.getSportsId()).orElse(null);
             if (sport == null) {
-                return ResponseEntity.badRequest().body("Sport not found");
+                return ValidationUtils.badRequest("Sport not found");
             }
             tournament1.setSport(sport);
         }

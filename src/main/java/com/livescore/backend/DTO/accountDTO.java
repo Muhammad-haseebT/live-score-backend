@@ -3,7 +3,7 @@ package com.livescore.backend.DTO;
 import lombok.Data;
 
 @Data
-public class accountDTO {
+public class AccountDTO {
     private Long id;
     private Long playerId;
     private String username;
