@@ -1,6 +1,9 @@
 package com.livescore.backend.DTO;
 
 
+import lombok.Data;
+
+@Data
 public class PlayerStatsDTO extends PlayerStatDTO {
     public double strikeRate;
     public int highest;
