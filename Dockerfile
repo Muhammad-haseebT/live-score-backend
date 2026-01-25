@@ -2,19 +2,17 @@ FROM maven:3.9.9-eclipse-temurin-21 AS build
 WORKDIR /app
 
 COPY pom.xml .
-COPY mvnw mvnw
-COPY .mvn .mvn
-COPY src src
+RUN mvn dependency:go-offline -B
 
-RUN chmod +x mvnw
-RUN ./mvnw -DskipTests package
+COPY src src
+RUN mvn clean package -DskipTests -B
 
 # ---------- RUN STAGE ----------
 FROM eclipse-temurin:21-jre
 WORKDIR /app
 
+# IMPORTANT: jar target folder se copy hoti hai
 COPY --from=build /app/target/*.jar app.jar
 
 EXPOSE 7860
-
 ENTRYPOINT ["java", "-jar", "app.jar"]
