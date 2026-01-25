@@ -5,12 +5,12 @@ COPY pom.xml .
 COPY src src
 
 # Use maven from image instead of wrapper
-RUN mvn clean package -DskipTests
+RUN mvn clean package -DskipTests && cp target/backend-0.0.1-SNAPSHOT.jar app.jar
 
 FROM eclipse-temurin:21-jre AS run
 WORKDIR /app
 
-COPY --from=build /app/target/*.jar app.jar
+COPY --from=build /app/app.jar app.jar
 
 EXPOSE 7860
 
