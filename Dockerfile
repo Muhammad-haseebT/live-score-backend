@@ -11,7 +11,8 @@ RUN chmod +x mvnw
 RUN ./mvnw -DskipTests package
 
 # ---------- RUN STAGE ----------
-FROM eclipse-temurin:21-jre
+FROM eclipse-temurin:21-jre AS run
+
 WORKDIR /app
 
 COPY --from=build /app/target/*.jar app.jar
