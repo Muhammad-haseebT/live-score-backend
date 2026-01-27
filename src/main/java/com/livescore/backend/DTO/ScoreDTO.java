@@ -39,6 +39,8 @@ public class ScoreDTO {
     private double crr;
     private double rrr;
 
+    private boolean undo = false;
+
 
 
 

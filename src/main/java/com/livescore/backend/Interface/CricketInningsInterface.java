@@ -20,7 +20,9 @@ public interface CricketInningsInterface extends JpaRepository<CricketInnings, L
             "WHERE ci.match.id = :matchId AND ci.team.id <> :teamId")
     CricketInnings findOpponentInnings(@Param("matchId") Long matchId, @Param("teamId") Long teamId);
 
-    CricketInnings findByMatchIdAndNo(Long matchId, int i);
+    @Query(value = "SELECT * FROM cricket_innings ci WHERE ci.match_id = :matchId AND ci.no = :no ORDER BY ci.id DESC LIMIT 1", nativeQuery = true)
+    CricketInnings findByMatchIdAndNo(@Param("matchId") Long matchId, @Param("no") int no);
+
     @Query("""
         SELECT ci FROM CricketInnings ci
         WHERE ci.match.id = :matchId

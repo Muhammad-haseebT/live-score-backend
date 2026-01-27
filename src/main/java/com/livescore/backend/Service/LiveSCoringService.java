@@ -9,6 +9,9 @@ import com.livescore.backend.Entity.Player;
 import com.livescore.backend.Interface.*;
 import com.livescore.backend.Util.Constants;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.CachePut;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -45,6 +48,7 @@ public class LiveSCoringService {
      * @param s The ScoreDTO containing ball information
      * @return Updated ScoreDTO with current match state
      */
+    @CachePut(value = "matchState", key = "#s.matchId")
     @Transactional
     public ScoreDTO scoring(ScoreDTO s) {
         // 1. Validate input
@@ -697,5 +701,148 @@ public class LiveSCoringService {
     private double round2(double v) {
 
         return Math.round(v * 100.0) / 100.0;
+    }
+
+    /**
+     * Gets the current match state for a given match and innings.
+     * Used to send initial state when a client connects.
+     *
+     * @param matchId Match ID
+     * @return ScoreDTO with current match state
+     */
+    @Cacheable(value = "matchState", key = "#matchId")
+    public ScoreDTO getCurrentMatchState(Long matchId) {
+        ScoreDTO state = new ScoreDTO();
+
+        Match m = matchRepo.findById(matchId).orElse(null);
+        if (m == null) {
+            state.setStatus(Constants.STATUS_ERROR);
+            state.setComment(Constants.ERROR_MATCH_NOT_FOUND);
+            return state;
+        }
+
+        state.setMatchId(matchId);
+
+        // Determine current innings
+        CricketInnings secondInnings = cricketInningsRepo.findByMatchIdAndNo(matchId, Constants.SECOND_INNINGS);
+        CricketInnings currentInnings;
+        boolean isFirstInnings;
+
+        if (secondInnings != null && secondInnings.getId() != null) {
+            currentInnings = secondInnings;
+            isFirstInnings = false;
+        } else {
+            currentInnings = cricketInningsRepo.findByMatchIdAndNo(matchId, Constants.FIRST_INNINGS);
+            isFirstInnings = true;
+        }
+
+        if (currentInnings == null) {
+            state.setStatus(Constants.STATUS_ERROR);
+            state.setComment(Constants.ERROR_INNINGS_NOT_FOUND);
+            return state;
+        }
+
+        state.setInningsId(currentInnings.getId());
+        state.setFirstInnings(isFirstInnings);
+        state.setTeamId(currentInnings.getTeam() != null ? currentInnings.getTeam().getId() : null);
+
+        // Calculate current state
+        int inningsRuns = cricketBallInterface.sumRunsAndExtrasByInningsId(currentInnings.getId());
+        int legalBallsNow = (int) cricketBallInterface.countLegalBallsByInningsId(currentInnings.getId());
+        int wicketsNow = (int) cricketBallInterface.countWicketsByInningsId(currentInnings.getId());
+
+        state.setRuns(inningsRuns);
+        state.setBalls(legalBallsNow % Constants.BALLS_PER_OVER);
+        state.setOvers(legalBallsNow / Constants.BALLS_PER_OVER);
+        state.setWickets(wicketsNow);
+
+        // Calculate CRR
+        double crr = legalBallsNow == 0 ? 0.0 : ((double) inningsRuns * Constants.BALLS_PER_OVER) / (double) legalBallsNow;
+        state.setCrr(round2(crr));
+
+        // Calculate target and RRR for second innings
+        if (!isFirstInnings) {
+            CricketInnings firstInnings = cricketInningsRepo.findByMatchIdAndNo(matchId, Constants.FIRST_INNINGS);
+            int firstRuns = getInningsRuns(firstInnings);
+            int target = firstRuns + 1;
+            int remainingRuns = target - inningsRuns;
+
+            int maxBallsPerInnings = calculateMaxBalls(m);
+            int remainingBalls = Math.max(0, maxBallsPerInnings - legalBallsNow);
+
+            state.setTarget(remainingRuns);
+            if (remainingBalls > 0) {
+                double rrr = ((double) remainingRuns * Constants.BALLS_PER_OVER) / (double) remainingBalls;
+                state.setRrr(round2(rrr));
+            } else {
+                state.setRrr(0.0);
+            }
+        } else {
+            state.setTarget(inningsRuns);
+            state.setRrr(0.0);
+        }
+
+        // Set match status
+        if (isMatchFinal(m)) {
+            state.setStatus(Constants.STATUS_END_MATCH);
+        } else {
+            state.setStatus("LIVE");
+        }
+
+        return state;
+    }
+
+    /**
+     * Undoes the last ball delivery for a given match and innings.
+     * Removes the most recent ball entry and recalculates match state.
+     *
+     * @param matchId Match ID
+     * @param inningsId Innings ID
+     * @return ScoreDTO with updated match state after undo
+     */
+    @CacheEvict(value = "matchState", key = "#matchId")
+    @Transactional
+    public ScoreDTO undoLastBall(Long matchId, Long inningsId) {
+        ScoreDTO result = new ScoreDTO();
+        result.setMatchId(matchId);
+        result.setInningsId(inningsId);
+
+        // Validate match
+        Match m = matchRepo.findById(matchId).orElse(null);
+        if (m == null) {
+            result.setStatus(Constants.STATUS_ERROR);
+            result.setComment(Constants.ERROR_MATCH_NOT_FOUND);
+            return result;
+        }
+
+        // Validate innings
+        CricketInnings innings = cricketInningsRepo.findById(inningsId).orElse(null);
+        if (innings == null) {
+            result.setStatus(Constants.STATUS_ERROR);
+            result.setComment(Constants.ERROR_INNINGS_NOT_FOUND);
+            return result;
+        }
+
+        // Find and delete the last ball
+        List<CricketBall> balls = cricketBallInterface.findByInnings_IdOrderByIdDesc(inningsId);
+        if (balls == null || balls.isEmpty()) {
+            result.setStatus(Constants.STATUS_ERROR);
+            result.setComment("No balls to undo");
+            return result;
+        }
+
+        CricketBall lastBall = balls.get(0);
+        cricketBallInterface.delete(lastBall);
+
+        // Evict tournament awards cache if needed
+        // Note: We don't call statsService.updateTournamentStats here because:
+        // 1. The ball entity is deleted and no longer valid for queries
+        // 2. Stats will be recalculated from remaining balls on next aggregation
+        if (m.getTournament() != null && m.getTournament().getId() != null) {
+            cacheEvictionService.evictTournamentAwards(m.getTournament().getId());
+        }
+
+        // Get updated match state (recalculated from remaining balls)
+        return getCurrentMatchState(matchId);
     }
 }

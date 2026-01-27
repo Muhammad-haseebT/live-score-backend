@@ -23,16 +23,19 @@ public class LiveScoringHandler extends TextWebSocketHandler {
 
     private static final Logger log = LoggerFactory.getLogger(LiveScoringHandler.class);
 
-
+    // Map to track which sessions are subscribed to which matches
     private final Map<Long, Set<WebSocketSession>> subscriptions = new ConcurrentHashMap<>();
 
-
+    // Map to track which matches each session is subscribed to
     private final Map<String, Set<Long>> sessionSubscriptions = new ConcurrentHashMap<>();
 
-
+    // Locks for thread-safe session operations
     private final Map<String, Object> sessionLocks = new ConcurrentHashMap<>();
+
+    // Thread pool for async operations
     private final ExecutorService executor = Executors.newFixedThreadPool(10);
 
+    // ✅ Constructor updated - removed MatchStateCache dependency
     public LiveScoringHandler(LiveSCoringService liveScoringService) {
         this.liveScoringService = liveScoringService;
     }
@@ -52,7 +55,9 @@ public class LiveScoringHandler extends TextWebSocketHandler {
                 try {
                     Long matchId = Long.parseLong(q.split("=")[1]);
                     subscribe(session, matchId);
-                } catch (Exception ignored) {}
+                } catch (Exception ignored) {
+                    log.warn("Invalid matchId parameter in WebSocket connection");
+                }
             }
         }
     }
@@ -71,6 +76,22 @@ public class LiveScoringHandler extends TextWebSocketHandler {
                 .add(matchId);
 
         sessionLocks.computeIfAbsent(session.getId(), k -> new Object());
+
+        // Send current match state to newly connected client
+        executor.execute(() -> sendCurrentMatchState(session, matchId));
+    }
+
+    // ✅ Simplified - Spring Cache automatically handles caching
+    private void sendCurrentMatchState(WebSocketSession session, Long matchId) {
+        try {
+            // Direct service call - @Cacheable will handle cache lookup
+            ScoreDTO currentState = liveScoringService.getCurrentMatchState(matchId);
+
+            String json = mapper.writeValueAsString(currentState);
+            safeSend(session, json);
+        } catch (Exception e) {
+            log.warn("Failed to send current match state to client", e);
+        }
     }
 
     private void unsubscribeAll(WebSocketSession session) {
@@ -109,7 +130,6 @@ public class LiveScoringHandler extends TextWebSocketHandler {
                 return;
             }
 
-
             ScoreDTO score = mapper.treeToValue(node, ScoreDTO.class);
 
             if (score.getMatchId() == null) {
@@ -118,18 +138,45 @@ public class LiveScoringHandler extends TextWebSocketHandler {
                 return;
             }
 
+            // Check if this is an UNDO request
+            if (score.isUndo()) {
+                if (score.getInningsId() == null) {
+                    safeSend(session,
+                            "{\"error\":\"inningsId is required for undo\"}");
+                    return;
+                }
+                executor.execute(() -> processUndo(score.getMatchId(), score.getInningsId()));
+                return;
+            }
+
             // ASYNC PROCESSING
             executor.execute(() -> processScore(score));
 
         } catch (Exception e) {
+            log.error("Error handling WebSocket message", e);
             safeSend(session,
                     "{\"error\":\"Invalid JSON payload\"}");
         }
     }
 
+    // ✅ Simplified - @CacheEvict automatically clears cache
+    private void processUndo(Long matchId, Long inningsId) {
+        try {
+            // Service method has @CacheEvict, so cache is automatically cleared
+            ScoreDTO updated = liveScoringService.undoLastBall(matchId, inningsId);
+
+            broadcast(updated);
+        } catch (Exception e) {
+            log.warn("Failed to process undo", e);
+        }
+    }
+
+    // ✅ Simplified - @CachePut automatically updates cache
     private void processScore(ScoreDTO score) {
         try {
+            // Service method has @CachePut, so cache is automatically updated
             ScoreDTO updated = liveScoringService.scoring(score);
+
             broadcast(updated);
         } catch (Exception e) {
             log.warn("Failed to process score", e);
@@ -148,7 +195,9 @@ public class LiveScoringHandler extends TextWebSocketHandler {
                     safeSend(s, json);
                 } catch (Exception ex) {
                     unsubscribeAll(s);
-                    try { s.close(); } catch (Exception ignore) {}
+                    try {
+                        s.close();
+                    } catch (Exception ignore) {}
                 }
             }
         } catch (Exception e) {
@@ -168,6 +217,7 @@ public class LiveScoringHandler extends TextWebSocketHandler {
                     session.sendMessage(new TextMessage(payload));
                 }
             } catch (Exception e) {
+                log.warn("Error sending message to WebSocket session", e);
                 unsubscribeAll(session);
             }
         }
@@ -175,6 +225,8 @@ public class LiveScoringHandler extends TextWebSocketHandler {
 
     @Override
     public void afterConnectionClosed(WebSocketSession session, CloseStatus status) {
+        log.debug("WebSocket connection closed: {}", status);
         unsubscribeAll(session);
     }
 }
+

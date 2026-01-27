@@ -287,6 +287,9 @@ WHERE (b.batsman.id = :playerId
 """)
     int countMatchesPlayedOverall(@Param("playerId") Long playerId);
 
+    // Get all balls for an innings ordered by ID descending (for undo functionality)
+    List<CricketBall> findByInnings_IdOrderByIdDesc(Long inningsId);
+
 
 
 
