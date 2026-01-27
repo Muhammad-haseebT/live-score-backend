@@ -42,9 +42,6 @@ public class PlayerRequestController {
         return playerRequestService.rejectPlayerRequest(id);
     }
 
-
-
-
     @GetMapping("/playerRequest/player/{playerId}")
     public ResponseEntity<?> getPlayerRequestsByPlayerId(@PathVariable Long playerId) {
         return playerRequestService.getPlayerRequestsByPlayerId(playerId);

@@ -675,7 +675,7 @@ public class LiveSCoringService {
                 if (teamOpt.isPresent()) {
                     Team teamEntity = teamOpt.get();
                     if (teamEntity.getPlayers() != null) {
-                        teamPlayers = teamEntity.getPlayers().size();
+                        teamPlayers = (int) teamEntity.getPlayers().size();
                     }
                 }
             }

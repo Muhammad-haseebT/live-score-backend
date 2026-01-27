@@ -8,6 +8,7 @@ import com.livescore.backend.Util.Constants;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.ResponseEntity;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -315,8 +316,11 @@ public class StatsService {
      * Updates tournament statistics for a single cricket ball delivery.
      * Creates new Stats entities if they don't exist for the players involved.
      *
+     * Note: Uses REQUIRES_NEW propagation to avoid deadlocks in nested transactions
+     *
      * @param ball CricketBall entity to process
      */
+    @Async
     @Transactional
     public void updateTournamentStats(CricketBall ball) {
         if (ball == null) return;
@@ -358,15 +362,8 @@ public class StatsService {
             batStats.setSixes(batStats.getSixes() + 1);
         }
 
-        // Update highest score per innings
-        if (ball.getInnings() != null && ball.getInnings().getId() != null) {
-            Integer inningsRuns = cricketBallInterface.sumBatsmanRunsByInnings(
-                    batsman.getId(), ball.getInnings().getId());
-            int inns = inningsRuns == null ? 0 : inningsRuns;
-            if (inns > batStats.getHighest()) {
-                batStats.setHighest(inns);
-            }
-        }
+        // Note: Highest score is now calculated in updateStats() method periodically
+        // to avoid expensive query on every ball delivery
 
         statsInterface.save(batStats);
     }

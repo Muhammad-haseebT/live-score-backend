@@ -2,8 +2,9 @@ package com.livescore.backend.WebSocketController;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.livescore.backend.Cricket.CricketScoringService;
 import com.livescore.backend.DTO.ScoreDTO;
-import com.livescore.backend.Service.LiveSCoringService;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -18,7 +19,7 @@ import java.util.concurrent.*;
 @Component
 public class LiveScoringHandler extends TextWebSocketHandler {
 
-    private final LiveSCoringService liveScoringService;
+    private final CricketScoringService liveScoringService;
     private final ObjectMapper mapper = new ObjectMapper();
 
     private static final Logger log = LoggerFactory.getLogger(LiveScoringHandler.class);
@@ -36,8 +37,8 @@ public class LiveScoringHandler extends TextWebSocketHandler {
     private final ExecutorService executor = Executors.newFixedThreadPool(10);
 
     // ✅ Constructor updated - removed MatchStateCache dependency
-    public LiveScoringHandler(LiveSCoringService liveScoringService) {
-        this.liveScoringService = liveScoringService;
+    public LiveScoringHandler(CricketScoringService s) {
+        this.liveScoringService = s;
     }
 
     @PreDestroy

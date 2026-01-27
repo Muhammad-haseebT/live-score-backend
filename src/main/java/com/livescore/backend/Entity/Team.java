@@ -12,9 +12,8 @@ import java.util.List;
 
 @Entity
 @Data
-@ToString(exclude = {"players", "playerRequests", "pointsTableEntry"})
-@EqualsAndHashCode(exclude = {"players", "playerRequests", "pointsTableEntry"})
-
+@ToString(exclude = {"creator", "tournament", "players", "playerRequests", "pointsTableEntry"})
+@EqualsAndHashCode(exclude = {"creator", "tournament", "players", "playerRequests", "pointsTableEntry"})
 public class Team {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -23,32 +22,30 @@ public class Team {
     @Column(nullable = false)
     private String name;
 
-    @ManyToOne(fetch = FetchType.LAZY)  // or EAGER if you really need it
-    @JoinColumn(name = "creator_id")    // use snake_case; avoid "CreatorId"
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "creator_id")
     private Player creator;
-
-
 
     @ManyToOne
     @JoinColumn(name = "tournament_id")
     @JsonBackReference("tournament-teams")
     private Tournament tournament;
 
-
     @OneToMany(mappedBy = "team", cascade = CascadeType.ALL)
     @JsonManagedReference("team-playerTeams")
     private List<PlayerRequest> playerRequests = new ArrayList<>();
+
     //players
     @OneToMany(mappedBy = "team", cascade = CascadeType.ALL)
     @JsonManagedReference("team-players")
     private List<Player> players = new ArrayList<>();
-
 
     @OneToOne(mappedBy = "team", cascade = CascadeType.ALL)
     @JsonManagedReference("team-pointsTableEntry")
     private PtsTable pointsTableEntry;
 
     private String status;
+
     @PrePersist
     public void prePersist() {
         if (this.status == null || this.status.isBlank()) {

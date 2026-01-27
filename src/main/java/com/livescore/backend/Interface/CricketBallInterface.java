@@ -12,6 +12,14 @@ import java.util.List;
 @Repository
 public interface CricketBallInterface extends JpaRepository<CricketBall, Long> {
 
+    // ✅ MISSING METHOD - Add this for ball auto-increment
+    @Query("SELECT cb FROM CricketBall cb WHERE cb.innings.id = :inningsId ORDER BY cb.id DESC LIMIT 1")
+    CricketBall findLastBallInInnings(@Param("inningsId") Long inningsId);
+
+    // ✅ Alternative method using Spring Data naming convention (simpler)
+    // Uncomment this if above doesn't work in your Spring version
+    // CricketBall findFirstByInnings_IdOrderByIdDesc(Long inningsId);
+
     @Query("""
         SELECT cb FROM CricketBall cb
         WHERE cb.batsman.id = :playerId
@@ -36,7 +44,6 @@ public interface CricketBallInterface extends JpaRepository<CricketBall, Long> {
     List<CricketBall> findFielderBalls(@Param("tournamentId") Long tournamentId,
                                        @Param("playerId") Long playerId);
 
-    // use property path style - returns balls for a match
     List<CricketBall> findByMatch_Id(Long matchId);
 
     List<CricketBall> findByMatch_IdAndInnings_Id(Long matchId, Long id);
@@ -66,7 +73,6 @@ WHERE b.match.id = :matchId
     @Query("SELECT b.bowler.id AS playerId, COUNT(b) AS wickets FROM CricketBall b WHERE b.match.id = :matchId AND LOWER(b.dismissalType) IN ('bowled','caught','lbw','stumped','hit-wicket') AND b.bowler.isDeleted = false GROUP BY b.bowler.id ORDER BY COUNT(b) DESC")
     List<Object[]> aggregateWicketsByMatch(@Param("matchId") Long matchId);
 
-    // tournament-level helpers
     @Query("select b from CricketBall b where b.batsman.id = :playerId and b.match.tournament.id = :tournamentId and b.batsman.isDeleted = false")
     List<CricketBall> findBatsmanBallsByTournamentAndPlayer(@Param("tournamentId") Long tournamentId, @Param("playerId") Long playerId);
 
@@ -95,17 +101,11 @@ WHERE b.match.id = :matchId
     """)
     long countWicketsByInningsId(@Param("inningsId") Long inningsId);
 
-    // tournament-wide: top scorers (paginated)
     @Query("SELECT cb.batsman.id, SUM(cb.runs) FROM CricketBall cb " +
             "WHERE cb.innings.match.tournament.id = :tournamentId AND cb.batsman.isDeleted = false " +
             "GROUP BY cb.batsman.id ORDER BY SUM(cb.runs) DESC")
     List<Object[]> sumRunsByBatsman(@Param("tournamentId") Long tournamentId, Pageable pageable);
 
-    /**
-     * Count wickets credited to bowlers across a tournament.
-     * Excludes runouts/retired variants.
-     * Returns [bowlerId, wicketsCount]
-     */
     @Query("SELECT cb.bowler.id, SUM(CASE WHEN cb.dismissalType IS NOT NULL AND LOWER(cb.dismissalType) NOT IN ('runout','retired','retired hurt') THEN 1 ELSE 0 END) " +
             "FROM CricketBall cb " +
             "WHERE cb.innings.match.tournament.id = :tournamentId AND cb.bowler.isDeleted = false " +
@@ -114,7 +114,7 @@ WHERE b.match.id = :matchId
 
     @Query("SELECT cb FROM CricketBall cb WHERE cb.overNumber = :overNumber AND cb.ballNumber = :ballNumber AND cb.match.id = :matchId AND cb.innings.no = :inningsNo")
     List<CricketBall> findByOverNumberAndBallNumberAndMatch_Id(@Param("overNumber") Integer overNumber, @Param("ballNumber") Integer ballNumber, @Param("matchId") Long matchId, @Param("inningsNo") int inningsNo);
-//select top 1 from cricket ball where match id and innings no order by id desc
+
     CricketBall findFirstByMatch_IdAndInnings_NoOrderByIdDesc(Long matchId, int inningsNo);
 
     @Query("SELECT COUNT(DISTINCT cb.match.id) FROM CricketBall cb WHERE cb.batsman.id = :playerId AND cb.innings.match.tournament.id = :tournamentId")
@@ -123,7 +123,6 @@ WHERE b.match.id = :matchId
     @Query("SELECT COUNT(DISTINCT cb.innings.id) FROM CricketBall cb WHERE cb.batsman.id = :playerId AND cb.match.tournament.id = :tournamentId")
     int countDistinctInningsBatted(@Param("playerId") Long playerId, @Param("tournamentId") Long tournamentId);
 
-
     @Query("""
 SELECT COALESCE(SUM(cb.runs), 0)
 FROM CricketBall cb
@@ -131,11 +130,7 @@ WHERE cb.batsman.id = :playerId
   AND cb.innings.id = :inningsId
 """)
     Integer sumBatsmanRunsByInnings(@Param("playerId") Long playerId,
-                                   @Param("inningsId") Long inningsId);
-
-
-//    @Query("SELECT COUNT(DISTINCT cb.match.id) FROM CricketBall cb WHERE cb.batsman.id = :playerId AND cb.match.id = :matchId")
-//    int countDistinctMatchesByBatsmanIdAndMatchId(Long playerId, Long matchId);
+                                    @Param("inningsId") Long inningsId);
 
     @Query("""
 SELECT COUNT(DISTINCT b.match.id)
@@ -147,29 +142,7 @@ WHERE (b.batsman.id = :playerId
 """)
     int countMatchesPlayedInTournament(Long playerId, Long tournamentId);
 
-
-
-
-
-    //optimized version likha hua hai niche testing ke liey
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-    //
-
-
-
-
-
-
-
-
+    // Optimized batting aggregate
     @Query("""
 SELECT SUM(cb.runs) as totalRuns,
        SUM(CASE WHEN LOWER(cb.extraType) LIKE '%wide%' THEN 0 ELSE 1 END) as ballsFaced,
@@ -182,7 +155,7 @@ WHERE cb.batsman.id = :playerId
     Object[] getBattingAggregate(@Param("playerId") Long playerId,
                                  @Param("tournamentId") Long tournamentId);
 
-
+    // Optimized bowling aggregate
     @Query("""
 SELECT SUM(cb.runs + CASE WHEN LOWER(cb.extraType) LIKE '%wide%' OR LOWER(cb.extraType) LIKE '%no%' THEN cb.extra ELSE 0 END) as runsConceded,
        SUM(CASE WHEN cb.legalDelivery = true THEN 1 ELSE 0 END) as ballsBowled,
@@ -195,7 +168,6 @@ WHERE cb.bowler.id = :playerId
 """)
     Object[] getBowlingAggregate(@Param("playerId") Long playerId,
                                  @Param("tournamentId") Long tournamentId);
-
 
     @Query("""
 SELECT COUNT(DISTINCT cb.innings.id) 
@@ -225,7 +197,7 @@ ORDER BY SUM(cb.runs) DESC
                                         @Param("tournamentId") Long tournamentId,
                                         Pageable pageable);
 
-
+    // Overall stats (no tournament filter)
     @Query("""
 SELECT SUM(cb.runs) as totalRuns,
        SUM(CASE WHEN LOWER(cb.extraType) LIKE '%wide%' THEN 0 ELSE 1 END) as ballsFaced,
@@ -235,7 +207,6 @@ FROM CricketBall cb
 WHERE cb.batsman.id = :playerId
 """)
     Object[] getBattingAggregateOverall(@Param("playerId") Long playerId);
-
 
     @Query("""
 SELECT SUM(cb.runs + CASE WHEN LOWER(cb.extraType) LIKE '%wide%' OR LOWER(cb.extraType) LIKE '%no%' THEN cb.extra ELSE 0 END) as runsConceded,
@@ -247,7 +218,6 @@ FROM CricketBall cb
 WHERE cb.bowler.id = :playerId
 """)
     Object[] getBowlingAggregateOverall(@Param("playerId") Long playerId);
-
 
     @Query("""
 SELECT COUNT(DISTINCT cb.innings.id)
@@ -262,7 +232,6 @@ WHERE cb.batsman.id = :playerId
 """)
     Integer countNotOutInningsOverall(@Param("playerId") Long playerId);
 
-
     @Query("""
 SELECT SUM(cb.runs)
 FROM CricketBall cb
@@ -271,12 +240,10 @@ GROUP BY cb.innings.id
 ORDER BY SUM(cb.runs) DESC
 """)
     List<Integer> getRunsPerInningsDescOverall(@Param("playerId") Long playerId,
-                                              Pageable pageable);
-
+                                               Pageable pageable);
 
     @Query("SELECT COUNT(DISTINCT cb.innings.id) FROM CricketBall cb WHERE cb.batsman.id = :playerId")
     int countDistinctInningsBattedOverall(@Param("playerId") Long playerId);
-
 
     @Query("""
 SELECT COUNT(DISTINCT b.match.id)
@@ -289,8 +256,4 @@ WHERE (b.batsman.id = :playerId
 
     // Get all balls for an innings ordered by ID descending (for undo functionality)
     List<CricketBall> findByInnings_IdOrderByIdDesc(Long inningsId);
-
-
-
-
 }
