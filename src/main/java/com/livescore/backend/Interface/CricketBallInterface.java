@@ -259,4 +259,9 @@ WHERE (b.batsman.id = :playerId
 
     // Get all balls for an innings ordered by ID descending (for undo functionality)
     List<CricketBall> findByInnings_IdOrderByIdDesc(Long inningsId);
+
+
+    List<CricketBall> findByBatsman_IdAndInnings_Id(Long playerId, Long inningsId);
+
+    List<CricketBall> findByBowler_IdAndInnings_Id(Long playerId, Long inningsId);
 }

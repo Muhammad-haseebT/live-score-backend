@@ -2,6 +2,8 @@ package com.livescore.backend.DTO;
 
 import lombok.Data;
 
+import java.util.List;
+
 @Data
 public class ScoreDTO {
     private int runs;
@@ -35,15 +37,14 @@ public class ScoreDTO {
     private String comment;
     private Long mediaId;
 
-
+    private Long nonStrikerId;
     private double crr;
     private double rrr;
 
     private boolean undo = false;
-
-
-
-
+    List<PlayerStatDTO> batsman1Stats;
+    List<PlayerStatDTO> batsman2Stats;
+    List<PlayerStatDTO> bowlerStats;
 
 }
 

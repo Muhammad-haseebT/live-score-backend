@@ -1,5 +1,6 @@
 package com.livescore.backend.Entity;
 
+import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.annotation.Nullable;
@@ -27,6 +28,12 @@ public class CricketBall {
     @JoinColumn(name = "batsman_id")
     @JsonIgnore
     private Player batsman;
+
+    @ManyToOne
+    @JoinColumn(name = "nonStraiker_id")
+    @JsonIgnore
+    private Player nonStriker;
+
 
     @ManyToOne
     @JoinColumn(name = "bowler_id")
@@ -66,4 +73,6 @@ public class CricketBall {
     @JoinColumn(name = "media_id")
     @JsonIgnore
     private Media media;
+
+
 }
