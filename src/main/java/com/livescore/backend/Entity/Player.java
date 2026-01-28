@@ -15,7 +15,8 @@ import java.util.List;
 @Entity
 @Data
 @ToString(exclude = {"account", "playerRequests", "team"})
-@JsonIgnoreProperties({"playerTeams"})
+@JsonIgnoreProperties({"playerTeams","hibernateLazyInitializer", "handler"})
+
 public class Player {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
