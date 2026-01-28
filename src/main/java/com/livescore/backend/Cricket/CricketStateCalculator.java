@@ -1,6 +1,7 @@
 package com.livescore.backend.Cricket;
 
 import com.livescore.backend.DTO.ScoreDTO;
+import com.livescore.backend.Entity.CricketBall;
 import com.livescore.backend.Entity.CricketInnings;
 import com.livescore.backend.Entity.Match;
 import com.livescore.backend.Entity.Team;
@@ -197,7 +198,41 @@ public class CricketStateCalculator {
         state.setFirstInnings(isFirstInnings);
         state.setTeamId(currentInnings.getTeam() != null ? currentInnings.getTeam().getId() : null);
 
-        // Calculate current stats
+        // ✅ Get last ball for batsman/bowler/fielder info
+        CricketBall lastBall = ballRepo.findFirstByInnings_IdOrderByIdDesc(currentInnings.getId());
+
+        if (lastBall != null) {
+            // ✅ Set current batsman/bowler/fielder
+            state.setBatsmanId(lastBall.getBatsman() != null ? lastBall.getBatsman().getId() : null);
+            state.setBowlerId(lastBall.getBowler() != null ? lastBall.getBowler().getId() : null);
+            state.setFielderId(lastBall.getFielder() != null ? lastBall.getFielder().getId() : null);
+
+            // ✅ Set last ball details for frontend context
+            state.setEvent(String.valueOf(lastBall.getRuns() != null ? lastBall.getRuns() : 0));
+            state.setEventType(lastBall.getExtraType() != null ? lastBall.getExtraType() : "run");
+            state.setIsLegal(lastBall.getLegalDelivery());
+            state.setFour(lastBall.getIsFour() != null && lastBall.getIsFour());
+            state.setSix(lastBall.getIsSix() != null && lastBall.getIsSix());
+            state.setDismissalType(lastBall.getDismissalType());
+            state.setOutPlayerId(lastBall.getOutPlayer() != null ? lastBall.getOutPlayer().getId() : null);
+            state.setComment(lastBall.getComment());
+            state.setMediaId(lastBall.getMedia() != null ? lastBall.getMedia().getId() : null);
+            state.setBalls(lastBall.getBallNumber());
+            state.setOvers(lastBall.getOverNumber());
+            state.setWickets((int)ballRepo.countWicketsByInningsId(currentInnings.getId()));
+        } else {
+            // No balls yet - set defaults
+            state.setBatsmanId(null);
+            state.setBowlerId(null);
+            state.setFielderId(null);
+            state.setEvent(null);
+            state.setEventType(null);
+            state.setIsLegal(null);
+            state.setFour(false);
+            state.setSix(false);
+        }
+
+        // Calculate current stats (runs, overs, wickets, CRR)
         updateInningsStats(state, currentInnings);
 
         // Calculate target and RRR for second innings
@@ -226,8 +261,12 @@ public class CricketStateCalculator {
         // Set match status
         state.setStatus(isMatchFinal(match) ? Constants.STATUS_END_MATCH : "LIVE");
 
+        // ✅ Set undo flag to false (this is current state, not undo)
+        state.setUndo(false);
+
         return state;
     }
+
 
     // Helper methods
     private Team getOpposingTeam(Match match, Team team) {

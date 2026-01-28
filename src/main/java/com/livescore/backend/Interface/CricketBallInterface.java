@@ -16,6 +16,9 @@ public interface CricketBallInterface extends JpaRepository<CricketBall, Long> {
     @Query("SELECT cb FROM CricketBall cb WHERE cb.innings.id = :inningsId ORDER BY cb.id DESC LIMIT 1")
     CricketBall findLastBallInInnings(@Param("inningsId") Long inningsId);
 
+
+    CricketBall findFirstByInnings_IdOrderByIdDesc(Long inningsId);
+
     // ✅ Alternative method using Spring Data naming convention (simpler)
     // Uncomment this if above doesn't work in your Spring version
     // CricketBall findFirstByInnings_IdOrderByIdDesc(Long inningsId);

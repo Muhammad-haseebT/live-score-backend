@@ -42,7 +42,7 @@ public class CricketScoringService {
         Match match = validation.match;
         CricketInnings innings = validation.innings;
 
-        // 2. Check if innings completed
+
         if (inningsManager.isInningsComplete(innings, match)) {
             s.setStatus(Constants.STATUS_END);
             return inningsManager.handleInningsEnd(s, match, innings);
