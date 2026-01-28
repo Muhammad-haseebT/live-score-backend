@@ -176,4 +176,8 @@ public class TeamService {
         return ResponseEntity.ok(response);
     }
 
+    public ResponseEntity<?> findPlayersByTeam(Long teamId) {
+        Team team = teamInterface.findById(teamId).orElse(null);
+        return ResponseEntity.ok(team.getPlayers());
+    }
 }
