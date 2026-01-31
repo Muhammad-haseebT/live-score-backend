@@ -43,6 +43,7 @@ public class CricketBallEventProcessor {
         ball.setLegalDelivery(Boolean.FALSE);
         ball.setIsFour(Boolean.FALSE);
         ball.setIsSix(Boolean.FALSE);
+        ball.setNonStriker(playerRepo.findActiveById(s.getNonStrikerId()).orElse(null));
 
         return ball;
     }

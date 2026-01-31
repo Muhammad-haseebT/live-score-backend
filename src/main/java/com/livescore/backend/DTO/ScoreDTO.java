@@ -42,9 +42,9 @@ public class ScoreDTO {
     private double rrr;
 
     private boolean undo = false;
-    List<PlayerStatDTO> batsman1Stats;
-    List<PlayerStatDTO> batsman2Stats;
-    List<PlayerStatDTO> bowlerStats;
+    PlayerStatDTO batsman1Stats;
+    PlayerStatDTO batsman2Stats;
+    PlayerStatDTO bowlerStats;
 
 }
 

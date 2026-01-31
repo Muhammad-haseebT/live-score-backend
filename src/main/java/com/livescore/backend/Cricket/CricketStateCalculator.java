@@ -312,19 +312,19 @@ public class CricketStateCalculator {
         // Populate striker stats (batsman1)
         if (strikerId != null) {
             PlayerStatDTO batsman1 = calculateBatsmanStats(strikerId, innings.getId());
-            s.setBatsman1Stats(List.of(batsman1));
+            s.setBatsman1Stats(batsman1);
         }
 
         // Populate non-striker stats (batsman2)
         if (nonStrikerId != null) {
             PlayerStatDTO batsman2 = calculateBatsmanStats(nonStrikerId, innings.getId());
-            s.setBatsman2Stats(List.of(batsman2));
+            s.setBatsman2Stats(batsman2);
         }
 
         // Populate bowler stats
         if (bowlerId != null) {
             PlayerStatDTO bowler = calculateBowlerStats(bowlerId, innings.getId());
-            s.setBowlerStats(List.of(bowler));
+            s.setBowlerStats(bowler);
         }
     }
 
