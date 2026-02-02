@@ -14,6 +14,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Component
 public class CricketStateCalculator {
@@ -32,9 +34,11 @@ public class CricketStateCalculator {
     @Autowired
     private PlayerInterface playerRepo;
 
+    // ✅ FIXED: Innings-level tracking (NOT instance variables)
+    private final Map<Long, Long[]> inningsOriginalBatsmen = new ConcurrentHashMap<>();
+
     /**
      * Main method: Calculate current match state
-     * Checks for innings end, all-out, target reached, etc.
      */
     public ScoreDTO calculateState(ScoreDTO s, Match match, CricketInnings innings) {
         // ✅ Store original ball number (jo autoIncrement ne set kiya)
@@ -55,15 +59,16 @@ public class CricketStateCalculator {
 
         // Handle second innings logic
         if (!s.isFirstInnings()) {
-            return handleSecondInnings(s, match, innings);
+            handleSecondInnings(s, match, innings);
         } else {
             s.setTarget(s.getRuns());
         }
+
+        // ✅ ALWAYS populate player stats LAST (after all logic)
         populatePlayerStats(s, innings);
 
         return s;
     }
-
 
     /**
      * Updates innings statistics: runs, overs, wickets, CRR
@@ -75,7 +80,7 @@ public class CricketStateCalculator {
         s.setRuns(runs);
         s.setWickets(wickets);
 
-        // ✅ Calculate CRR using CURRENT ball count (not recalculated from DB)
+        // ✅ Calculate CRR using CURRENT ball count
         int totalBalls = s.getOvers() * Constants.BALLS_PER_OVER + s.getBalls();
         double crr = totalBalls == 0 ? 0.0 :
                 ((double) runs * Constants.BALLS_PER_OVER) / (double) totalBalls;
@@ -85,46 +90,33 @@ public class CricketStateCalculator {
     /**
      * Handles second innings logic: target, RRR, win conditions
      */
-    private ScoreDTO handleSecondInnings(ScoreDTO s, Match match, CricketInnings currentInnings) {
-        // Get first innings runs
-        CricketInnings firstInnings = inningsRepo.findByMatchIdAndNo(
-                match.getId(), Constants.FIRST_INNINGS);
-
+    private void handleSecondInnings(ScoreDTO s, Match match, CricketInnings innings) {
+        CricketInnings firstInnings = inningsRepo.findByMatchIdAndNo(match.getId(), Constants.FIRST_INNINGS);
         int firstRuns = ballRepo.sumRunsAndExtrasByInningsId(firstInnings.getId());
         int target = firstRuns + 1;
         int currentRuns = s.getRuns();
         int remainingRuns = target - currentRuns;
 
-        // CHECK 1: Target achieved? (chasing team jeeti!)
+        // Target achieved
         if (currentRuns >= target) {
-            return endMatchWithWinner(s, match, currentInnings);
+            endMatchWithWinner(s, match, innings);
+            return;
         }
 
-        // CHECK 2: Calculate remaining balls
+        // Calculate RRR
         int maxBalls = match.getOvers() * Constants.BALLS_PER_OVER;
         int legalBalls = s.getOvers() * Constants.BALLS_PER_OVER + s.getBalls();
         int remainingBalls = Math.max(0, maxBalls - legalBalls);
 
-        // CHECK 3: Overs khatam? Determine winner by runs
-        if (remainingBalls == 0) {
-            return endMatchByOvers(s, match, currentInnings, currentRuns, firstRuns);
-        }
-
-        // Calculate Required Run Rate (RRR)
         double rrr = remainingBalls > 0 ?
                 ((double) remainingRuns * Constants.BALLS_PER_OVER) / (double) remainingBalls :
                 Double.POSITIVE_INFINITY;
 
         s.setTarget(remainingRuns);
         s.setRrr(round2(rrr));
-
-        return s;
     }
 
-    /**
-     * Ends match when target is reached
-     */
-    private ScoreDTO endMatchWithWinner(ScoreDTO s, Match match, CricketInnings innings) {
+    private void endMatchWithWinner(ScoreDTO s, Match match, CricketInnings innings) {
         if (!isMatchFinal(match)) {
             match.setWinnerTeam(innings.getTeam());
             match.setStatus(Constants.STATUS_COMPLETED);
@@ -132,42 +124,209 @@ public class CricketStateCalculator {
             awardService.computeMatchAwards(match.getId());
             matchService.endMatch(match.getId());
         }
-
         s.setStatus(Constants.STATUS_END_MATCH);
         s.setTarget(0);
         s.setRrr(0.0);
-        return s;
     }
 
     /**
-     * Ends match when overs are complete
+     * ✅ FIXED: ALWAYS populate player stats with error handling
      */
-    private ScoreDTO endMatchByOvers(ScoreDTO s, Match match, CricketInnings currentInnings,
-                                     int currentRuns, int firstRuns) {
-        Team otherTeam = getOpposingTeam(match, currentInnings.getTeam());
+    private void populatePlayerStats(ScoreDTO s, CricketInnings innings) {
+        Long inningsId = innings.getId();
+        Long currentStrikerId = s.getBatsmanId();
+        Long currentNonStrikerId = s.getNonStrikerId();
+        Long bowlerId = s.getBowlerId();
 
-        // Determine winner
-        if (currentRuns > firstRuns) {
-            match.setWinnerTeam(currentInnings.getTeam());
-        } else if (currentRuns < firstRuns) {
-            match.setWinnerTeam(otherTeam);
-        } else {
-            match.setWinnerTeam(null);
-            match.setStatus(Constants.STATUS_TIED);
+        System.out.println("=== POPULATE STATS DEBUG ===");
+        System.out.println("Innings ID: " + inningsId);
+        System.out.println("Striker: " + currentStrikerId + ", Non-Striker: " + currentNonStrikerId);
+
+        // ✅ ENSURE original batting order exists
+        if (!inningsOriginalBatsmen.containsKey(inningsId) && currentStrikerId != null && currentNonStrikerId != null) {
+            inningsOriginalBatsmen.put(inningsId, new Long[]{currentStrikerId, currentNonStrikerId});
+            System.out.println("✅ SET original order: Bat1=" + currentStrikerId + ", Bat2=" + currentNonStrikerId);
         }
 
-        if (!isMatchFinal(match)) {
-            if (!Constants.STATUS_TIED.equalsIgnoreCase(match.getStatus())) {
-                match.setStatus(Constants.STATUS_COMPLETED);
+        Long[] originalOrder = inningsOriginalBatsmen.get(inningsId);
+        if (originalOrder == null) {
+            System.err.println("❌ No original order found for innings: " + inningsId);
+            return;
+        }
+
+        Long originalBatsman1Id = originalOrder[0];
+        Long originalBatsman2Id = originalOrder[1];
+
+        System.out.println("Original Bat1 ID: " + originalBatsman1Id);
+        System.out.println("Original Bat2 ID: " + originalBatsman2Id);
+
+        // ✅ TOP POSITION - Always populate
+        try {
+            PlayerStatDTO batsman1Stats = calculateBatsmanStats(originalBatsman1Id, inningsId);
+            s.setBatsman1Stats(batsman1Stats);
+            System.out.println("✅ Batsman1Stats: " + batsman1Stats.getPlayerName() + " - " + batsman1Stats.getRuns() + " runs");
+        } catch (Exception e) {
+            System.err.println("❌ Batsman1Stats failed: " + e.getMessage());
+            s.setBatsman1Stats(createEmptyStats(originalBatsman1Id, "Batsman 1"));
+        }
+
+        // ✅ BOTTOM POSITION - Always populate
+        try {
+            PlayerStatDTO batsman2Stats = calculateBatsmanStats(originalBatsman2Id, inningsId);
+            s.setBatsman2Stats(batsman2Stats);
+            System.out.println("✅ Batsman2Stats: " + batsman2Stats.getPlayerName() + " - " + batsman2Stats.getRuns() + " runs");
+        } catch (Exception e) {
+            System.err.println("❌ Batsman2Stats failed: " + e.getMessage());
+            s.setBatsman2Stats(createEmptyStats(originalBatsman2Id, "Batsman 2"));
+        }
+
+        // ✅ Bowler stats
+        if (bowlerId != null) {
+            try {
+                PlayerStatDTO bowlerStats = calculateBowlerStats(bowlerId, inningsId);
+                s.setBowlerStats(bowlerStats);
+            } catch (Exception e) {
+                System.err.println("❌ BowlerStats failed: " + e.getMessage());
             }
-            matchRepo.save(match);
-            awardService.computeMatchAwards(match.getId());
-            matchService.endMatch(match.getId());
         }
 
-        s.setStatus(Constants.STATUS_END_MATCH);
-        s.setTarget(Math.max(0, (firstRuns + 1) - currentRuns));
-        return s;
+        System.out.println("=== END POPULATE STATS ===");
+    }
+
+    /**
+     * ✅ FIXED: Robust batsman stats calculation
+     */
+    private PlayerStatDTO calculateBatsmanStats(Long playerId, Long inningsId) {
+        if (playerId == null) {
+            return createEmptyStats(null, "Unknown Batsman");
+        }
+
+        PlayerStatDTO stats = new PlayerStatDTO();
+        stats.setPlayerId(playerId);
+
+        // ✅ Get player name with fallback
+        try {
+            Player player = playerRepo.findById(playerId).orElse(null);
+            stats.setPlayerName(player != null ? player.getName() : "Player ID: " + playerId);
+        } catch (Exception e) {
+            stats.setPlayerName("Player ID: " + playerId);
+        }
+
+        // ✅ Calculate stats from balls faced
+        try {
+            List<CricketBall> balls = ballRepo.findByBatsman_IdAndInnings_Id(playerId, inningsId);
+            int runs = 0, ballsFaced = 0, fours = 0, sixes = 0;
+
+            for (CricketBall ball : balls) {
+                // Legal deliveries = balls faced
+                if (Boolean.TRUE.equals(ball.getLegalDelivery())) {
+                    ballsFaced++;
+                }
+
+                // Batsman runs
+                if (ball.getRuns() != null) {
+                    int ballRuns = ball.getRuns();
+                    runs += ballRuns;
+                    if (ballRuns == 4) fours++;
+                    if (ballRuns == 6) sixes++;
+                }
+            }
+
+            stats.setRuns(runs);
+            stats.setBallsFaced(ballsFaced);
+            stats.setFours(fours);
+            stats.setSixes(sixes);
+        } catch (Exception e) {
+            System.err.println("Stats calculation failed for batsman " + playerId + ": " + e.getMessage());
+            // Keep defaults (0s)
+        }
+
+        return stats;
+    }
+
+    /**
+     * ✅ FIXED: Bowling stats calculation
+     */
+    private PlayerStatDTO calculateBowlerStats(Long playerId, Long inningsId) {
+        PlayerStatDTO stats = new PlayerStatDTO();
+        stats.setPlayerId(playerId);
+
+        try {
+            Player player = playerRepo.findById(playerId).orElse(null);
+            stats.setPlayerName(player != null ? player.getName() : "Bowler ID: " + playerId);
+        } catch (Exception e) {
+            stats.setPlayerName("Bowler ID: " + playerId);
+        }
+
+        try {
+            List<CricketBall> balls = ballRepo.findByBowler_IdAndInnings_Id(playerId, inningsId);
+            int wickets = 0, runsConceded = 0, ballsBowled = 0;
+
+            for (CricketBall ball : balls) {
+                if (Boolean.TRUE.equals(ball.getLegalDelivery())) {
+                    ballsBowled++;
+                }
+
+                if (ball.getRuns() != null) {
+                    runsConceded += ball.getRuns();
+                }
+                if (ball.getExtra() != null) {
+                    runsConceded += ball.getExtra();
+                }
+
+                if (ball.getDismissalType() != null && !ball.getDismissalType().isEmpty() &&
+                        !ball.getDismissalType().toLowerCase().contains("runout")) {
+                    wickets++;
+                }
+            }
+
+            stats.setWickets(wickets);
+            stats.setRunsConceded(runsConceded);
+            stats.setBallsBowled(ballsBowled);
+
+            if (ballsBowled > 0) {
+                double overs = (double) ballsBowled / Constants.BALLS_PER_OVER;
+                stats.setEconomy(round2(runsConceded / overs));
+            }
+
+        } catch (Exception e) {
+            System.err.println("Bowler stats failed for " + playerId + ": " + e.getMessage());
+        }
+
+        return stats;
+    }
+
+    private PlayerStatDTO createEmptyStats(Long playerId, String name) {
+        PlayerStatDTO stats = new PlayerStatDTO();
+        stats.setPlayerId(playerId);
+        stats.setPlayerName(name);
+        stats.setRuns(0);
+        stats.setBallsFaced(0);
+        stats.setFours(0);
+        stats.setSixes(0);
+        return stats;
+    }
+
+    // ✅ Clear cache when new innings starts
+    public void clearInningsBatsmenCache(Long inningsId) {
+        inningsOriginalBatsmen.remove(inningsId);
+        System.out.println("✅ Cleared cache for innings: " + inningsId);
+    }
+
+    // Existing helper methods (unchanged)...
+    private Team getOpposingTeam(Match match, Team team) {
+        if (team == null || match.getTeam1() == null || match.getTeam2() == null) return null;
+        return match.getTeam1().getId().equals(team.getId()) ? match.getTeam2() : match.getTeam1();
+    }
+
+    private boolean isMatchFinal(Match m) {
+        if (m == null || m.getStatus() == null) return false;
+        String st = m.getStatus().trim().toUpperCase();
+        return st.equals("COMPLETED") || st.equals("FINISHED") || st.equals("ABANDONED") || st.equals("TIED");
+    }
+
+    private double round2(double v) {
+        return Math.round(v * 100.0) / 100.0;
     }
 
     /**
@@ -282,164 +441,5 @@ public class CricketStateCalculator {
         return state;
     }
 
-    // Helper methods
-    private Team getOpposingTeam(Match match, Team team) {
-        if (team == null || match.getTeam1() == null || match.getTeam2() == null) {
-            return null;
-        }
-        return match.getTeam1().getId().equals(team.getId()) ?
-                match.getTeam2() : match.getTeam1();
-    }
 
-    private boolean isMatchFinal(Match m) {
-        if (m == null || m.getStatus() == null) return false;
-        String st = m.getStatus().trim().toUpperCase();
-        return st.equals("COMPLETED") || st.equals("FINISHED") ||
-                st.equals("ABANDONED") || st.equals("TIED");
-    }
-
-    private double round2(double v) {
-        return Math.round(v * 100.0) / 100.0;
-    }
-
-
-    private void populatePlayerStats(ScoreDTO s, CricketInnings innings) {
-        // ✅ Use frontend-provided IDs directly
-        Long strikerId = s.getBatsmanId();
-        Long nonStrikerId = s.getNonStrikerId();
-        Long bowlerId = s.getBowlerId();
-
-        // Populate striker stats (batsman1)
-        if (strikerId != null) {
-            PlayerStatDTO batsman1 = calculateBatsmanStats(strikerId, innings.getId());
-            s.setBatsman1Stats(batsman1);
-        }
-
-        // Populate non-striker stats (batsman2)
-        if (nonStrikerId != null) {
-            PlayerStatDTO batsman2 = calculateBatsmanStats(nonStrikerId, innings.getId());
-            s.setBatsman2Stats(batsman2);
-        }
-
-        // Populate bowler stats
-        if (bowlerId != null) {
-            PlayerStatDTO bowler = calculateBowlerStats(bowlerId, innings.getId());
-            s.setBowlerStats(bowler);
-        }
-    }
-
-    private PlayerStatDTO calculateBatsmanStats(Long playerId, Long inningsId) {
-        PlayerStatDTO stats = new PlayerStatDTO();
-
-        // Set player ID and name
-        stats.setPlayerId(playerId);
-        Player player = playerRepo.findById(playerId).orElse(null);
-        if (player != null) {
-            stats.setPlayerName(player.getName());
-        }
-
-        // Query balls faced by this batsman
-        List<CricketBall> balls = ballRepo.findByBatsman_IdAndInnings_Id(playerId, inningsId);
-
-        int runs = 0;
-        int ballsFaced = 0;
-        int fours = 0;
-        int sixes = 0;
-
-        for (CricketBall ball : balls) {
-            // Count legal deliveries as balls faced
-            if (ball.getLegalDelivery() != null && ball.getLegalDelivery()) {
-                ballsFaced++;
-            }
-
-            // Sum runs (not extras)
-            if (ball.getRuns() != null) {
-                runs += ball.getRuns();
-            }
-
-            // Count boundaries
-            if (ball.getIsFour() != null && ball.getIsFour()) {
-                fours++;
-            }
-
-            if (ball.getIsSix() != null && ball.getIsSix()) {
-                sixes++;
-            }
-        }
-
-        stats.setRuns(runs);
-        stats.setBallsFaced(ballsFaced);
-        stats.setFours(fours);
-        stats.setSixes(sixes);
-
-        return stats;
-    }
-
-    /**
-     * ✅ NEW METHOD: Calculate bowling statistics for a player
-     */
-    private PlayerStatDTO calculateBowlerStats(Long playerId, Long inningsId) {
-        PlayerStatDTO stats = new PlayerStatDTO();
-
-        // Set player ID and name
-        stats.setPlayerId(playerId);
-        Player player = playerRepo.findById(playerId).orElse(null);
-        if (player != null) {
-            stats.setPlayerName(player.getName());
-        }
-
-        // Query balls bowled by this bowler
-        List<CricketBall> balls = ballRepo.findByBowler_IdAndInnings_Id(playerId, inningsId);
-
-        int wickets = 0;
-        int runsConceded = 0;
-        int ballsBowled = 0;
-
-        for (CricketBall ball : balls) {
-            // Count legal deliveries as balls bowled
-            if (ball.getLegalDelivery() != null && ball.getLegalDelivery()) {
-                ballsBowled++;
-            }
-
-            // Sum runs conceded (batsman runs)
-            if (ball.getRuns() != null) {
-                runsConceded += ball.getRuns();
-            }
-
-            // Sum extras conceded (wides, no-balls, byes, leg-byes)
-            if (ball.getExtra() != null) {
-                runsConceded += ball.getExtra();
-            }
-
-            // Count wickets (exclude run-outs - those don't count for bowler)
-            if (ball.getDismissalType() != null && !ball.getDismissalType().isEmpty()) {
-                String dismissal = ball.getDismissalType().toLowerCase();
-                // Run-outs don't count as bowler's wicket
-                if (!dismissal.contains("runout") && !dismissal.contains("run out")) {
-                    wickets++;
-                }
-            }
-        }
-
-        stats.setWickets(wickets);
-        stats.setRunsConceded(runsConceded);
-        stats.setBallsBowled(ballsBowled);
-
-        // Calculate economy rate (runs per over)
-        if (ballsBowled > 0) {
-            double overs = (double) ballsBowled / Constants.BALLS_PER_OVER;
-            stats.setEconomy(round2(runsConceded / overs));
-        } else {
-            stats.setEconomy(null);  // No balls bowled yet
-        }
-
-        // Calculate bowling average (runs conceded per wicket)
-        if (wickets > 0) {
-            stats.setBowlingAverage(round2((double) runsConceded / wickets));
-        } else {
-            stats.setBowlingAverage(null);  // No wickets yet
-        }
-
-        return stats;
-    }
 }

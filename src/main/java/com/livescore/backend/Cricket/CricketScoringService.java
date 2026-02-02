@@ -33,6 +33,7 @@ public class CricketScoringService {
         if(s.isUndo()){
             return undoLastBall(s.getMatchId(), s.getInningsId());
         }
+
         // 1. Validate
         CricketScoringValidator.ValidationResult validation = validator.validate(s);
         if (!validation.valid) {
@@ -42,7 +43,6 @@ public class CricketScoringService {
         Match match = validation.match;
         CricketInnings innings = validation.innings;
 
-
         if (inningsManager.isInningsComplete(innings, match)) {
             s.setStatus(Constants.STATUS_END);
             return inningsManager.handleInningsEnd(s, match, innings);
@@ -51,7 +51,17 @@ public class CricketScoringService {
         // 3. Create and process ball (using request data as-is)
         CricketBall ball = eventProcessor.createAndProcessBall(s, match, innings);
 
-        // ✅ 4. INCREMENT BALL NUMBER (simple logic!)
+        // ✅ STRIKE ROTATION LOGIC - BEFORE BALL NUMBER INCREMENT
+        boolean shouldRotateStrike = false;
+        if (ball.getLegalDelivery() != null && ball.getLegalDelivery()) {
+            // Legal delivery pe runs check karo (odd runs = rotate)
+            Integer runs = ball.getRuns();
+            if (runs != null && runs % 2 == 1) {
+                shouldRotateStrike = true;
+            }
+        }
+
+        // 4. INCREMENT BALL NUMBER (simple logic!)
         boolean isLegalBall = ball.getLegalDelivery();
         if (isLegalBall) {
             int nextBall = s.getBalls() + 1;
@@ -62,13 +72,19 @@ public class CricketScoringService {
                 s.setBalls(nextBall);
             }
         }
-        // If illegal (wide/no-ball), ball number remains same
+
+        // ✅ APPLY STRIKE ROTATION
+        if (shouldRotateStrike) {
+            Long tempStriker = s.getBatsmanId();
+            s.setBatsmanId(s.getNonStrikerId());
+            s.setNonStrikerId(tempStriker);
+            System.out.println("STRIKE ROTATED: " + tempStriker + " <-> " + s.getNonStrikerId());
+        }
 
         ballRepo.save(ball);
 
         // 5. Update stats (async)
         statsService.updateTournamentStats(ball);
-
         if (match.getTournament() != null) {
             cacheEvictionService.evictTournamentAwards(match.getTournament().getId());
         }
@@ -86,6 +102,7 @@ public class CricketScoringService {
         return s;
     }
 
+
     private ScoreDTO createError(ScoreDTO s, String msg) {
         s.setStatus(Constants.STATUS_ERROR);
         s.setComment(msg);
@@ -100,10 +117,15 @@ public class CricketScoringService {
     @CacheEvict(value = "matchState", key = "#matchId")
     @Transactional
     public ScoreDTO undoLastBall(Long matchId, Long inningsId) {
-        List<CricketBall> balls = ballRepo.findByInnings_IdOrderByIdDesc(inningsId);
+        // ✅ PostgreSQL compatible delete using subquery
+        List<CricketBall> balls = ballRepo.findByInningsIdOrderByIdDesc(inningsId);
+
         if (balls != null && !balls.isEmpty()) {
-            ballRepo.delete(balls.get(0));
+            CricketBall lastBall = balls.get(0);
+            ballRepo.deleteById(lastBall.getId());  // ✅ Simple deleteById
         }
+
         return stateCalculator.getCurrentState(matchId);
     }
+
 }

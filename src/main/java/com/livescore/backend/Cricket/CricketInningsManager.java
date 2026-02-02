@@ -89,7 +89,8 @@ public class CricketInningsManager {
         s.setTarget(target);
         s.setCrr(0.0);
         s.setRrr(0.0);
-
+        CricketStateCalculator stateCalculator=new CricketStateCalculator();
+        stateCalculator.clearInningsBatsmenCache(firstInnings.getId());
         return s;
     }
 

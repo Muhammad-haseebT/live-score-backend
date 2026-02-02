@@ -3,6 +3,7 @@ package com.livescore.backend.Interface;
 import com.livescore.backend.Entity.CricketBall;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -264,4 +265,10 @@ WHERE (b.batsman.id = :playerId
     List<CricketBall> findByBatsman_IdAndInnings_Id(Long playerId, Long inningsId);
 
     List<CricketBall> findByBowler_IdAndInnings_Id(Long playerId, Long inningsId);
+
+
+
+
+
+    List<CricketBall> findByInningsIdOrderByIdDesc(Long inningsId);
 }
