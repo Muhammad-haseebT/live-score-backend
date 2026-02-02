@@ -13,6 +13,6 @@ public class CacheConfig {
     @Bean
     public CacheManager cacheManager() {
         // ✅ Add "matchState" alongside "tournamentAwards"
-        return new ConcurrentMapCacheManager("tournamentAwards", "matchState");
+        return new ConcurrentMapCacheManager("tournamentAwards", "matchState","inningsState","tournamentStats");
     }
 }

@@ -12,6 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -62,7 +63,7 @@ public class CricketScoringService {
         }
 
         // 4. INCREMENT BALL NUMBER (simple logic!)
-        boolean isLegalBall = ball.getLegalDelivery();
+        boolean isLegalBall = Boolean.TRUE.equals(ball.getLegalDelivery());
         if (isLegalBall) {
             int nextBall = s.getBalls() + 1;
             if (nextBall >= Constants.BALLS_PER_OVER) {
@@ -114,18 +115,29 @@ public class CricketScoringService {
         return stateCalculator.getCurrentState(matchId);
     }
 
-    @CacheEvict(value = "matchState", key = "#matchId")
+    @Caching(evict = {
+            @CacheEvict(value = "matchState", key = "#matchId"),
+            @CacheEvict(value = "inningsState", allEntries = true),
+            @CacheEvict(value = "tournamentStats", key = "#matchId")
+    })
     @Transactional
     public ScoreDTO undoLastBall(Long matchId, Long inningsId) {
-        // ✅ PostgreSQL compatible delete using subquery
         List<CricketBall> balls = ballRepo.findByInningsIdOrderByIdDesc(inningsId);
 
-        if (balls != null && !balls.isEmpty()) {
-            CricketBall lastBall = balls.get(0);
-            ballRepo.deleteById(lastBall.getId());  // ✅ Simple deleteById
+        if (balls == null || balls.isEmpty()) {
+            ScoreDTO noAction = new ScoreDTO();
+            noAction.setStatus(Constants.STATUS_ERROR);
+            noAction.setComment("No balls to undo");
+            return noAction;
         }
 
+        CricketBall lastBall = balls.get(0);
+        System.out.println("🗑️ Deleting ball: " + lastBall.getOverNumber() + "." + lastBall.getBallNumber());
+
+        // ✅ 1. SIRF BALL DELETE KARO
+        ballRepo.deleteById(lastBall.getId());
+
+        // ✅ 2. FRESH STATE BHEJO - getCurrentState sab fix kar degi
         return stateCalculator.getCurrentState(matchId);
     }
-
 }

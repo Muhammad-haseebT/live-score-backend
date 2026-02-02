@@ -339,6 +339,7 @@ public class LiveSCoringService {
             default:
                 return createError(s, Constants.ERROR_INVALID_EVENT_TYPE + ": " + s.getEventType());
         }
+
         
         return null;
     }

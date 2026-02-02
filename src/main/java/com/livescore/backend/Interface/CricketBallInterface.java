@@ -271,4 +271,6 @@ WHERE (b.batsman.id = :playerId
 
 
     List<CricketBall> findByInningsIdOrderByIdDesc(Long inningsId);
+    @Query("SELECT b FROM CricketBall b WHERE b.innings.id = :inningsId AND b.legalDelivery = true ORDER BY b.id DESC LIMIT 1")
+    CricketBall findFirstByInnings_IdAndLegalDeliveryTrueOrderByIdDesc(@Param("inningsId") Long inningsId);
 }

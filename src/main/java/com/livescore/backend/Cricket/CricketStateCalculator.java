@@ -17,6 +17,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+
+
 @Component
 public class CricketStateCalculator {
     @Autowired
@@ -367,40 +369,46 @@ public class CricketStateCalculator {
         state.setFirstInnings(isFirstInnings);
         state.setTeamId(currentInnings.getTeam() != null ? currentInnings.getTeam().getId() : null);
 
-        // ✅ Get last ball for batsman/bowler/fielder info
-        CricketBall lastBall = ballRepo.findFirstByInnings_IdOrderByIdDesc(currentInnings.getId());
+        // ✅ FIXED: Last LEGAL ball dhundo (deleted ball ignore karega)
+        CricketBall lastLegalBall = ballRepo.findFirstByInnings_IdAndLegalDeliveryTrueOrderByIdDesc(currentInnings.getId());
 
-        if (lastBall != null) {
-            // ✅ Set current batsman/bowler/fielder
-            state.setBatsmanId(lastBall.getBatsman() != null ? lastBall.getBatsman().getId() : null);
-            state.setNonStrikerId(lastBall.getNonStriker() != null ? lastBall.getNonStriker().getId() : null);  // ✅ NEW
-            state.setBowlerId(lastBall.getBowler() != null ? lastBall.getBowler().getId() : null);
-            state.setFielderId(lastBall.getFielder() != null ? lastBall.getFielder().getId() : null);
+        if (lastLegalBall != null) {
+            // ✅ Current batsman/bowler/fielder (last LEGAL ball se)
+            state.setBatsmanId(lastLegalBall.getBatsman() != null ? lastLegalBall.getBatsman().getId() : null);
+            state.setNonStrikerId(lastLegalBall.getNonStriker() != null ? lastLegalBall.getNonStriker().getId() : null);
+            state.setBowlerId(lastLegalBall.getBowler() != null ? lastLegalBall.getBowler().getId() : null);
+            state.setFielderId(lastLegalBall.getFielder() != null ? lastLegalBall.getFielder().getId() : null);
 
-            // ✅ Set last ball details for frontend context
-            state.setEvent(String.valueOf(lastBall.getRuns() != null ? lastBall.getRuns() : 0));
-            state.setEventType(lastBall.getExtraType() != null ? lastBall.getExtraType() : "run");
-            state.setIsLegal(lastBall.getLegalDelivery());
-            state.setFour(lastBall.getIsFour() != null && lastBall.getIsFour());
-            state.setSix(lastBall.getIsSix() != null && lastBall.getIsSix());
-            state.setDismissalType(lastBall.getDismissalType());
-            state.setOutPlayerId(lastBall.getOutPlayer() != null ? lastBall.getOutPlayer().getId() : null);
-            state.setComment(lastBall.getComment());
-            state.setMediaId(lastBall.getMedia() != null ? lastBall.getMedia().getId() : null);
-            state.setBalls(lastBall.getBallNumber());
-            state.setOvers(lastBall.getOverNumber());
+            // ✅ MOST IMPORTANT: PREVIOUS LEGAL BALL NUMBER!
+            state.setOvers(lastLegalBall.getOverNumber());
+            state.setBalls(lastLegalBall.getBallNumber());
             state.setWickets((int) ballRepo.countWicketsByInningsId(currentInnings.getId()));
+
+            // Last ball details (display purpose)
+            state.setEvent(String.valueOf(lastLegalBall.getRuns() != null ? lastLegalBall.getRuns() : 0));
+            state.setEventType(lastLegalBall.getExtraType() != null ? lastLegalBall.getExtraType() : "run");
+            state.setIsLegal(lastLegalBall.getLegalDelivery());
+            state.setFour(lastLegalBall.getIsFour() != null && lastLegalBall.getIsFour());
+            state.setSix(lastLegalBall.getIsSix() != null && lastLegalBall.getIsSix());
+            state.setDismissalType(lastLegalBall.getDismissalType());
+            state.setOutPlayerId(lastLegalBall.getOutPlayer() != null ? lastLegalBall.getOutPlayer().getId() : null);
+            state.setComment(lastLegalBall.getComment());
+            state.setMediaId(lastLegalBall.getMedia() != null ? lastLegalBall.getMedia().getId() : null);
+
         } else {
-            // No balls yet - set defaults
+            // ✅ No LEGAL balls yet - Perfect defaults
             state.setBatsmanId(null);
-            state.setNonStrikerId(null);  // ✅ NEW
+            state.setNonStrikerId(null);
             state.setBowlerId(null);
             state.setFielderId(null);
+            state.setOvers(0);      // ✅ 0.0
+            state.setBalls(0);      // ✅ 0.0
             state.setEvent(null);
             state.setEventType(null);
             state.setIsLegal(null);
             state.setFour(false);
             state.setSix(false);
+            state.setWickets(0);
         }
 
         // Calculate current stats (runs, overs, wickets, CRR)
@@ -432,14 +440,27 @@ public class CricketStateCalculator {
         // Set match status
         state.setStatus(isMatchFinal(match) ? Constants.STATUS_END_MATCH : "LIVE");
 
-        // ✅ Populate player statistics (NEW - uses batsmanId, nonStrikerId, bowlerId from above)
+        // ✅ Populate player statistics
         populatePlayerStats(state, currentInnings);
 
-        // ✅ Set undo flag to false (this is current state, not undo)
+        // ✅ Set undo flag to false
         state.setUndo(false);
+
+        if(lastLegalBall!= null) {
+            boolean isLegalBall = Boolean.TRUE.equals(lastLegalBall.getLegalDelivery());
+            if (isLegalBall) {
+                int nextBall = state.getBalls() + 1;
+                if (nextBall >= Constants.BALLS_PER_OVER) {
+                    state.setOvers(state.getOvers() + 1);
+                    state.setBalls(0);
+                } else {
+                    state.setBalls(nextBall);
+                }
+            }
+
+        }
 
         return state;
     }
-
 
 }
