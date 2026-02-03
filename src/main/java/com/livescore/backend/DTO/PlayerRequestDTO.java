@@ -9,6 +9,7 @@ public class PlayerRequestDTO {
     private Long teamId;
     private Long tournamentId;
     private String status;
+    private String us;
 
 }
 

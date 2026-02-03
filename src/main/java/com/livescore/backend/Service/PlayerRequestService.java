@@ -58,7 +58,15 @@ public class PlayerRequestService {
                     Map.of("error", "Tournament id is required")
             );
         }
-        Player player=playerInterface.findActiveById(playerRequest.getPlayerId()).orElse(null);
+        Player player;
+
+        if(playerRequest.getUs().isEmpty()){
+            player=playerInterface.findActiveById(playerRequest.getPlayerId()).orElse(null);
+
+        }
+        else{
+            player=playerInterface.findActiveByUsername(playerRequest.getUs());
+        }
         Team team=teamInterface.findById(playerRequest.getTeamId()).orElse(null);
         Tournament tournament=tournamentInterface.findById(playerRequest.getTournamentId()).orElse(null);
         if(player==null||team==null||tournament==null){

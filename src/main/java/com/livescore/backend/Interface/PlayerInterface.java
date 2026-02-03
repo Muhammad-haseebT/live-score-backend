@@ -63,4 +63,6 @@ public interface PlayerInterface extends JpaRepository<Player,Long> {
     List<Player> findAllWithRequestsAndAccounts();
 
 
+    @Query("SELECT p FROM Player p WHERE p.account.username = :us AND p.isDeleted = false")
+    Player findActiveByUsername(String us);
 }
