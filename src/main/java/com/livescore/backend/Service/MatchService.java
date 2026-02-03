@@ -13,7 +13,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
-import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -133,8 +132,8 @@ public class MatchService {
 
 
     public ResponseEntity<?> getMatchesByTournament(Long tournamentId) {
-        List<Match> matches=matchInterface.findByTournamentId(tournamentId);
-        if (matches.size()==0){
+        List<Match> matches = matchInterface.findByTournamentId(tournamentId);
+        if (matches.size() == 0) {
             return ResponseEntity.notFound().build();
         }
         return ResponseEntity.ok().body(convertToDTO(matches));
@@ -271,13 +270,11 @@ public class MatchService {
             matches = matchInterface.findAll();
         } else if (isSportAll) {
             matches = matchInterface.findByStatus(status.toUpperCase());
-        } else if(isStatusAll) {
-            matches=matchInterface.findByTournament_SportName(sport);
+        } else if (isStatusAll) {
+            matches = matchInterface.findByTournament_SportName(sport);
+        } else {
+            matches = matchInterface.findByTournament_SportName(sport, status);
         }
-        else {
-            matches=matchInterface.findByTournament_SportName(sport,status);
-        }
-
 
 
         return ResponseEntity.ok(convertToDTO(matches));
@@ -285,10 +282,9 @@ public class MatchService {
 
     public ResponseEntity<?> getMatchesByScorer(Long id) {
 
-        List<Match> matches=matchInterface.findByScorerID(id);
+        List<Match> matches = matchInterface.findByScorerID(id);
         return ResponseEntity.ok(convertToDTO(matches));
     }
-
 
 
     private MatchDTO convertToDTO(Match match) {
@@ -318,9 +314,13 @@ public class MatchService {
             matchDTO.setWinnerTeamId(match.getWinnerTeam().getId());
             matchDTO.setWinnerTeamName(match.getWinnerTeam().getName());
         }
-        if(match.getStatus().equalsIgnoreCase("LIVE")){
+        if (match.getStatus().equalsIgnoreCase("LIVE")) {
 
-            matchDTO.setInningsId(match.getCricketInnings().get(0).getId());
+            if (match.getCricketInnings().size() == 1)
+                matchDTO.setInningsId(match.getCricketInnings().get(0).getId());
+            else
+                matchDTO.setInningsId(match.getCricketInnings().get(1).getId());
+
         }
 
         return matchDTO;
