@@ -33,5 +33,6 @@ public class MatchDTO {
     private Long sportId;
     private int overs;
     private int sets;
+    private Long InningsId;
 }
 

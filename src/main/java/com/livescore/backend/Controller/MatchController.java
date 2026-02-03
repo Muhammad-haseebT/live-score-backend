@@ -93,6 +93,7 @@ public class MatchController {
     ) {
         return matchService.getmatchbystatusandSport(name, status);
     }
+
     @GetMapping("/match/scorer/{id}")
     public ResponseEntity<?> getMatchesByScorer(@PathVariable Long id){
         return matchService.getMatchesByScorer(id);

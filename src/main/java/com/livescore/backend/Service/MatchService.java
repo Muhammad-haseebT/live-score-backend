@@ -318,6 +318,11 @@ public class MatchService {
             matchDTO.setWinnerTeamId(match.getWinnerTeam().getId());
             matchDTO.setWinnerTeamName(match.getWinnerTeam().getName());
         }
+        if(match.getStatus().equalsIgnoreCase("LIVE")){
+
+            matchDTO.setInningsId(match.getCricketInnings().get(0).getId());
+        }
+
         return matchDTO;
     }
 
