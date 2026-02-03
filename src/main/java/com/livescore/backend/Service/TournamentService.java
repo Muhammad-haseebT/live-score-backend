@@ -48,6 +48,7 @@ public class TournamentService {
         if (validation != null) return validation;
 
         validation = ValidationUtils.validateRequired(tournament.getUsername(), "Username");
+
         if (validation != null) return validation;
         // Check for duplicates and existing references
         if (tournamentInterface.existsByNameAndSeasonId(tournament.getName(), tournament.getSeasonId())) {
