@@ -14,38 +14,38 @@ public class CricketBall {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "innings_id")
     @JsonBackReference("innings-balls")
     private CricketInnings innings;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "match_id")
     @JsonBackReference("match-balls")
     private Match match;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "batsman_id")
     @JsonIgnore
     private Player batsman;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "nonStraiker_id")
     @JsonIgnore
     private Player nonStriker;
 
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "bowler_id")
     @JsonIgnore
     private Player bowler;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "fielder_id")
     @JsonIgnore
     private Player fielder;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "out_batsman_id")
     @JsonIgnore
     private Player outBatsman;
@@ -57,6 +57,8 @@ public class CricketBall {
     private Integer extra;
     private String extraType;
     private String dismissalType;
+    private  String eventType;
+    private String event;
 
     private Boolean legalDelivery = true;
     private Boolean isFour = false;
@@ -64,12 +66,12 @@ public class CricketBall {
 
     private String comment;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "out_player_id")
     @JsonIgnore
     public Player outPlayer;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "media_id")
     @JsonIgnore
     private Media media;

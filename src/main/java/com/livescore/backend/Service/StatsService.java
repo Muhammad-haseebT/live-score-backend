@@ -312,18 +312,14 @@ public class StatsService {
 
 
 
-    /**
-     * Updates tournament statistics for a single cricket ball delivery.
-     * Creates new Stats entities if they don't exist for the players involved.
-     *
-     * Note: Uses REQUIRES_NEW propagation to avoid deadlocks in nested transactions
-     *
-     * @param ball CricketBall entity to process
-     */
-    @Async
+
+
     @Transactional
-    public void updateTournamentStats(CricketBall ball) {
+    @Async("statsExecutor")
+    public void updateTournamentStats(Long ballId) {
+        CricketBall ball = cricketBallInterface.findById(ballId).orElse(null);
         if (ball == null) return;
+
         Match match = ball.getMatch();
         if (match == null || match.getTournament() == null) return;
         Tournament tournament = match.getTournament();

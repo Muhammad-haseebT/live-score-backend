@@ -22,4 +22,5 @@ public class PlayerStatDTO {
     // meta
     public Integer pomCount = 0;     // player-of-match count
     public Double compositeScore = 0.0;
+    private double strikeRate=0.0;
 }

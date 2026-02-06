@@ -99,7 +99,7 @@ public class LiveSCoringService {
 
         // 8. Save ball and update stats
         cricketBallInterface.save(ball);
-        statsService.updateTournamentStats(ball);
+        statsService.updateTournamentStats(ball.getId());
         evictCacheIfNeeded(m);
 
         // 9. Calculate current innings state

@@ -17,7 +17,7 @@ import java.util.List;
         "seasonsCreated",
         "tournamentsCreated",
         "scoredMatches"})
-//@Where(clause = "is_deleted = false")
+
 public class Account {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
