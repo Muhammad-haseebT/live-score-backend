@@ -116,7 +116,7 @@ public class CricketScoringService {
         if(bowler!=null&&bowler.getPlayer()!=null) {
             scoreDTO.setBowlerId(bowler.getPlayer().getId());
 
-            bowlerDto.setRuns(bowler.getRunsConceded());
+            bowlerDto.setRunsConceded(bowler.getRunsConceded());
             bowlerDto.setWickets(bowler.getWickets());
             bowlerDto.setBallsBowled(bowler.getBallsBowled());
             bowlerDto.setPlayerId(bowler.getPlayer().getId());
@@ -184,11 +184,17 @@ public class CricketScoringService {
                 m.setExtras(m.getExtras()-1);
                 batsman.setRuns(batsman.getRuns()-r);
                 batsman.setBallsFaced(batsman.getBallsFaced()-1);
-                bowler.setRunsConceded(bowler.getRunsConceded()-r);
+                bowler.setRunsConceded(bowler.getRunsConceded()-r-1);
+                if(r==4){
+                    batsman.setFour(batsman.getFour()-1);
+                }
+                if(r==6){
+                    batsman.setSixes(batsman.getSixes()-1);
+                }
                 break;
             case "wide":
                 m.setExtras(m.getExtras()-r-1);
-                bowler.setRunsConceded(bowler.getRunsConceded()-r);
+                bowler.setRunsConceded(bowler.getRunsConceded()-r-1);
                 break;
 
 
@@ -200,6 +206,7 @@ public class CricketScoringService {
         m.setRuns(m.getRuns()-r);
         m.setRr((double) m.getRuns() /m.getBalls());
         m.setTarget(m.getTarget()-r);
+
 
         cricketBallInterface.delete(cb);
         matchStateInterface.save(m);
@@ -371,7 +378,7 @@ public class CricketScoringService {
             bowler.setEco((double) bowler.getRunsConceded() / bowler.getBallsBowled());
 
 
-            if (score.getEvent().equalsIgnoreCase("wide")) {
+            if (score.getEventType().equalsIgnoreCase("wide")) {
                 batsman.setRuns(batsman.getRuns());
                 batsman.setBallsFaced(batsman.getBallsFaced());
                 batsman.setRr((double) batsman.getRuns() / batsman.getBallsFaced());
