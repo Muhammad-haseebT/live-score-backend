@@ -139,6 +139,7 @@ public class CricketScoringService {
                 bowler.setBallsBowled(bowler.getBallsBowled() - 1);
                 batsman.setRr((double) batsman.getRuns() / batsman.getBallsFaced());
                 bowler.setEco((double) bowler.getRunsConceded() / bowler.getBallsBowled());
+                m.setRuns(m.getRuns() - r);
                 decrementBall(m);
                 break;
             case "bye":
