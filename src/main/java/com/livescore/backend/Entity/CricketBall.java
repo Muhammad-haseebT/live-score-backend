@@ -76,5 +76,4 @@ public class CricketBall {
     @JsonIgnore
     private Media media;
 
-
 }
