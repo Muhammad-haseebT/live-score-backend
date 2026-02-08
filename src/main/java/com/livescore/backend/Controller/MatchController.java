@@ -91,7 +91,7 @@ public class MatchController {
             @RequestParam(required = false) String name,
             @RequestParam String status
     ) {
-        return matchService.getmatchbystatusandSport(name, status);
+        return ResponseEntity.ok(matchService.getmatchbystatusandSport(name, status));
     }
 
     @GetMapping("/match/scorer/{id}")

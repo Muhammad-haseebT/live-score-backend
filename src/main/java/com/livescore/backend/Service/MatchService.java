@@ -7,6 +7,9 @@ import com.livescore.backend.Entity.Player;
 import com.livescore.backend.Entity.Sports;
 import com.livescore.backend.Interface.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -85,6 +88,9 @@ public class MatchService {
     }
 
     // -------------------- Public API --------------------
+
+
+    @CacheEvict(value = {"matches", "matchById"}, allEntries = true)
     public ResponseEntity<?> createMatch(MatchDTO matchDTO) {
         ResponseEntity<String> validation = validateMatchDTO(matchDTO);
         if (validation != null) return validation;
@@ -94,6 +100,7 @@ public class MatchService {
         return ResponseEntity.ok().body("Match created successfully");
     }
 
+    @CacheEvict(value = {"matches", "matchById"}, allEntries = true)
     public ResponseEntity<?> updateMatch(Long id, MatchDTO matchDTO) {
         Match match = matchInterface.findById(id).orElse(null);
         if (match == null) {
@@ -105,7 +112,7 @@ public class MatchService {
         matchInterface.save(match);
         return ResponseEntity.ok().body("Match updated successfully");
     }
-
+    @CacheEvict(value = {"matches", "matchById"}, allEntries = true)
     public ResponseEntity<?> deleteMatch(Long id) {
         Match match = matchInterface.findById(id).orElse(null);
         if (match == null) {
@@ -120,6 +127,7 @@ public class MatchService {
         if (match == null) {
             return ResponseEntity.notFound().build();
         }
+
         return ResponseEntity.ok(convertToDTO(match));
     }
 
@@ -131,11 +139,13 @@ public class MatchService {
     }
 
 
+    @Cacheable(value = "matchById",key = "#tournamentId")
     public ResponseEntity<?> getMatchesByTournament(Long tournamentId) {
         List<Match> matches = matchInterface.findByTournamentId(tournamentId);
         if (matches.size() == 0) {
             return ResponseEntity.notFound().build();
         }
+
         return ResponseEntity.ok().body(convertToDTO(matches));
     }
 
@@ -151,7 +161,7 @@ public class MatchService {
     public ResponseEntity<?> getMatchesByTime(LocalTime time) {
         return ResponseEntity.ok().body(matchInterface.findByTime(time));
     }
-
+    @CacheEvict(value = {"matches", "matchById"}, allEntries = true)
     public ResponseEntity<?> startMatch(Long id, MatchDTO m) {
         if (m == null) {
             return ResponseEntity.badRequest().body("Match details are required");
@@ -200,7 +210,7 @@ public class MatchService {
         matchInterface.save(match);
         return ResponseEntity.ok().body("Match started successfully");
     }
-
+    @CacheEvict(value = {"matches", "matchById"}, allEntries = true)
     @Transactional
     public ResponseEntity<?> endMatch(Long matchId) {
         // 1. Get match
@@ -242,7 +252,7 @@ public class MatchService {
 
         return ResponseEntity.ok("Match ended successfully and stats updated");
     }
-
+    @CacheEvict(value = {"matches", "matchById"}, allEntries = true)
     public ResponseEntity<?> abandonMatch(Long id) {
         Match match = matchInterface.findById(id).orElse(null);
         if (match == null) {
@@ -250,6 +260,7 @@ public class MatchService {
         }
         match.setStatus("ABANDONED");
         matchInterface.save(match);
+
         return ResponseEntity.ok().body("Match abandoned successfully");
     }
 
@@ -260,7 +271,11 @@ public class MatchService {
         return ResponseEntity.ok(convertToDTO(matches));
     }
 
-    public ResponseEntity<?> getmatchbystatusandSport(String sport, String status) {
+    @Cacheable(
+            value = "matches",
+            key = "T(java.util.Objects).hash(#sport != null ? #sport : 'All', #status != null ? #status : 'All')"
+    )
+    public List<MatchDTO> getmatchbystatusandSport(String sport, String status) {
 
         List<Match> matches;
         boolean isSportAll = (sport == null || sport.isEmpty() || sport.equalsIgnoreCase("All"));
@@ -277,7 +292,7 @@ public class MatchService {
         }
 
 
-        return ResponseEntity.ok(convertToDTO(matches));
+        return convertToDTO(matches);
     }
 
     public ResponseEntity<?> getMatchesByScorer(Long id) {

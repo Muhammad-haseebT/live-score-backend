@@ -11,6 +11,9 @@ import com.livescore.backend.Interface.SeasonInterface;
 import com.livescore.backend.Interface.SportsInterface;
 import com.livescore.backend.Interface.TournamentInterface;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
@@ -30,6 +33,12 @@ public class SeasonService {
     @Autowired
     private SportsInterface sportsInterface;
 
+    @Caching(evict = {
+            @CacheEvict(value = "seasons", allEntries = true),
+            @CacheEvict(value = "seasonById", allEntries = true),
+            @CacheEvict(value = "seasonNames", allEntries = true),
+            @CacheEvict(value = "allSeasons", allEntries = true)
+    })
     public ResponseEntity<?> createSeason(SeasonCreateRequestDTO season) {
         if (season == null) {
             return ResponseEntity.badRequest().body("Season details are required");
@@ -64,6 +73,7 @@ public class SeasonService {
     }
 
 
+    @Cacheable(value="seasonById",key = "#id")
     public ResponseEntity<?> getSeasonById(Long id) {
         if (seasonInterface.findById(id).isPresent()) {
             return ResponseEntity.ok(
@@ -73,11 +83,17 @@ public class SeasonService {
             return ResponseEntity.notFound().build();
         }
     }
-
+    @Cacheable(value="allSeasons")
     public ResponseEntity<?> getAllSeasons() {
         return ResponseEntity.ok(seasonInterface.findAll());
     }
 
+    @Caching(evict = {
+            @CacheEvict(value = "seasons", allEntries = true),
+            @CacheEvict(value = "seasonById", allEntries = true),
+            @CacheEvict(value = "seasonNames", allEntries = true),
+            @CacheEvict(value = "allSeasons", allEntries = true)
+    })
     public ResponseEntity<?> updateSeason(Long id, Season season) {
         if (season == null) {
             return ResponseEntity.badRequest().body("Season details are required");
@@ -92,7 +108,12 @@ public class SeasonService {
         }
         return ResponseEntity.ok(seasonInterface.save(season1));
     }
-
+    @Caching(evict = {
+            @CacheEvict(value = "seasons", allEntries = true),
+            @CacheEvict(value = "seasonById", allEntries = true),
+            @CacheEvict(value = "seasonNames", allEntries = true),
+            @CacheEvict(value = "allSeasons", allEntries = true)
+    })
     public ResponseEntity<?> deleteSeason(Long id) {
         if (id == null) {
             return ResponseEntity.badRequest().body("Season id is required");
@@ -104,10 +125,12 @@ public class SeasonService {
         return ResponseEntity.ok().build();
     }
 
+    @Cacheable(value = "SeasonNames")
     public ResponseEntity<?> getSeasonNames() {
         return ResponseEntity.ok(seasonInterface.findAll().stream().map(season->new SeasonResponse(season.getName(),season.getId())).collect(Collectors.toList()));
     }
 
+    @Cacheable(value = "seasons",key = "(T(java.util.Objects).hash(#id , #sportId ))")
     public ResponseEntity<?> getSeasonWiseTournament(Long id,Long sportId) {
         if (id == null || sportId == null) {
             return ResponseEntity.badRequest().body("Season id and sport id are required");
@@ -128,6 +151,13 @@ public class SeasonService {
 
     }
 
+
+    @Caching(evict = {
+            @CacheEvict(value = "seasons", allEntries = true),
+            @CacheEvict(value = "seasonById", allEntries = true),
+            @CacheEvict(value = "seasonNames", allEntries = true),
+            @CacheEvict(value = "allSeasons", allEntries = true)
+    })
     public ResponseEntity<?> addSportsToSeason(SeasonSportsRequestDTO request)
     {
         if (request == null || request.getSeasonId() == null) {

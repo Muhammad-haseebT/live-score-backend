@@ -11,6 +11,8 @@ import com.livescore.backend.Interface.TournamentInterface;
 import com.livescore.backend.Util.Constants;
 import com.livescore.backend.Util.ValidationUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
@@ -29,6 +31,10 @@ public class TeamService {
 
     @Autowired
     private TournamentInterface tournamentInterface;
+
+
+
+    @CacheEvict(value = {"teamByTournamentId","teams","teamById","teamByTournamentIdAndAccountId","teamByPlayers"},allEntries = true)
     public ResponseEntity<?> createTeam(Team team,Long tournamentId,Long playerId) {
         // Validate input
         ResponseEntity<?> validation = ValidationUtils.validateNotNull(team, "Team details");
@@ -66,6 +72,7 @@ public class TeamService {
 
 
     }
+    @CacheEvict(value = {"teamByTournamentId","teams","teamById","teamByTournamentIdAndAccountId","teamByPlayers"},allEntries = true)
     public ResponseEntity<?> updateTeam(Long id, Team team) {
         ResponseEntity<?> validation = ValidationUtils.validateNotNull(team, "Team details");
         if (validation != null) return validation;
@@ -79,6 +86,7 @@ public class TeamService {
             return ResponseEntity.ok(teamInterface.save(teamEntity));
         }).orElse(ResponseEntity.notFound().build());
     }
+    @CacheEvict(value = {"teamByTournamentId","teams","teamById","teamByTournamentIdAndAccountId","teamByPlayers"},allEntries = true)
     public ResponseEntity<?> deleteTeam(Long id) {
         if(teamInterface.existsById(id)){
             teamInterface.deleteById(id);
@@ -86,9 +94,12 @@ public class TeamService {
         }
         return ResponseEntity.notFound().build();
     }
+    @Cacheable(value = "teams",key = "#tid")
     public ResponseEntity<?> getAllTeams() {
         return ResponseEntity.ok(teamInterface.findAll());
     }
+    @Cacheable(value = "teamById",key = "#tid")
+
     public ResponseEntity<?> getTeamById(Long id) {
         return teamInterface.findById(id)
                 .map(ResponseEntity::ok)
@@ -96,15 +107,9 @@ public class TeamService {
     }
 
 
-    public ResponseEntity<?> getTeamsByStatus(String status) {
-        return ResponseEntity.ok(teamInterface.findByStatus(status));
-    }
-    public ResponseEntity<?> getTeamsByTournamentIdAndStatus(Long tournamentId, String status) {
-        return ResponseEntity.ok(teamInterface.findByTournamentIdAndStatus(tournamentId, status));
-    }
 
 
-
+    @Cacheable(value = "teamByTournamentId",key = "#tid")
     public ResponseEntity<?> getTeamByTournamentId(Long tid) {
         List<Map<String, Object>> response = new ArrayList<>();
         ResponseEntity<?> validation = ValidationUtils.validateRequiredId(tid, "Tournament id");
@@ -126,6 +131,7 @@ public class TeamService {
         return ResponseEntity.ok(response);
 
     }
+    @Cacheable(value = "teamByTournamentIdAndAccountId",key = "T(java.util.Objects).hash(#tid,#aid)")
 
     public ResponseEntity<?> getTeamByTournamentIdAndAccountId(Long tid, Long aid) {
         // Validate input
@@ -175,6 +181,8 @@ public class TeamService {
 
         return ResponseEntity.ok(response);
     }
+
+    @Cacheable(value = "teamByPlayers",key = "#teamId")
 
     public ResponseEntity<?> findPlayersByTeam(Long teamId) {
         Team team = teamInterface.findById(teamId).orElse(null);

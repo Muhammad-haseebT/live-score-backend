@@ -9,6 +9,9 @@ import com.livescore.backend.Util.Constants;
 import com.livescore.backend.Util.ValidationUtils;
 import lombok.Data;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
@@ -33,6 +36,8 @@ public class TournamentService {
     @Autowired
     private PtsTableInterface ptsTableInterface;
 
+
+    @CacheEvict(value = {"tournamentOverview","tournamentNames","tournamentById","tournaments"},allEntries = true)
     public ResponseEntity<?> createTournament(TournamentRequestDTO tournament) {
         // Validate input
         ResponseEntity<?> validation = ValidationUtils.validateNotNull(tournament, "Tournament details");
@@ -110,6 +115,8 @@ public class TournamentService {
         return ResponseEntity.ok().build();
 
     }
+
+    @Cacheable(value = "tournamentById",key = "#id")
     public ResponseEntity<?> getTournamentById(Long id) {
         return tournamentInterface.findById(id)
                 .map(ResponseEntity::ok)
@@ -118,9 +125,12 @@ public class TournamentService {
 
 
 
+    @Cacheable(value = "tournaments")
     public ResponseEntity<?> getAllTournaments() {
         return ResponseEntity.ok(tournamentInterface.findAll());
     }
+    @CacheEvict(value = {"tournamentOverview","tournamentNames","tournamentById","tournaments"},allEntries = true)
+
     public ResponseEntity<?> updateTournament(Long id, TournamentRequestDTO tournament) {
         ResponseEntity<?> validation = ValidationUtils.validateNotNull(tournament, "Tournament details");
         if (validation != null) return validation;
@@ -172,6 +182,8 @@ public class TournamentService {
 
         return ResponseEntity.ok(tournamentInterface.save(tournament1));
     }
+    @CacheEvict(value = {"tournamentOverview","tournamentNames","tournamentById","tournaments"},allEntries = true)
+
     public ResponseEntity<?> deleteTournament(Long id) {
         if(tournamentInterface.existsById(id)){
             tournamentInterface.deleteById(id);
@@ -182,6 +194,7 @@ public class TournamentService {
     }
 
 
+    @Cacheable(value = "tournamentOverview",key = "#id")
     public ResponseEntity<?> getOverview(Long id) {
         Tournament tournament = tournamentInterface.findById(id).orElse(null);
         if(tournament == null){
@@ -202,6 +215,7 @@ public class TournamentService {
 
     }
 
+    @Cacheable(value = "tournamentNames")
     public ResponseEntity<?> getTournamentByName() {
         List<Map<Long,String>> t =new ArrayList<>();
         List<Tournament>at=tournamentInterface.findAllNames();
