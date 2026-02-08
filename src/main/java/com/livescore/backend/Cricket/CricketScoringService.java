@@ -146,6 +146,7 @@ public class CricketScoringService {
                 batsman.setBallsFaced(batsman.getBallsFaced() - 1);
                 bowler.setBallsBowled(bowler.getBallsBowled() - 1);
                 m.setExtras(m.getExtras() - r);
+                m.setRuns(m.getRuns() - r);
                 decrementBall(m);
                 break;
             case "noball":
@@ -155,17 +156,20 @@ public class CricketScoringService {
                 bowler.setRunsConceded(bowler.getRunsConceded() - r - 1);
                 if (r == 4) batsman.setFour(batsman.getFour() - 1);
                 if (r == 6) batsman.setSixes(batsman.getSixes() - 1);
+                m.setRuns(m.getRuns() - r-1);
                 break;
             case "wide":
                 m.setExtras(m.getExtras() - r - 1);
                 bowler.setRunsConceded(bowler.getRunsConceded() - r - 1);
+                m.setRuns(m.getRuns() - r-1);
                 break;
             case "wicket":
                 handleUndoWicket(m, batsman, bowler, nonStriker, cb);
                 break;
         }
-        m.setRuns(m.getRuns() - r);
+
         m.setRr((double) m.getRuns() / m.getBalls());
+        m.setCrr((double) m.getRuns() * 6 / ((m.getOvers() * 6) + m.getBalls()));
         m.setTarget(m.getTarget() - r);
 
         cricketBallInterface.delete(cb);
@@ -404,8 +408,8 @@ public class CricketScoringService {
     private void handleExtras(ScoreDTO score, MatchState m, CricketBall c,
                               PlayerInnings batsman, PlayerInnings bowler, BallContext ctx) {
         int r = Integer.parseInt(score.getEvent());
-        m.setRuns(m.getRuns() + r);
-        checkRotate(r);
+
+
 
         if (score.isFirstInnings()) {
             m.setTarget(m.getTarget() + r);
@@ -420,15 +424,18 @@ public class CricketScoringService {
             incrementBall(m);
             c.setExtraType(score.getEventType());
             c.setLegalDelivery(true);
+            m.setRuns(m.getRuns() + r);
         } else {
             bowler.setRunsConceded(bowler.getRunsConceded() + r + 1);
             bowler.setEco((double) bowler.getRunsConceded() / bowler.getBallsBowled());
 
             if (score.getEventType().equalsIgnoreCase("wide")) {
                 m.setExtras(m.getExtras() + r + 1);
+                m.setRuns(m.getRuns() +r+ 1);
                 c.setExtraType("wide");
             } else {
                 m.setExtras(m.getExtras() + 1);
+                m.setRuns(m.getRuns() +r+ 1);
                 batsman.setRuns(batsman.getRuns() + r);
                 batsman.setBallsFaced(batsman.getBallsFaced() + 1);
                 batsman.setRr((double) batsman.getRuns() / batsman.getBallsFaced());
@@ -439,6 +446,7 @@ public class CricketScoringService {
             }
             c.setLegalDelivery(false);
         }
+
         if (r == 4) c.setIsFour(true);
         else if (r == 6) c.setIsSix(true);
         c.setRuns(r);
