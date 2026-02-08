@@ -29,6 +29,7 @@ public class ScoreDTO {
 
     private Long inningsId;
     private Long outPlayerId;
+    private Long newPlayerId;
     private int runsOnThisBall;
     private int extrasThisBall;
     private boolean isFour;
