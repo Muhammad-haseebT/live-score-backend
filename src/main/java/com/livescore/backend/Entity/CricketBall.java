@@ -30,7 +30,7 @@ public class CricketBall {
     private Player batsman;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "nonStraiker_id")
+    @JoinColumn(name = "nonStriker_id")
     @JsonIgnore
     private Player nonStriker;
 
