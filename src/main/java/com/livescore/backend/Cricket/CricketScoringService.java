@@ -199,6 +199,7 @@ public class CricketScoringService {
             case "onehandonebounce":
                 decrementBall(m);
                 bowler.setWickets(bowler.getWickets() - 1);
+                bowler.setBallsBowled(bowler.getBallsBowled() - 1);
             case "retired":
             case "mankad":
                 m.setWickets(m.getWickets() - 1);
@@ -216,8 +217,10 @@ public class CricketScoringService {
                 if (cb.getRuns() == 4) batsman.setFour(batsman.getFour() - 1);
                 if (cb.getRuns() == 6) batsman.setSixes(batsman.getSixes() - 1);
                 bowler.setRunsConceded(bowler.getRunsConceded() - cb.getRuns());
-                bowler.setBallsBowled(bowler.getBallsBowled() - 1);
+
                 bowler.setEco((double) bowler.getRunsConceded() / bowler.getBallsBowled());
+                m.setRuns(m.getRuns() - cb.getRuns());
+
         }
     }
 
@@ -261,7 +264,11 @@ public class CricketScoringService {
         batsman.setInnings(ci);
         bowler.setInnings(ci);
         nonStriker.setInnings(ci);
-
+        if(score.getDismissalType()!=null) {
+            String r = score.getDismissalType().replace(" ","");
+            score.setDismissalType(r);
+            System.out.println(r);
+        }
         // ------- 4. Set striker/nonStriker/bowler on MatchState using pre-fetched players -------
         m.setBowler(bowlerPlayer);
         if (outPlayer == null) {
@@ -277,10 +284,16 @@ public class CricketScoringService {
                 m.setStriker(batsmanPlayer);
                 m.setNonStriker(newPlayer);
             }
-            PlayerInnings newPlayerInnings = new PlayerInnings();
-            newPlayerInnings.setPlayer(newPlayer);
-            newPlayerInnings.setInnings(ci);
-            playerInningsInterface.save(newPlayerInnings);
+
+            PlayerInnings existingNewPlayer = playerInningsInterface
+                    .findByInnings_IdAndPlayer_Id(score.getInningsId(), newPlayer.getId());
+            if (existingNewPlayer == null) {
+                PlayerInnings newPlayerInnings = new PlayerInnings();
+                newPlayerInnings.setPlayer(newPlayer);
+                newPlayerInnings.setInnings(ci);
+                playerInningsInterface.save(newPlayerInnings);
+            }
+
         }
 
         // ------- 5. Build a context object to pass pre-fetched entities -------
@@ -328,7 +341,7 @@ public class CricketScoringService {
 
     private void handleWickets(ScoreDTO score, MatchState m, CricketBall c,
                                PlayerInnings batsman, PlayerInnings bowler, BallContext ctx) {
-        String d = score.getDismissalType().toLowerCase();
+        String d = score.getDismissalType().toLowerCase().trim();
         switch (d) {
             case "bowled":
             case "caught":
@@ -386,6 +399,7 @@ public class CricketScoringService {
 
 
         m.setCrr((double) m.getRuns() * 6 / ((m.getOvers() * 6) + m.getBalls()));
+
     }
 
     private void addScore(ScoreDTO score, MatchState m, CricketBall c,
@@ -423,7 +437,7 @@ public class CricketScoringService {
             c.setIsSix(true);
             batsman.setSixes(batsman.getSixes() + 1);
         }
-        cricketBallInterface.save(c);
+
     }
 
     private void handleExtras(ScoreDTO score, MatchState m, CricketBall c,
@@ -479,7 +493,7 @@ public class CricketScoringService {
         c.setOverNumber(m.getOvers());
 
         m.setCrr((double) m.getRuns() * 6 / ((m.getOvers() * 6) + m.getBalls()));
-        cricketBallInterface.save(c);
+
     }
 
     void incrementBall(MatchState m) {
