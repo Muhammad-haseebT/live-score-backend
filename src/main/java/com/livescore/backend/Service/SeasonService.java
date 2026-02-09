@@ -36,7 +36,7 @@ public class SeasonService {
     @Caching(evict = {
             @CacheEvict(value = "seasons", allEntries = true),
             @CacheEvict(value = "seasonById", allEntries = true),
-            @CacheEvict(value = "seasonNames", allEntries = true),
+            @CacheEvict(value = "SeasonNames", allEntries = true),
             @CacheEvict(value = "allSeasons", allEntries = true)
     })
     public ResponseEntity<?> createSeason(SeasonCreateRequestDTO season) {
@@ -111,7 +111,7 @@ public class SeasonService {
     @Caching(evict = {
             @CacheEvict(value = "seasons", allEntries = true),
             @CacheEvict(value = "seasonById", allEntries = true),
-            @CacheEvict(value = "seasonNames", allEntries = true),
+            @CacheEvict(value = "SeasonNames", allEntries = true),
             @CacheEvict(value = "allSeasons", allEntries = true)
     })
     public ResponseEntity<?> deleteSeason(Long id) {
@@ -155,7 +155,7 @@ public class SeasonService {
     @Caching(evict = {
             @CacheEvict(value = "seasons", allEntries = true),
             @CacheEvict(value = "seasonById", allEntries = true),
-            @CacheEvict(value = "seasonNames", allEntries = true),
+            @CacheEvict(value = "SeasonNames", allEntries = true),
             @CacheEvict(value = "allSeasons", allEntries = true)
     })
     public ResponseEntity<?> addSportsToSeason(SeasonSportsRequestDTO request)
