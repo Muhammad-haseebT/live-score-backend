@@ -37,7 +37,7 @@ public class TournamentService {
     private PtsTableInterface ptsTableInterface;
 
 
-    @CacheEvict(value = {"tournamentOverview","tournamentNames","tournamentById","tournaments"},allEntries = true)
+    @CacheEvict(value = {"tournamentOverview","tournamentNames","tournamentById","tournaments","seasons"},allEntries = true)
     public ResponseEntity<?> createTournament(TournamentRequestDTO tournament) {
         // Validate input
         ResponseEntity<?> validation = ValidationUtils.validateNotNull(tournament, "Tournament details");
@@ -129,8 +129,7 @@ public class TournamentService {
     public ResponseEntity<?> getAllTournaments() {
         return ResponseEntity.ok(tournamentInterface.findAll());
     }
-    @CacheEvict(value = {"tournamentOverview","tournamentNames","tournamentById","tournaments"},allEntries = true)
-
+    @CacheEvict(value = {"tournamentOverview","tournamentNames","tournamentById","tournaments","seasons"},allEntries = true)
     public ResponseEntity<?> updateTournament(Long id, TournamentRequestDTO tournament) {
         ResponseEntity<?> validation = ValidationUtils.validateNotNull(tournament, "Tournament details");
         if (validation != null) return validation;
@@ -182,7 +181,7 @@ public class TournamentService {
 
         return ResponseEntity.ok(tournamentInterface.save(tournament1));
     }
-    @CacheEvict(value = {"tournamentOverview","tournamentNames","tournamentById","tournaments"},allEntries = true)
+    @CacheEvict(value = {"tournamentOverview","tournamentNames","tournamentById","tournaments","seasons"},allEntries = true)
 
     public ResponseEntity<?> deleteTournament(Long id) {
         if(tournamentInterface.existsById(id)){
