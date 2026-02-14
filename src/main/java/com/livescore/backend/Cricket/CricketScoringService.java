@@ -46,10 +46,10 @@ public class CricketScoringService {
             return s;
         }
 
-        return convertToScoreDTO(state, false);
+        return convertToScoreDTO(state, false,false);
     }
 
-    private ScoreDTO convertToScoreDTO(MatchState state, Boolean rotate) {
+    private ScoreDTO convertToScoreDTO(MatchState state, Boolean rotate,boolean a) {
         ScoreDTO scoreDTO = new ScoreDTO();
 
         scoreDTO.setMatchId(state.getInnings().getMatch().getId());
@@ -62,57 +62,64 @@ public class CricketScoringService {
         scoreDTO.setCrr(state.getCrr());
         scoreDTO.setTarget(state.getTarget());
         scoreDTO.setExtra(state.getExtras());
+        scoreDTO.setFirstInnings((state.getInnings().getNo()==1));
+        if(!a){
+            PlayerStatDTO batsmanDto = new PlayerStatDTO();
+            PlayerStatDTO nonStrikerDto = new PlayerStatDTO();
+            PlayerStatDTO bowlerDto = new PlayerStatDTO();
+            PlayerInnings batsman = playerInningsInterface.findByInnings_IdAndPlayer_Id(state.getInnings().getId(), state.getStriker().getId());
+            PlayerInnings bowler = playerInningsInterface.findByInnings_IdAndPlayer_Id(state.getInnings().getId(), state.getBowler().getId());
+            PlayerInnings nonStriker = playerInningsInterface.findByInnings_IdAndPlayer_Id(state.getInnings().getId(), state.getNonStriker().getId());
 
-        PlayerStatDTO batsmanDto = new PlayerStatDTO();
-        PlayerStatDTO nonStrikerDto = new PlayerStatDTO();
-        PlayerStatDTO bowlerDto = new PlayerStatDTO();
-        PlayerInnings batsman = playerInningsInterface.findByInnings_IdAndPlayer_Id(state.getInnings().getId(), state.getStriker().getId());
-        PlayerInnings bowler = playerInningsInterface.findByInnings_IdAndPlayer_Id(state.getInnings().getId(), state.getBowler().getId());
-        PlayerInnings nonStriker = playerInningsInterface.findByInnings_IdAndPlayer_Id(state.getInnings().getId(), state.getNonStriker().getId());
 
+            if (batsman != null && batsman.getPlayer() != null) {
+                scoreDTO.setBatsmanId(batsman.getPlayer().getId());
+                batsmanDto.setRuns(batsman.getRuns());
+                batsmanDto.setSixes(batsman.getSixes());
+                batsmanDto.setFours(batsman.getFour());
+                batsmanDto.setBallsFaced(batsman.getBallsFaced());
+                batsmanDto.setPlayerId(batsman.getPlayer().getId());
+                batsmanDto.setPlayerName(batsman.getPlayer().getName());
+                batsmanDto.setStrikeRate(batsman.getBallsFaced() > 0
+                        ? (batsman.getRuns() * 100.0) / batsman.getBallsFaced() : 0);
+            }
+            if (nonStriker != null && nonStriker.getPlayer() != null) {
+                scoreDTO.setNonStrikerId(nonStriker.getPlayer().getId());
+                nonStrikerDto.setRuns(nonStriker.getRuns());
+                nonStrikerDto.setSixes(nonStriker.getSixes());
+                nonStrikerDto.setFours(nonStriker.getFour());
+                nonStrikerDto.setBallsFaced(nonStriker.getBallsFaced());
+                nonStrikerDto.setPlayerId(nonStriker.getPlayer().getId());
+                nonStrikerDto.setPlayerName(nonStriker.getPlayer().getName());
+                nonStrikerDto.setStrikeRate(nonStriker.getBallsFaced() > 0
+                        ? (nonStriker.getRuns() * 100.0) / nonStriker.getBallsFaced() : 0);
+            }
+            if (bowler != null && bowler.getPlayer() != null) {
+                scoreDTO.setBowlerId(bowler.getPlayer().getId());
+                bowlerDto.setRunsConceded(bowler.getRunsConceded());
+                bowlerDto.setWickets(bowler.getWickets());
+                bowlerDto.setBallsBowled(bowler.getBallsBowled());
+                bowlerDto.setPlayerId(bowler.getPlayer().getId());
+                bowlerDto.setPlayerName(bowler.getPlayer().getName());
+                bowlerDto.setEconomy(bowler.getBallsBowled() > 0
+                        ? (bowler.getRunsConceded() * 6.0) / bowler.getBallsBowled() : 0);
+            }
+            if (rotate) {
+                scoreDTO.setBatsmanId(nonStriker.getPlayer().getId());
+                scoreDTO.setNonStrikerId(batsman.getPlayer().getId());
+            }
 
-
-        if (batsman != null && batsman.getPlayer() != null) {
-            scoreDTO.setBatsmanId(batsman.getPlayer().getId());
-            batsmanDto.setRuns(batsman.getRuns());
-            batsmanDto.setSixes(batsman.getSixes());
-            batsmanDto.setFours(batsman.getFour());
-            batsmanDto.setBallsFaced(batsman.getBallsFaced());
-            batsmanDto.setPlayerId(batsman.getPlayer().getId());
-            batsmanDto.setPlayerName(batsman.getPlayer().getName());
-            batsmanDto.setStrikeRate(batsman.getBallsFaced() > 0
-                    ? (batsman.getRuns() * 100.0) / batsman.getBallsFaced() : 0);
+            scoreDTO.setBatsman1Stats(batsmanDto);
+            scoreDTO.setBatsman2Stats(nonStrikerDto);
+            scoreDTO.setBowlerStats(bowlerDto);
         }
-        if (nonStriker != null && nonStriker.getPlayer() != null) {
-            scoreDTO.setNonStrikerId(nonStriker.getPlayer().getId());
-            nonStrikerDto.setRuns(nonStriker.getRuns());
-            nonStrikerDto.setSixes(nonStriker.getSixes());
-            nonStrikerDto.setFours(nonStriker.getFour());
-            nonStrikerDto.setBallsFaced(nonStriker.getBallsFaced());
-            nonStrikerDto.setPlayerId(nonStriker.getPlayer().getId());
-            nonStrikerDto.setPlayerName(nonStriker.getPlayer().getName());
-            nonStrikerDto.setStrikeRate(nonStriker.getBallsFaced() > 0
-                    ? (nonStriker.getRuns() * 100.0) / nonStriker.getBallsFaced() : 0);
-        }
-        if (bowler != null && bowler.getPlayer() != null) {
-            scoreDTO.setBowlerId(bowler.getPlayer().getId());
-            bowlerDto.setRunsConceded(bowler.getRunsConceded());
-            bowlerDto.setWickets(bowler.getWickets());
-            bowlerDto.setBallsBowled(bowler.getBallsBowled());
-            bowlerDto.setPlayerId(bowler.getPlayer().getId());
-            bowlerDto.setPlayerName(bowler.getPlayer().getName());
-            bowlerDto.setEconomy(bowler.getBallsBowled() > 0
-                    ? (bowler.getRunsConceded() * 6.0) / bowler.getBallsBowled() : 0);
-        }
-        if (rotate) {
-            scoreDTO.setBatsmanId(nonStriker.getPlayer().getId());
-            scoreDTO.setNonStrikerId(batsman.getPlayer().getId());
-        }
-
-        scoreDTO.setBatsman1Stats(batsmanDto);
-        scoreDTO.setBatsman2Stats(nonStrikerDto);
-        scoreDTO.setBowlerStats(bowlerDto);
         scoreDTO.setCricketBalls(cricketBallInterface.getBalls(scoreDTO.getInningsId(),  scoreDTO.getMatchId()));
+
+        int o=matchInterface.findById(scoreDTO.getMatchId()).get().getOvers()*6;
+        int balls=scoreDTO.getOvers()*6+scoreDTO.getBalls();
+
+        if(balls>=o||scoreDTO.getWickets()==10)
+            scoreDTO.setComment("End_Innings");
         return scoreDTO;
     }
 
@@ -184,7 +191,7 @@ public class CricketScoringService {
         playerInningsInterface.save(batsman);
         playerInningsInterface.save(bowler);
 
-        ScoreDTO s = convertToScoreDTO(m, false);
+        ScoreDTO s = convertToScoreDTO(m, false,false);
         statsService.updateTournamentStats(cb.getId());
         return s;
     }
@@ -303,24 +310,31 @@ public class CricketScoringService {
         CricketBall cricketBall = new CricketBall();
         m.setInnings(ci);
 
-        processEvent(score, m, cricketBall, batsman, bowler, ctx);
+        boolean a=processEvent(score, m, cricketBall, batsman, bowler, ctx);
 
         cricketBall.setInnings(ci);
 
-        cricketBallInterface.save(cricketBall);
-        matchStateInterface.save(m);
-        playerInningsInterface.save(nonStriker);
-        playerInningsInterface.save(batsman);
-        playerInningsInterface.save(bowler);
+        boolean shouldRotate=false;
+        if(!a){
+            cricketBallInterface.save(cricketBall);
+            matchStateInterface.save(m);
+            playerInningsInterface.save(nonStriker);
+            playerInningsInterface.save(batsman);
+            playerInningsInterface.save(bowler);
+            shouldRotate = checkRotate(Integer.parseInt(score.getEvent()));
 
-        boolean shouldRotate = checkRotate(Integer.parseInt(score.getEvent()));
-        ScoreDTO s = convertToScoreDTO(m, shouldRotate);
-        statsService.updateTournamentStats(cricketBall.getId());
+        }
+        ScoreDTO s = convertToScoreDTO(m, shouldRotate,a);
+        if(!a){
+            statsService.updateTournamentStats(cricketBall.getId());
+
+        }
         return s;
     }
 
-    private void processEvent(ScoreDTO score, MatchState m, CricketBall c,
+    private boolean processEvent(ScoreDTO score, MatchState m, CricketBall c,
                               PlayerInnings batsman, PlayerInnings bowler, BallContext ctx) {
+        boolean a=false;
         switch (score.getEventType()) {
             case "run":
             case "boundary":
@@ -334,9 +348,33 @@ public class CricketScoringService {
                 break;
             case "wicket":
                 handleWickets(score, m, c, batsman, bowler, ctx);
+                break;
+            case "End_Innings":
+                a=true;
+                if(score.isFirstInnings()) {
+                    score.setFirstInnings(false);
+                    Match match =ctx.match;
+                    CricketInnings cricketInnings = new CricketInnings();
+                    cricketInnings.setNo(2);
+                    cricketInnings.setMatch(match);
+                    cricketInnings.setTeam(Objects.equals(score.getTeamId(), match.getTeam1().getId()) ?match.getTeam2():match.getTeam1());
+                    cricketInnings =cricketInningsInterface.save(cricketInnings);
+                    m.setInnings(cricketInnings);
+                    m.setRuns(0);
+                    m.setWickets(0);
+                    m.setRr(0.0);
+                    m.setCrr(0.0);
+                    m.setExtras(0);
+                    m.setOvers(0);
+                    m.setBalls(0);
+
+                    matchStateInterface.save(m);
+
+                }
         }
         c.setEvent(score.getEvent());
         c.setEventType(score.getEventType());
+        return a;
     }
 
     private void handleWickets(ScoreDTO score, MatchState m, CricketBall c,
