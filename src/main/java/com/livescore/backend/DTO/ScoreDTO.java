@@ -46,6 +46,7 @@ public class ScoreDTO {
     PlayerStatDTO batsman1Stats;
     PlayerStatDTO batsman2Stats;
     PlayerStatDTO bowlerStats;
+    List<CricketBallsScoringDTO> cricketBalls;
 
 }
 

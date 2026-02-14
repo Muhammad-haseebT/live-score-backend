@@ -1,5 +1,6 @@
 package com.livescore.backend.Interface;
 
+import com.livescore.backend.DTO.CricketBallsScoringDTO;
 import com.livescore.backend.Entity.CricketBall;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -9,6 +10,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Map;
 
 @Repository
 public interface CricketBallInterface extends JpaRepository<CricketBall, Long> {
@@ -199,6 +201,11 @@ WHERE (b.batsman.id = :playerId
 
     // Get all balls for an innings ordered by ID descending (for undo functionality)
     List<CricketBall> findByInnings_IdOrderByIdDesc(Long inningsId);
+
+    @Query(value = "select new com.livescore.backend.DTO.CricketBallsScoringDTO(c.id,c.event,c.eventType) from CricketBall c where c.match.id=:MatchId and c.innings.id=:InningsId")
+    List<CricketBallsScoringDTO> getBalls(@Param("InningsId") Long inningsId,@Param("MatchId") Long matchId);
+
+
 
 
 }

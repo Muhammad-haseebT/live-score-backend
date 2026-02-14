@@ -112,8 +112,10 @@ public class CricketScoringService {
         scoreDTO.setBatsman1Stats(batsmanDto);
         scoreDTO.setBatsman2Stats(nonStrikerDto);
         scoreDTO.setBowlerStats(bowlerDto);
+        scoreDTO.setCricketBalls(cricketBallInterface.getBalls(scoreDTO.getInningsId(),  scoreDTO.getMatchId()));
         return scoreDTO;
     }
+
 
     @CacheEvict(value = "matchStates", key = "#matchId")
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -224,9 +226,7 @@ public class CricketScoringService {
         }
     }
 
-    // =============================================
-    // KEY CHANGE: scoring() method - pre-fetch all entities ONCE
-    // =============================================
+
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     @CachePut(value = "matchStates", key = "#result.matchId")
     public ScoreDTO scoring(ScoreDTO score) {
