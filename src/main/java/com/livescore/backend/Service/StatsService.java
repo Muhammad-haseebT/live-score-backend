@@ -76,84 +76,32 @@ public class StatsService {
 
     public PlayerFullStatsDTO getPlayerFullStats(Long playerId, Long tournamentId) {
         PlayerFullStatsDTO dto = new PlayerFullStatsDTO();
-        dto.playerId = playerId;
-
-        if (playerId == null) {
-            dto.playerName = "Unknown";
-            return dto;
+        Stats s;
+        if(tournamentId == null) {
+            s=statsInterface.findByPlayerId(playerId);
         }
-
-        Player p = playerInterface.findActiveById(playerId).orElse(null);
-        dto.playerName = p != null ? p.getName() : "Unknown";
-
-        boolean byTournament = (tournamentId != null);
-
-        Object[] batting = byTournament
-                ? cricketBallInterface.getBattingAggregate(playerId, tournamentId)
-                : cricketBallInterface.getBattingAggregateOverall(playerId);
-        if (batting != null && batting.length >= 4) {
-            dto.totalRuns = batting[0] != null ? ((Number) batting[0]).intValue() : 0;
-            dto.ballsFaced = batting[1] != null ? ((Number) batting[1]).intValue() : 0;
-            dto.fours = batting[2] != null ? ((Number) batting[2]).intValue() : 0;
-            dto.sixes = batting[3] != null ? ((Number) batting[3]).intValue() : 0;
-        } else {
-            dto.totalRuns = 0;
-            dto.ballsFaced = 0;
-            dto.fours = 0;
-            dto.sixes = 0;
+        else{
+            s=statsInterface.findByPlayerIdAndTournamentId(playerId,tournamentId).get();
         }
-
-        Object[] bowling = byTournament
-                ? cricketBallInterface.getBowlingAggregate(playerId, tournamentId)
-                : cricketBallInterface.getBowlingAggregateOverall(playerId);
-        if (bowling != null && bowling.length >= 3) {
-            dto.runsConceded = bowling[0] != null ? ((Number) bowling[0]).intValue() : 0;
-            dto.ballsBowled = bowling[1] != null ? ((Number) bowling[1]).intValue() : 0;
-            dto.wickets = bowling[2] != null ? ((Number) bowling[2]).intValue() : 0;
-        } else {
-            dto.runsConceded = 0;
-            dto.ballsBowled = 0;
-            dto.wickets = 0;
-        }
-
-        dto.strikeRate = dto.ballsFaced == null || dto.ballsFaced == 0
-                ? 0.0
-                : roundTo2(((double) dto.totalRuns) * 100.0 / (double) dto.ballsFaced);
-
-        dto.economy = dto.ballsBowled == null || dto.ballsBowled == 0
-                ? 0.0
-                : roundTo2(((double) dto.runsConceded) * 6.0 / (double) dto.ballsBowled);
-
-        dto.bowlingAverage = dto.wickets == null || dto.wickets == 0
-                ? 0.0
-                : roundTo2(((double) dto.runsConceded) / (double) dto.wickets);
-
-        Integer highest = byTournament
-                ? cricketBallInterface.getRunsPerInningsDesc(playerId, tournamentId, org.springframework.data.domain.PageRequest.of(0, 1))
-                .stream().findFirst().orElse(0)
-                : cricketBallInterface.getRunsPerInningsDescOverall(playerId, org.springframework.data.domain.PageRequest.of(0, 1))
-                .stream().findFirst().orElse(0);
-        dto.highest = highest == null ? 0 : highest;
-
-        Integer notOut = byTournament
-                ? cricketBallInterface.countNotOutInnings(playerId, tournamentId)
-                : cricketBallInterface.countNotOutInningsOverall(playerId);
-        dto.notOuts = notOut == null ? 0 : notOut;
-
-        dto.matchesPlayed = byTournament
-                ? cricketBallInterface.countMatchesPlayedInTournament(playerId, tournamentId)
-                : cricketBallInterface.countMatchesPlayedOverall(playerId);
-
-        int inningsBatted = byTournament
-                ? cricketBallInterface.countDistinctInningsBatted(playerId, tournamentId)
-                : cricketBallInterface.countDistinctInningsBattedOverall(playerId);
-        int outs = Math.max(0, inningsBatted - dto.notOuts);
-        dto.battingAvg = outs == 0 ? (double) dto.totalRuns : roundTo2((double) dto.totalRuns / (double) outs);
-
-        dto.pomCount = byTournament
-                ? (int) matchRepo.countManOfMatchForPlayer(tournamentId, playerId)
-                : (int) matchRepo.countManOfMatchForPlayerOverall(playerId);
-
+        dto.setPlayerId(playerId);
+        dto.setEconomy((double)s.getRunsConceded()/s.getBallsBowled());
+        dto.setFours(s.getFours());
+        dto.setSixes(s.getSixes());
+        dto.setHighest(s.getHighest());
+        dto.setBallsFaced(s.getBallsFaced());
+        dto.setBattingAvg((double)s.getRuns()/s.getBallsFaced());
+        dto.setWickets(s.getWickets());
+        dto.setBowlingAverage((double)s.getRunsConceded()/s.getBallsBowled());
+        dto.setRunsConceded(s.getRunsConceded());
+        dto.setNotOuts(s.getNotOut());
+        dto.setTotalRuns(s.getRuns());
+        dto.setPlayerName(s.getPlayer().getName());
+        dto.setStrikeRate((double)s.getStrikeRate());
+        int matches=matchRepo.findMatchesByTeam(playerId);
+        dto.setMatchesPlayed(matches);
+        int pomMatches=matchRepo.findMatchesBPom(playerId);
+        dto.setPomCount(pomMatches);
+        dto.setHighest(s.getHighest());
         return dto;
     }
 

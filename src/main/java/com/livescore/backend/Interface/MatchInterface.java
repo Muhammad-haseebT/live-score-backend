@@ -65,4 +65,18 @@ public interface MatchInterface extends JpaRepository<Match,Long> {
 
     @Query("Select m from Match m where m.scorer.id=:id and m.status in ('LIVE','UPCOMING')")
     List<Match> findByScorerID(@Param("id") Long id);
+
+    @Query("""
+    SELECT COUNT(m)
+    FROM Match m
+    WHERE EXISTS (
+        SELECT p FROM m.team1.players p WHERE p.id = :playerId
+    )
+    OR EXISTS (
+        SELECT p FROM m.team2.players p WHERE p.id = :playerId
+    )
+""")int findMatchesByTeam(@Param("playerId") Long playerId);
+
+@Query("select  count(*) from Match m where m.manOfMatch.id=:playerId")
+    int findMatchesBPom(Long playerId);
 }
