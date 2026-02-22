@@ -21,6 +21,7 @@ public class PlayerInnings {
     @JoinColumn(name = "player_id")
     @JsonIgnore
     private Player player;
+    private String role="Batsman";
 
 
     private  int runs;

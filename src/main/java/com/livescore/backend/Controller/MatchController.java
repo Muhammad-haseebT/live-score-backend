@@ -3,6 +3,7 @@ import com.livescore.backend.DTO.MatchDTO;
 import com.livescore.backend.Entity.Match;
 import com.livescore.backend.Interface.MatchInterface;
 import com.livescore.backend.Service.MatchService;
+import com.livescore.backend.Service.PlayerInningsService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -17,6 +18,8 @@ public class MatchController {
     private MatchService matchService;
     @Autowired
     private MatchInterface matchInterface;
+    @Autowired
+    private PlayerInningsService playerInningsService;
 
     @PostMapping("/match")
     public ResponseEntity<?> createMatch(@RequestBody MatchDTO matchDTO) {
@@ -97,6 +100,13 @@ public class MatchController {
     @GetMapping("/match/scorer/{id}")
     public ResponseEntity<?> getMatchesByScorer(@PathVariable Long id){
         return matchService.getMatchesByScorer(id);
+    }
+
+
+
+    @GetMapping("/match/scoreCard/{Mid}/{T1id}")
+    public ResponseEntity<?> getScoreCard(@PathVariable Long Mid,@PathVariable Long T1id){
+        return playerInningsService.getScorecard(Mid,T1id);
     }
 
 }

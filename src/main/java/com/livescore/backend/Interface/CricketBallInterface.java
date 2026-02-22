@@ -205,6 +205,9 @@ WHERE (b.batsman.id = :playerId
     @Query(value = "select new com.livescore.backend.DTO.CricketBallsScoringDTO(c.id,c.event,c.eventType) from CricketBall c where c.match.id=:MatchId and c.innings.id=:InningsId")
     List<CricketBallsScoringDTO> getBalls(@Param("InningsId") Long inningsId,@Param("MatchId") Long matchId);
 
+    @Query("SELECT cb FROM CricketBall cb WHERE cb.innings.id = :inningsId AND cb.match.id = :matchId ORDER BY cb.id ASC")
+    List<CricketBall> findAllByInningsAndMatch(@Param("inningsId") Long inningsId,
+                                               @Param("matchId") Long matchId);
 
 
 

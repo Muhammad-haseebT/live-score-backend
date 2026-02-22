@@ -1,28 +1,54 @@
 package com.livescore.backend.DTO;
 
 import lombok.Data;
-
 import java.util.List;
 
 @Data
 public class TournamentAwardsDTO {
-    public Long tournamentId;
+    private Long tournamentId;
+    private String tournamentName;
 
-    public Long manOfTournamentId;
-    public String manOfTournamentName;
+    private AwardDTO manOfTournament;
+    private AwardDTO bestBatsman;
+    private AwardDTO bestBowler;
+    private AwardDTO bestFielder;
+    private AwardDTO mostSixes;
 
-    public Long highestScorerId;
-    public String highestScorerName;
-    public Integer highestRuns;
+    private List<AwardDTO> allAwards;
 
-    public Long bestBatsmanId;
-    public String bestBatsmanName;
-    public Integer bestBatsmanRuns;
+    // top performers lists
+    private List<PlayerStatsRow> topRunScorers;
+    private List<PlayerStatsRow> topWicketTakers;
 
-    public Long bestBowlerId;
-    public String bestBowlerName;
-    public Integer bestBowlerWickets;
+    @Data
+    public static class AwardDTO {
+        private Long playerId;
+        private String playerName;
+        private String awardType;
+        private Integer points;
+        private String reason;
+    }
 
-    public List<PlayerStatDTO> topBatsmen;
-    public List<PlayerStatDTO> topBowlers;
+    @Data
+    public static class PlayerStatsRow {
+        private Long playerId;
+        private String playerName;
+        private Integer runs;
+        private Integer wickets;
+        private Integer ballsFaced;
+        private Integer ballsBowled;
+        private Integer fours;
+        private Integer sixes;
+        private Integer highest;
+        private Integer strikeRate;
+        private Integer catches;
+        private Integer runouts;
+        private Integer stumpings;
+        private Integer fifties;
+        private Integer hundreds;
+        private Integer maidens;
+        private Integer dotBalls;
+        private Integer playerOfMatchCount;
+        private Integer totalPoints;
+    }
 }

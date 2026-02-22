@@ -22,4 +22,8 @@ public interface StatsInterface extends JpaRepository<Stats,Long> {
 
     @Query("select s from Stats s where s.player.id=:playerId")
     Stats findByPlayerId(@Param("playerId") Long playerId);
+
+    List<Stats> findByTournamentId(Long tournamentId);
+
+
 }

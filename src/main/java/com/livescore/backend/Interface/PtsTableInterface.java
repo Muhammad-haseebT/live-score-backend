@@ -27,6 +27,5 @@ public interface PtsTableInterface extends JpaRepository<PtsTable,Long> {
     List<PtsTable> findByTournamentId(Long tournamentId);
 
 
-
-
+    PtsTable findByTeamIdAndTournamentId(Long id, Long id1);
 }

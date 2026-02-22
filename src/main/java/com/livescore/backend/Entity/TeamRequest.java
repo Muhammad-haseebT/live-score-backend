@@ -22,7 +22,6 @@ public class TeamRequest {
     @JsonBackReference("team-requests")
     private Team team;
 
-
     @ManyToOne
     @JoinColumn(name = "player_account_id", nullable = false)
     @JsonBackReference("account-requests")
