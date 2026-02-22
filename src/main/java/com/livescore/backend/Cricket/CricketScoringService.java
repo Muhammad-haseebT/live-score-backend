@@ -118,23 +118,24 @@ public class CricketScoringService {
             scoreDTO.setBowlerStats(bowlerDto);
         }
         scoreDTO.setCricketBalls(cricketBallInterface.getBalls(scoreDTO.getInningsId(), scoreDTO.getMatchId()));
+        if (!a) {
+            int o = matchInterface.findById(scoreDTO.getMatchId()).get().getOvers() * 6;
+            int balls = scoreDTO.getOvers() * 6 + scoreDTO.getBalls();
 
-        int o = matchInterface.findById(scoreDTO.getMatchId()).get().getOvers() * 6;
-        int balls = scoreDTO.getOvers() * 6 + scoreDTO.getBalls();
-
-        if (scoreDTO.isFirstInnings() && (balls >= o || scoreDTO.getWickets() == 10)) {
-            scoreDTO.setComment("End_Innings");
-            state.setTarget(state.getTarget() + 1);
-            matchStateInterface.save(state);
-        }
-
-        if (!scoreDTO.isFirstInnings()) {
-            if (scoreDTO.getWickets() == 10 || balls >= o || scoreDTO.getRuns() >= scoreDTO.getTarget()) {
+            if (scoreDTO.isFirstInnings() && (balls >= o || scoreDTO.getWickets() == 10)) {
                 scoreDTO.setComment("End_Innings");
+                state.setTarget(state.getTarget() + 1);
+                matchStateInterface.save(state);
             }
-            if (scoreDTO.getWickets() == 10 || balls >= 0) {
-                if (scoreDTO.getRuns() == scoreDTO.getTarget() - 1) {
-                    scoreDTO.setComment("Super_Over");
+
+            if (!scoreDTO.isFirstInnings()) {
+                if (scoreDTO.getWickets() == 10 || balls >= o || scoreDTO.getRuns() >= scoreDTO.getTarget()) {
+                    scoreDTO.setComment("End_Innings");
+                }
+                if (scoreDTO.getWickets() == 10 || balls >= 0) {
+                    if (scoreDTO.getRuns() == scoreDTO.getTarget() - 1) {
+                        scoreDTO.setComment("Super_Over");
+                    }
                 }
             }
         }
@@ -391,14 +392,19 @@ public class CricketScoringService {
         CricketBall cricketBall = new CricketBall();
         m.setInnings(ci);
 
-        boolean a = processEvent(score, m, cricketBall, batsman, bowler, ctx);
+        MatchState matchState = processEvent(score, m, cricketBall, batsman, bowler, ctx);
+        m = matchState;
+        boolean a = "End_Innings".equals(score.getEventType());
+        if (a) {
+            score.setComment("");
 
-        cricketBall.setInnings(ci);
+        }
+
 
         boolean shouldRotate = false;
         if (!a) {
 
-
+            cricketBall.setInnings(ci);
             bowler.setRole("BOWLER");
             cricketBallInterface.save(cricketBall);
             matchStateInterface.save(m);
@@ -412,8 +418,8 @@ public class CricketScoringService {
         return s;
     }
 
-    private boolean processEvent(ScoreDTO score, MatchState m, CricketBall c,
-                                 PlayerInnings batsman, PlayerInnings bowler, BallContext ctx) {
+    private MatchState processEvent(ScoreDTO score, MatchState m, CricketBall c,
+                                    PlayerInnings batsman, PlayerInnings bowler, BallContext ctx) {
         boolean a = false;
         switch (score.getEventType()) {
             case "run":
@@ -449,7 +455,9 @@ public class CricketScoringService {
                     newState.setOvers(0);
                     newState.setBalls(0);
 
-                    matchStateInterface.save(m);
+                    m = matchStateInterface.save(newState);
+                    score.setComment("");
+
 
                 } else {
                     Match match = ctx.match;
@@ -466,8 +474,9 @@ public class CricketScoringService {
 
 
         c.setEvent(score.getEvent());
+
         c.setEventType(score.getEventType());
-        return a;
+        return m;
     }
 
     private void handleWickets(ScoreDTO score, MatchState m, CricketBall c,
