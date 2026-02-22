@@ -29,7 +29,7 @@ public class PlayerInningsService {
         if (m == null) {
             return ResponseEntity.notFound().build();
         }
-        MatchState matchState = matchStateInterface.findByTeam_Id(Team1Id);
+        MatchState matchState = matchStateInterface.findByTeam_Id(Team1Id, matchId);
         List<PlayerInnings> playerInningsList1 = playerInningsInterface.findByMatchId(matchId, Team1Id);
         Scorecard scorecard = new Scorecard();
         List<batsmanScore> batsmanScores = new ArrayList<>();
