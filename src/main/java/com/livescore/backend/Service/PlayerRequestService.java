@@ -11,6 +11,7 @@ import com.livescore.backend.Interface.PlayerRequestInterface;
 import com.livescore.backend.Interface.TeamInterface;
 import com.livescore.backend.Interface.TournamentInterface;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
@@ -36,7 +37,7 @@ public class PlayerRequestService {
         if (t.isEmpty()) return null;
         return t.toUpperCase();
     }
-
+    @CacheEvict(value = {"teamByTournamentId","teams","teamById","teamByTournamentIdAndAccountId","teamByPlayers"},allEntries = true)
     public ResponseEntity<?> createPlayerRequest(PlayerRequestDTO playerRequest) {
         if (playerRequest == null) {
             return ResponseEntity.badRequest().body(
@@ -99,6 +100,7 @@ public class PlayerRequestService {
 
 
     }
+    @CacheEvict(value = {"teamByTournamentId","teams","teamById","teamByTournamentIdAndAccountId","teamByPlayers"},allEntries = true)
 
     public ResponseEntity<?> updatePlayerRequest(Long id, PlayerRequestDTO playerRequest) {
         if (id == null) {
@@ -131,6 +133,7 @@ public class PlayerRequestService {
         playerRequestInterface.save(playerRequest1);
         return ResponseEntity.ok().build();
     }
+    @CacheEvict(value = {"teamByTournamentId","teams","teamById","teamByTournamentIdAndAccountId","teamByPlayers"},allEntries = true)
 
     public ResponseEntity<?> deletePlayerRequest(Long id) {
         if(playerRequestInterface.existsById(id)){
@@ -147,6 +150,7 @@ public class PlayerRequestService {
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
+    @CacheEvict(value = {"teamByTournamentId","teams","teamById","teamByTournamentIdAndAccountId","teamByPlayers"},allEntries = true)
 
     public ResponseEntity<?> approvePlayerRequest(Long id) {
         PlayerRequest playerRequest=playerRequestInterface.findById(id).orElse(null);
@@ -212,6 +216,7 @@ public class PlayerRequestService {
         return ResponseEntity.ok(response);
     }
 
+    @CacheEvict(value = {"teamByTournamentId","teams","teamById","teamByTournamentIdAndAccountId","teamByPlayers"},allEntries = true)
 
     public ResponseEntity<?> rejectPlayerRequest(Long id) {
         PlayerRequest playerRequest=playerRequestInterface.findById(id).orElse(null);

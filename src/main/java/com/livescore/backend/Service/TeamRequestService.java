@@ -4,6 +4,7 @@ import com.livescore.backend.DTO.TeamRequestDTO;
 import com.livescore.backend.Entity.*;
 import com.livescore.backend.Interface.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
@@ -31,6 +32,7 @@ public class TeamRequestService {
         return t.toUpperCase();
     }
 
+    @CacheEvict(value = {"teamByTournamentId","teams","teamById","teamByTournamentIdAndAccountId","teamByPlayers"},allEntries = true)
     public ResponseEntity<?> createTeamRequest(TeamRequestDTO teamRequest) {
         if (teamRequest == null) {
             return ResponseEntity.badRequest().body(
@@ -74,6 +76,8 @@ public class TeamRequestService {
         teamRequestInterface.save(teamRequest1);
         return ResponseEntity.ok().build();
     }
+    @CacheEvict(value = {"teamByTournamentId","teams","teamById","teamByTournamentIdAndAccountId","teamByPlayers"},allEntries = true)
+
     public ResponseEntity<?> updateTeamRequest(Long id, TeamRequestDTO teamRequest) {
         if (id == null) {
             return ResponseEntity.badRequest().body(
@@ -110,6 +114,8 @@ public class TeamRequestService {
         teamRequestInterface.save(teamRequest1);
         return ResponseEntity.ok().build();
     }
+    @CacheEvict(value = {"teamByTournamentId","teams","teamById","teamByTournamentIdAndAccountId","teamByPlayers"},allEntries = true)
+
     public ResponseEntity<?> deleteTeamRequest(Long id) {
         if(teamRequestInterface.existsById(id)){
             teamRequestInterface.deleteById(id);
@@ -124,6 +130,7 @@ public class TeamRequestService {
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
+    @CacheEvict(value = {"teamByTournamentId","teams","teamById","teamByTournamentIdAndAccountId","teamByPlayers"},allEntries = true)
 
     public ResponseEntity<?> rejectTeamRequest(Long id) {
         TeamRequest teamRequest=teamRequestInterface.findById(id).orElse(null);
@@ -134,6 +141,7 @@ public class TeamRequestService {
         teamRequestInterface.save(teamRequest);
         return ResponseEntity.ok().build();
     }
+    @CacheEvict(value = {"teamByTournamentId","teams","teamById","teamByTournamentIdAndAccountId","teamByPlayers"},allEntries = true)
 
     public ResponseEntity<?> approveTeamRequest(Long id) {
         TeamRequest teamRequest=teamRequestInterface.findById(id).orElse(null);
