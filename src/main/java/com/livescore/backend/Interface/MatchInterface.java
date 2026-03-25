@@ -1,6 +1,7 @@
 package com.livescore.backend.Interface;
 
 import com.livescore.backend.Entity.Match;
+import com.livescore.backend.Entity.Stats;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -36,7 +37,7 @@ public interface MatchInterface extends JpaRepository<Match,Long> {
     @Query("""
         SELECT m FROM Match m
         WHERE m.tournament.id = :tournamentId
-          AND m.status = 'FINISHED'
+          AND m.status = 'COMPLETED'
           AND (m.team1.id = :teamId OR m.team2.id = :teamId)
     """)
     List<Match> findCompletedMatchesByTeam(
@@ -79,4 +80,13 @@ public interface MatchInterface extends JpaRepository<Match,Long> {
 
 @Query("select  count(*) from Match m where m.manOfMatch.id=:playerId")
     int findMatchesBPom(Long playerId);
+
+
+
+
+//
+
+
+
+
 }

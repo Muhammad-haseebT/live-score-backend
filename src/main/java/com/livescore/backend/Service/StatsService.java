@@ -5,12 +5,12 @@ import com.livescore.backend.DTO.PlayerFullStatsDTO;
 import com.livescore.backend.Entity.*;
 import com.livescore.backend.Interface.*;
 import lombok.RequiredArgsConstructor;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -18,13 +18,13 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class StatsService {
 
-
     private final StatsInterface statsInterface;
     private final PlayerInterface playerInterface;
     private final CricketBallInterface cricketBallInterface;
     private final MatchInterface matchRepo;
     private final TournamentInterface tournamentInterface;
     private final AwardInterface awardInterface;
+    private final CricketInningsInterface cricketInningsInterface; // Add this to your interfaces
 
     // ==================== STATS CREATION ====================
 
@@ -95,14 +95,15 @@ public class StatsService {
         for (CricketInnings ci : match.getCricketInnings()) {
             List<CricketBall> balls = cricketBallInterface.findAllByInningsAndMatch(ci.getId(), matchId);
             for (CricketBall b : balls) {
-                if (b.getBatsman() != null) playerIds.add(b.getBatsman().getId());
-                if (b.getBowler() != null) playerIds.add(b.getBowler().getId());
-                if (b.getFielder() != null) playerIds.add(b.getFielder().getId());
+                if (b.getBatsman() != null)   playerIds.add(b.getBatsman().getId());
+                if (b.getBowler() != null)    playerIds.add(b.getBowler().getId());
+                if (b.getFielder() != null)   playerIds.add(b.getFielder().getId());
             }
         }
 
-        // 2. Recalculate full stats for each player
+        // 2. Ensure Stats rows exist, then recalculate
         for (Long pid : playerIds) {
+            createStats(pid, tournamentId);
             recalculatePlayerStats(pid, tournamentId);
         }
 
@@ -115,393 +116,432 @@ public class StatsService {
 
     // ==================== FULL RECALCULATION ====================
 
+    /**
+     * Wipes & rewrites a player's tournament stats from scratch using
+     * every CricketBall row tied to this tournament.
+     *
+     * Logic:
+     *  - For each innings in the tournament, collect balls where player was batsman/bowler/fielder
+     *  - Batting:  runs, ballsFaced, 4s, 6s, dismissal, highest, 50s, 100s, notOuts, SR, avg
+     *  - Bowling:  wickets, runsConceded, ballsBowled, economy, avg, SR, maidens, dotBalls, 3W/5W hauls
+     *  - Fielding: catches, stumpings, runouts
+     */
     @Transactional
     public void recalculatePlayerStats(Long playerId, Long tournamentId) {
-        if (playerId == null || tournamentId == null) return;
+        Stats stats = statsInterface.findByPlayerIdAndTournamentId(playerId, tournamentId).orElse(null);
+        if (stats == null) return;
 
-        Tournament tournament = tournamentInterface.findById(tournamentId).orElse(null);
-        Player player = playerInterface.findActiveById(playerId).orElse(null);
-        if (tournament == null || player == null) return;
+        // Fetch ALL balls for this player in this tournament at once
+        List<CricketBall> allBalls = cricketBallInterface
+                .findAllByPlayerAndTournament(playerId, tournamentId);
+        // You need this query: SELECT b FROM CricketBall b WHERE b.innings.match.tournament.id = :tid
+        //   AND (b.batsman.id = :pid OR b.bowler.id = :pid OR b.fielder.id = :pid)
 
-        Stats stats = statsInterface.findByPlayerIdAndTournamentId(playerId, tournamentId)
-                .orElseGet(() -> createInitializedStats(tournament, player, tournament.getSport()));
+        // -------- BATTING --------
+        // Group balls by innings where this player was batting (as batsman)
+        Map<Long, List<CricketBall>> battingByInnings = allBalls.stream()
+                .filter(b -> b.getBatsman() != null && b.getBatsman().getId().equals(playerId))
+                .collect(Collectors.groupingBy(b -> b.getInnings().getId()));
 
-        List<CricketBall> batsmanBalls = cricketBallInterface.findBatsmanBalls(tournamentId, playerId);
-        List<CricketBall> bowlerBalls = cricketBallInterface.findBowlerBalls(tournamentId, playerId);
-        List<CricketBall> fielderBalls = cricketBallInterface.findFielderBalls(tournamentId, playerId);
+        int totalRuns = 0, totalBallsFaced = 0, totalFours = 0, totalSixes = 0;
+        int highest = 0, fifties = 0, hundreds = 0, notOuts = 0, inningsPlayed = 0;
 
-        recalculateBatting(stats, batsmanBalls);
-        recalculateBowling(stats, bowlerBalls);
-        recalculateFielding(stats, fielderBalls);
+        for (Map.Entry<Long, List<CricketBall>> entry : battingByInnings.entrySet()) {
+            List<CricketBall> inningsBalls = entry.getValue();
 
-        int pomCount = awardInterface.countPomByPlayerId(playerId);
-        stats.setPlayerOfMatchCount(pomCount);
+            int inningsRuns = 0, inningsBalls_ = 0, inningsFours = 0, inningsSixes = 0;
+            boolean dismissed = false;
 
-        recalculateDerivedFields(stats);
-        statsInterface.save(stats);
-    }
+            for (CricketBall b : inningsBalls) {
+                // Runs scored by bat (exclude byes/leg-byes which go off bat but are extras)
+                if (!isByeOrLegBye(b)) {
+                    inningsRuns += safeInt(b.getRuns());
+                }
 
-    private void recalculateBatting(Stats stats, List<CricketBall> batsmanBalls) {
-        int totalRuns = batsmanBalls.stream()
-                .filter(cb -> !isWide(cb) && !isByeOrLegBye(cb))
-                .mapToInt(cb -> cb.getRuns() != null ? cb.getRuns() : 0)
-                .sum();
+                // Ball faced: only legal deliveries (not wides)
+                if (!isWide(b)) {
+                    inningsBalls_++;
+                }
 
-        long ballsFaced = batsmanBalls.stream()
-                .filter(CricketRules::isBallFaced)
+                if (Boolean.TRUE.equals(b.getIsFour())) inningsFours++;
+                if (Boolean.TRUE.equals(b.getIsSix()))  inningsSixes++;
+
+                // Check dismissal — outBatsman lets us know WHO got out
+                if (b.getDismissalType() != null && b.getOutPlayer() != null
+                        && b.getOutPlayer().getId().equals(playerId)) {
+                    dismissed = true;
+                }
+            }
+
+            inningsPlayed++;
+            totalRuns       += inningsRuns;
+            totalBallsFaced += inningsBalls_;
+            totalFours      += inningsFours;
+            totalSixes      += inningsSixes;
+
+            if (inningsRuns > highest)  highest = inningsRuns;
+            if (inningsRuns >= 100)     hundreds++;
+            else if (inningsRuns >= 50) fifties++;
+            if (!dismissed)             notOuts++;
+        }
+
+        // Batting Strike Rate = (runs / balls faced) * 100
+        double strikeRate = totalBallsFaced > 0
+                ? roundTo2((double) totalRuns / totalBallsFaced * 100) : 0.0;
+
+        // Batting Average = runs / (innings - notOuts)   [if all notOut → use innings]
+        int dismissals = inningsPlayed - notOuts;
+        double battingAvg = dismissals > 0
+                ? roundTo2((double) totalRuns / dismissals) : (inningsPlayed > 0 ? totalRuns : 0);
+
+        // -------- BOWLING --------
+        // Group by innings where this player was bowler
+        Map<Long, List<CricketBall>> bowlingByInnings = allBalls.stream()
+                .filter(b -> b.getBowler() != null && b.getBowler().getId().equals(playerId))
+                .collect(Collectors.groupingBy(b -> b.getInnings().getId()));
+
+        int totalWickets = 0, totalBallsBowled = 0, totalRunsConceded = 0;
+        int maidens = 0, dotBalls = 0, threeWicketHauls = 0, fiveWicketHauls = 0;
+
+        for (Map.Entry<Long, List<CricketBall>> entry : bowlingByInnings.entrySet()) {
+            List<CricketBall> inningsBalls = entry.getValue();
+
+            int inningsWickets = 0;
+
+            // Group by over number to detect maidens
+            Map<Integer, List<CricketBall>> byOver = inningsBalls.stream()
+                    .filter(b -> b.getOverNumber() != null)
+                    .collect(Collectors.groupingBy(CricketBall::getOverNumber));
+
+            for (Map.Entry<Integer, List<CricketBall>> overEntry : byOver.entrySet()) {
+                List<CricketBall> overBalls = overEntry.getValue();
+
+                int overRuns = 0;
+                boolean overComplete = false;
+                int legalCount = 0;
+
+                for (CricketBall b : overBalls) {
+                    // Runs conceded by bowler = bat runs + wides + no-balls (NOT byes/legbyes)
+                    if (!isByeOrLegBye(b)) {
+                        overRuns += safeInt(b.getRuns()) + safeInt(b.getExtra());
+                    }
+
+                    if (Boolean.TRUE.equals(b.getLegalDelivery())) {
+                        legalCount++;
+                        totalBallsBowled++;
+
+                        // Dot ball = legal delivery with 0 runs AND no extra
+                        if (safeInt(b.getRuns()) == 0 && safeInt(b.getExtra()) == 0
+                                && b.getDismissalType() == null) {
+                            dotBalls++;
+                        }
+                    }
+
+                    // Wicket — exclude run-outs (credit goes to fielder, not bowler)
+                    if (b.getDismissalType() != null
+                            && !b.getDismissalType().equalsIgnoreCase("runout")
+                            && !b.getDismissalType().equalsIgnoreCase("run_out")) {
+                        inningsWickets++;
+                        totalWickets++;
+                    }
+                }
+
+                totalRunsConceded += overRuns;
+
+                // Maiden = complete 6-ball over with 0 runs conceded
+                if (legalCount >= 6 && overRuns == 0) maidens++;
+            }
+
+            if (inningsWickets >= 5)      fiveWicketHauls++;
+            else if (inningsWickets >= 3) threeWicketHauls++;
+        }
+
+        // Economy = runs conceded / overs bowled
+        double overs = totalBallsBowled / 6.0;
+        double economy = overs > 0 ? roundTo2(totalRunsConceded / overs) : 0.0;
+
+        // Bowling Average = runs conceded / wickets
+        double bowlingAvg = totalWickets > 0
+                ? roundTo2((double) totalRunsConceded / totalWickets) : 0.0;
+
+        // Bowling Strike Rate = balls bowled / wickets
+        double bowlingSR = totalWickets > 0
+                ? roundTo2((double) totalBallsBowled / totalWickets) : 0.0;
+
+        // -------- FIELDING --------
+        // Catches: fielder present + dismissalType = "caught"
+        int catches = (int) allBalls.stream()
+                .filter(b -> b.getFielder() != null
+                        && b.getFielder().getId().equals(playerId)
+                        && b.getDismissalType() != null
+                        && b.getDismissalType().equalsIgnoreCase("caught"))
                 .count();
 
-        Map<Long, Integer> runsPerInnings = batsmanBalls.stream()
-                .filter(cb -> cb.getInnings() != null && cb.getInnings().getId() != null)
-                .filter(cb -> !isWide(cb) && !isByeOrLegBye(cb))
-                .collect(Collectors.groupingBy(
-                        cb -> cb.getInnings().getId(),
-                        Collectors.summingInt(cb -> cb.getRuns() != null ? cb.getRuns() : 0)));
-
-        int highest = runsPerInnings.values().stream()
-                .mapToInt(Integer::intValue).max().orElse(0);
-        int fifties = (int) runsPerInnings.values().stream()
-                .filter(r -> r >= 50 && r < 100).count();
-        int hundreds = (int) runsPerInnings.values().stream()
-                .filter(r -> r >= 100).count();
-
-        Set<Long> allInnings = batsmanBalls.stream()
-                .filter(cb -> cb.getInnings() != null && cb.getInnings().getId() != null)
-                .map(cb -> cb.getInnings().getId())
-                .collect(Collectors.toSet());
-
-        Set<Long> dismissedInnings = batsmanBalls.stream()
-                .filter(cb -> cb.getDismissalType() != null
-                        && cb.getInnings() != null
-                        && cb.getInnings().getId() != null)
-                .map(cb -> cb.getInnings().getId())
-                .collect(Collectors.toSet());
-
-        int notOutCount = (int) allInnings.stream()
-                .filter(id -> !dismissedInnings.contains(id))
+        // Stumpings: fielder present + dismissalType = "stumped"
+        int stumpings = (int) allBalls.stream()
+                .filter(b -> b.getFielder() != null
+                        && b.getFielder().getId().equals(playerId)
+                        && b.getDismissalType() != null
+                        && b.getDismissalType().equalsIgnoreCase("stumped"))
                 .count();
 
-        int inningsPlayed = allInnings.size();
+        // Run-outs: fielder present + dismissalType = "runout"
+        int runouts = (int) allBalls.stream()
+                .filter(b -> b.getFielder() != null
+                        && b.getFielder().getId().equals(playerId)
+                        && b.getDismissalType() != null
+                        && b.getDismissalType().toLowerCase().contains("runout"))
+                .count();
 
-        int foursCount = (int) batsmanBalls.stream()
-                .filter(cb -> Boolean.TRUE.equals(cb.getIsFour())).count();
-        int sixesCount = (int) batsmanBalls.stream()
-                .filter(cb -> Boolean.TRUE.equals(cb.getIsSix())).count();
-
+        // -------- WRITE BACK --------
         stats.setRuns(totalRuns);
-        stats.setBallsFaced((int) ballsFaced);
+        stats.setBallsFaced(totalBallsFaced);
+        stats.setFours(totalFours);
+        stats.setSixes(totalSixes);
         stats.setHighest(highest);
         stats.setFifties(fifties);
         stats.setHundreds(hundreds);
-        stats.setNotOut(notOutCount);
+        stats.setNotOut(notOuts);
         stats.setInningsPlayed(inningsPlayed);
-        stats.setFours(foursCount);
-        stats.setSixes(sixesCount);
-    }
+        stats.setStrikeRate((int) strikeRate);
+        stats.setBattingAverage(battingAvg);
 
-    private void recalculateBowling(Stats stats, List<CricketBall> bowlerBalls) {
-        int runsConceded = bowlerBalls.stream()
-                .mapToInt(CricketRules::runsConcededThisBall)
-                .sum();
-
-        int wickets = (int) bowlerBalls.stream()
-                .filter(cb -> cb.getDismissalType() != null)
-                .filter(cb -> CricketRules.isBowlerCreditedWicket(cb.getDismissalType()))
-                .count();
-
-        int ballsBowled = (int) bowlerBalls.stream()
-                .filter(cb -> Boolean.TRUE.equals(cb.getLegalDelivery()))
-                .count();
-
-        int dotBalls = (int) bowlerBalls.stream()
-                .filter(CricketRules::isDotBall)
-                .count();
-
-        Map<Long, Long> wicketsPerInnings = bowlerBalls.stream()
-                .filter(cb -> cb.getDismissalType() != null
-                        && CricketRules.isBowlerCreditedWicket(cb.getDismissalType())
-                        && cb.getInnings() != null
-                        && cb.getInnings().getId() != null)
-                .collect(Collectors.groupingBy(
-                        cb -> cb.getInnings().getId(), Collectors.counting()));
-
-        int threeHauls = (int) wicketsPerInnings.values().stream()
-                .filter(w -> w >= 3).count();
-        int fiveHauls = (int) wicketsPerInnings.values().stream()
-                .filter(w -> w >= 5).count();
-
-        Map<String, List<CricketBall>> overGroups = bowlerBalls.stream()
-                .filter(cb -> cb.getInnings() != null && cb.getOverNumber() != null)
-                .collect(Collectors.groupingBy(
-                        cb -> cb.getInnings().getId() + "_" + cb.getOverNumber()));
-
-        int maidens = (int) overGroups.values().stream()
-                .filter(balls -> {
-                    long legalCount = balls.stream()
-                            .filter(b -> Boolean.TRUE.equals(b.getLegalDelivery())).count();
-                    int totalConceded = balls.stream()
-                            .mapToInt(CricketRules::runsConcededThisBall).sum();
-                    return legalCount == 6 && totalConceded == 0;
-                }).count();
-
-        stats.setWickets(wickets);
-        stats.setBallsBowled(ballsBowled);
-        stats.setRunsConceded(runsConceded);
-        stats.setDotBalls(dotBalls);
+        stats.setWickets(totalWickets);
+        stats.setBallsBowled(totalBallsBowled);
+        stats.setRunsConceded(totalRunsConceded);
         stats.setMaidens(maidens);
-        stats.setThreeWicketHauls(threeHauls);
-        stats.setFiveWicketHauls(fiveHauls);
+        stats.setDotBalls(dotBalls);
+        stats.setThreeWicketHauls(threeWicketHauls);
+        stats.setFiveWicketHauls(fiveWicketHauls);
+        stats.setEconomy(economy);
+        stats.setBowlingAverage(bowlingAvg);
+        stats.setBowlingStrikeRate(bowlingSR);
+
+        stats.setCatches(catches);
+        stats.setStumpings(stumpings);
+        stats.setRunouts(runouts);
+
+        // Fantasy-style points (optional, adjust weights as needed)
+        int pomCount = awardInterface.countPomByPlayerId(playerId);
+        stats.setPlayerOfMatchCount(pomCount);
+        stats.setPoints(calculateFantasyPoints(stats));
+
+        statsInterface.save(stats);
     }
 
-    private void recalculateFielding(Stats stats, List<CricketBall> fielderBalls) {
-        int catchCount = (int) fielderBalls.stream()
-                .filter(cb -> cb.getDismissalType() != null)
-                .filter(cb -> {
-                    String dt = cb.getDismissalType().toLowerCase();
-                    return dt.contains("catch") || dt.contains("caught");
-                }).count();
+    // ==================== PLAYER OF THE MATCH ====================
 
-        int runoutCount = (int) fielderBalls.stream()
-                .filter(cb -> cb.getDismissalType() != null)
-                .filter(cb -> cb.getDismissalType().toLowerCase().contains("runout"))
-                .count();
-
-        int stumpingCount = (int) fielderBalls.stream()
-                .filter(cb -> cb.getDismissalType() != null)
-                .filter(cb -> cb.getDismissalType().toLowerCase().contains("stumped"))
-                .count();
-
-        stats.setCatches(catchCount);
-        stats.setRunouts(runoutCount);
-        stats.setStumpings(stumpingCount);
-    }
-
-    // ==================== DERIVED FIELDS ====================
-
-    private void recalculateDerivedFields(Stats stats) {
-        stats.setStrikeRate(stats.getBallsFaced() > 0
-                ? (int) Math.round((double) stats.getRuns() * 100.0 / stats.getBallsFaced())
-                : 0);
-
-        int dismissals = safeInt(stats.getInningsPlayed()) - safeInt(stats.getNotOut());
-        stats.setBattingAverage(dismissals > 0
-                ? roundTo2((double) stats.getRuns() / dismissals)
-                : 0.0);
-
-        stats.setEconomy(stats.getBallsBowled() > 0
-                ? roundTo2((double) stats.getRunsConceded() * 6.0 / stats.getBallsBowled())
-                : 0.0);
-
-        stats.setBowlingAverage(stats.getWickets() > 0
-                ? roundTo2((double) stats.getRunsConceded() / stats.getWickets())
-                : 0.0);
-
-        stats.setBowlingStrikeRate(stats.getWickets() > 0
-                ? roundTo2((double) stats.getBallsBowled() / stats.getWickets())
-                : 0.0);
-
-        stats.setPoints(calculatePoints(stats));
-    }
-
-    private int calculatePoints(Stats stats) {
-        return stats.getRuns()
-                + (stats.getWickets() * 25)
-                + (stats.getFours())
-                + (stats.getSixes() * 2)
-                + (stats.getCatches() * 10)
-                + (stats.getRunouts() * 10)
-                + (stats.getStumpings() * 10)
-                + (stats.getFifties() * 20)
-                + (stats.getHundreds() * 50)
-                + (stats.getThreeWicketHauls() * 20)
-                + (stats.getFiveWicketHauls() * 50)
-                + (stats.getMaidens() * 15);
-    }
-
-    // ==================== TOURNAMENT END CHECK ====================
-
-    private void checkAndHandleTournamentEnd(Tournament tournament) {
-        List<Match> allMatches = matchRepo.findByTournamentId(tournament.getId());
-        if (allMatches == null || allMatches.isEmpty()) return;
-
-        boolean allCompleted = allMatches.stream()
-                .allMatch(m -> m.getStatus() != null
-                        && (m.getStatus().equalsIgnoreCase("COMPLETED")
-                        || m.getStatus().equalsIgnoreCase("FINISHED")));
-
-        if (allCompleted) {
-            Optional<Award> existing = awardInterface.findByTournamentIdAndAwardType(
-                    tournament.getId(), "MAN_OF_TOURNAMENT");
-            if (existing.isEmpty()) {
-                calculateEndOfTournamentAwards(tournament.getId());
-            }
-        }
-    }
-
-    // ==================== AWARDS ====================
-
+    /**
+     * Finds the best-performing player in this match using a simple scoring formula,
+     * saves an Award row, and updates match.manOfMatch.
+     *
+     * Formula (per match):
+     *   batting score  = runs + (fours * 1) + (sixes * 2) + (100 * 15) + (50 * 10)
+     *   bowling score  = (wickets * 20) + (3W * 10) + (5W * 15) + (maidens * 5)
+     *   fielding score = (catches * 8) + (stumpings * 10) + (runouts * 6)
+     */
     @Transactional
-    public Award calculatePlayerOfMatch(Long matchId) {
+    public void calculatePlayerOfMatch(Long matchId) {
         Match match = matchRepo.findById(matchId).orElse(null);
-        if (match == null || match.getTournament() == null) return null;
-
-        Optional<Award> existing = awardInterface.findByMatchIdAndAwardType(matchId, "PLAYER_OF_MATCH");
-        if (existing.isPresent()) return existing.get();
-
-        Long tournamentId = match.getTournament().getId();
-        List<CricketInnings> inningsList = match.getCricketInnings();
-        if (inningsList == null || inningsList.isEmpty()) return null;
-
-        Map<Long, Integer> playerPoints = new HashMap<>();
-        Map<Long, String> playerReasons = new HashMap<>();
-
-        for (CricketInnings ci : inningsList) {
-            List<CricketBall> balls = cricketBallInterface.findAllByInningsAndMatch(ci.getId(), matchId);
-
-            Map<Long, List<CricketBall>> byBatsman = balls.stream()
-                    .filter(b -> b.getBatsman() != null)
-                    .collect(Collectors.groupingBy(b -> b.getBatsman().getId()));
-
-            for (Map.Entry<Long, List<CricketBall>> entry : byBatsman.entrySet()) {
-                Long pid = entry.getKey();
-                List<CricketBall> pBalls = entry.getValue();
-
-                int runs = pBalls.stream()
-                        .filter(b -> !isWide(b) && !isByeOrLegBye(b))
-                        .mapToInt(b -> b.getRuns() != null ? b.getRuns() : 0).sum();
-
-                int fours = (int) pBalls.stream()
-                        .filter(b -> Boolean.TRUE.equals(b.getIsFour())).count();
-                int sixes = (int) pBalls.stream()
-                        .filter(b -> Boolean.TRUE.equals(b.getIsSix())).count();
-
-                int pts = runs + fours + (sixes * 2);
-                if (runs >= 100) pts += 50;
-                else if (runs >= 50) pts += 20;
-
-                playerPoints.merge(pid, pts, Integer::sum);
-                playerReasons.merge(pid, runs + " runs", (old, nw) -> old + ", " + nw);
-            }
-
-            Map<Long, List<CricketBall>> byBowler = balls.stream()
-                    .filter(b -> b.getBowler() != null)
-                    .collect(Collectors.groupingBy(b -> b.getBowler().getId()));
-
-            for (Map.Entry<Long, List<CricketBall>> entry : byBowler.entrySet()) {
-                Long pid = entry.getKey();
-                List<CricketBall> pBalls = entry.getValue();
-
-                int wkt = (int) pBalls.stream()
-                        .filter(b -> b.getDismissalType() != null)
-                        .filter(b -> CricketRules.isBowlerCreditedWicket(b.getDismissalType()))
-                        .count();
-
-                int dots = (int) pBalls.stream()
-                        .filter(CricketRules::isDotBall)
-                        .count();
-
-                int pts = (wkt * 25) + (dots * 2);
-                if (wkt >= 5) pts += 50;
-                else if (wkt >= 3) pts += 20;
-
-                playerPoints.merge(pid, pts, Integer::sum);
-                playerReasons.merge(pid, wkt + " wickets", (old, nw) -> old + ", " + nw);
-            }
-
-            balls.stream()
-                    .filter(b -> b.getFielder() != null && b.getDismissalType() != null)
-                    .forEach(b -> playerPoints.merge(b.getFielder().getId(), 10, Integer::sum));
+        if (match == null) return;
+        if (!awardInterface.findByMatchIdAndAwardType(matchId, "PLAYER_OF_MATCH").isEmpty()) return;
+        // Collect all balls for this match
+        List<CricketBall> allBalls = new ArrayList<>();
+        for (CricketInnings ci : match.getCricketInnings()) {
+            allBalls.addAll(cricketBallInterface.findAllByInningsAndMatch(ci.getId(), matchId));
         }
 
-        if (playerPoints.isEmpty()) return null;
+        // Per-player match score map
+        Map<Long, Integer> scoreMap = new HashMap<>();
+        Map<Long, Player> playerMap = new HashMap<>();
 
-        Map.Entry<Long, Integer> best = playerPoints.entrySet().stream()
+        for (CricketBall b : allBalls) {
+            // --- Batting ---
+            if (b.getBatsman() != null) {
+                long pid = b.getBatsman().getId();
+                playerMap.put(pid, b.getBatsman());
+                int pts = 0;
+                if (!isByeOrLegBye(b)) pts += safeInt(b.getRuns());
+                if (Boolean.TRUE.equals(b.getIsFour())) pts += 1;
+                if (Boolean.TRUE.equals(b.getIsSix())) pts += 2;
+                scoreMap.merge(pid, pts, Integer::sum);
+            }
+
+            // --- Bowling ---
+            if (b.getBowler() != null) {
+                long pid = b.getBowler().getId();
+                playerMap.put(pid, b.getBowler());
+                int pts = 0;
+                if (b.getDismissalType() != null
+                        && !b.getDismissalType().equalsIgnoreCase("runout")
+                        && !b.getDismissalType().equalsIgnoreCase("run_out")) {
+                    pts += 20; // wicket
+                }
+                // Dot ball bonus
+                if (Boolean.TRUE.equals(b.getLegalDelivery())
+                        && safeInt(b.getRuns()) == 0 && safeInt(b.getExtra()) == 0
+                        && b.getDismissalType() == null) {
+                    pts += 1;
+                }
+                scoreMap.merge(pid, pts, Integer::sum);
+            }
+
+            // --- Fielding ---
+            if (b.getFielder() != null && b.getDismissalType() != null) {
+                long pid = b.getFielder().getId();
+                playerMap.put(pid, b.getFielder());
+                int pts = switch (b.getDismissalType().toLowerCase()) {
+                    case "caught" -> 8;
+                    case "stumped" -> 10;
+                    default -> b.getDismissalType().toLowerCase().contains("runout") ? 6 : 0;
+                };
+                scoreMap.merge(pid, pts, Integer::sum);
+            }
+        }
+
+        // Bonus: 50+ and 100+ (scan per-innings totals)
+        Map<Long, Map<Long, Integer>> inningsRunsPerPlayer = new HashMap<>();
+        for (CricketBall b : allBalls) {
+            if (b.getBatsman() == null || isByeOrLegBye(b)) continue;
+            long pid = b.getBatsman().getId();
+            long iid = b.getInnings().getId();
+            inningsRunsPerPlayer.computeIfAbsent(pid, k -> new HashMap<>())
+                    .merge(iid, safeInt(b.getRuns()), Integer::sum);
+        }
+        for (Map.Entry<Long, Map<Long, Integer>> e : inningsRunsPerPlayer.entrySet()) {
+            long pid = e.getKey();
+            for (int r : e.getValue().values()) {
+                if (r >= 100) scoreMap.merge(pid, 15, Integer::sum);
+                else if (r >= 50) scoreMap.merge(pid, 10, Integer::sum);
+            }
+        }
+
+        if (scoreMap.isEmpty()) return;
+
+        // Best player
+        Long bestPid = scoreMap.entrySet().stream()
                 .max(Map.Entry.comparingByValue())
+                .map(Map.Entry::getKey)
                 .orElse(null);
+        if (bestPid == null) return;
 
-        if (best == null) return null;
+        Player bestPlayer = playerMap.get(bestPid);
+        int bestScore = scoreMap.get(bestPid);
 
-        Player pomPlayer = playerInterface.findActiveById(best.getKey()).orElse(null);
-        if (pomPlayer == null) return null;
-
+        // Save award
         Award award = new Award();
         award.setMatch(match);
         award.setTournament(match.getTournament());
-        award.setPlayer(pomPlayer);
+        award.setPlayer(bestPlayer);
         award.setAwardType("PLAYER_OF_MATCH");
-        award.setPointsEarned(best.getValue());
-        award.setReason(playerReasons.getOrDefault(best.getKey(), ""));
+        award.setPointsEarned(bestScore);
+        award.setReason("Highest match score: " + bestScore + " pts");
+        awardInterface.save(award);
 
-        Award saved = awardInterface.save(award);
+        // Update match record
+        match.setManOfMatch(bestPlayer);
+        matchRepo.save(match);
 
-        Stats pomStats = statsInterface.findByTournamentIdAndPlayerId(
-                        tournamentId, pomPlayer.getId())
-                .orElse(null);
-        if (pomStats != null) {
-            pomStats.setPlayerOfMatchCount(pomStats.getPlayerOfMatchCount() + 1);
-            statsInterface.save(pomStats);
-        }
-
-        return saved;
+        // Update tournament stats POM count
     }
 
+    // ==================== TOURNAMENT END AWARDS ====================
+
+    /**
+     * Called after each match. If ALL matches in tournament are COMPLETED,
+     * generate: MAN_OF_TOURNAMENT, BEST_BATSMAN, BEST_BOWLER, BEST_FIELDER.
+     */
     @Transactional
-    public List<Award> calculateEndOfTournamentAwards(Long tournamentId) {
-        Tournament tournament = tournamentInterface.findById(tournamentId).orElse(null);
-        if (tournament == null) return Collections.emptyList();
+    public void checkAndHandleTournamentEnd(Tournament tournament) {
+        if (tournament == null) return;
 
-        List<Award> awards = new ArrayList<>();
-        List<Stats> allStats = statsInterface.findByTournamentId(tournamentId);
+        // ✅ allDone check hatao — jo matches complete hain unki stats pe calculate karo
 
+        // Purani tournament awards delete karo
+        List<Award> existingAwards = awardInterface.findByTournamentId(tournament.getId());
+        List<Award> tournamentAwards = existingAwards.stream()
+                .filter(a -> a.getMatch() == null)
+                .collect(Collectors.toList());
+        awardInterface.deleteAll(tournamentAwards);
+
+        // Stats fetch karo
+        List<Stats> allStats = statsInterface.findAllByTournamentId(tournament.getId());
+        if (allStats.isEmpty()) return;
+
+        // BEST BATSMAN
         allStats.stream()
-                .max(Comparator.comparingInt(Stats::getPoints))
-                .ifPresent(s -> awards.add(createAward(tournament, s.getPlayer(),
-                        "MAN_OF_TOURNAMENT", s.getPoints(),
-                        "Highest overall points: " + s.getPoints())));
+                .filter(s -> s.getRuns() > 0) // ✅ zero runners ignore
+                .max(Comparator.comparingInt(Stats::getRuns)
+                        .thenComparingDouble(s -> s.getBattingAverage() != null ? s.getBattingAverage() : 0))
+                .ifPresent(best -> saveAward(null, tournament, best.getPlayer(),
+                        "BEST_BATSMAN", best.getRuns(),
+                        "Most runs: " + best.getRuns() + " @ avg " + best.getBattingAverage()));
 
+        // BEST BOWLER
         allStats.stream()
-                .max(Comparator.comparingInt(Stats::getRuns))
-                .ifPresent(s -> awards.add(createAward(tournament, s.getPlayer(),
-                        "BEST_BATSMAN", s.getRuns(),
-                        "Most runs: " + s.getRuns())));
+                .filter(s -> s.getBallsBowled() > 0) // wickets > 0 ki jagah
+                .min(Comparator.comparingDouble(s -> s.getEconomy() != null ? s.getEconomy() : 999)) // lowest economy
+                .ifPresent(best -> saveAward(null, tournament, best.getPlayer(),
+                        "BEST_BOWLER", best.getBallsBowled(),
+                        "Balls: " + best.getBallsBowled() + " | Economy: " + best.getEconomy()));
 
+        // BEST FIELDER
         allStats.stream()
-                .filter(s -> s.getWickets() > 0)
-                .max(Comparator.comparingInt(Stats::getWickets))
-                .ifPresent(s -> awards.add(createAward(tournament, s.getPlayer(),
-                        "BEST_BOWLER", s.getWickets(),
-                        "Most wickets: " + s.getWickets())));
-
-        allStats.stream()
-                .max(Comparator.comparingInt(s ->
-                        s.getCatches() + s.getRunouts() + s.getStumpings()))
-                .filter(s -> (s.getCatches() + s.getRunouts() + s.getStumpings()) > 0)
-                .ifPresent(s -> {
-                    int total = s.getCatches() + s.getRunouts() + s.getStumpings();
-                    awards.add(createAward(tournament, s.getPlayer(),
+                .filter(s -> (s.getCatches() + s.getStumpings() + s.getRunouts()) > 0)
+                .max(Comparator.comparingInt(s -> s.getCatches() + s.getStumpings() + s.getRunouts()))
+                .ifPresent(best -> {
+                    int total = best.getCatches() + best.getStumpings() + best.getRunouts();
+                    saveAward(null, tournament, best.getPlayer(),
                             "BEST_FIELDER", total,
-                            "Fielding dismissals: " + total));
+                            "Catches: " + best.getCatches() + ", Stumpings: "
+                                    + best.getStumpings() + ", Run-outs: " + best.getRunouts());
                 });
 
+        // MAN OF TOURNAMENT
         allStats.stream()
-                .max(Comparator.comparingInt(Stats::getSixes))
-                .filter(s -> s.getSixes() > 0)
-                .ifPresent(s -> awards.add(createAward(tournament, s.getPlayer(),
-                        "MOST_SIXES", s.getSixes(),
-                        "Most sixes: " + s.getSixes())));
-
-        return awardInterface.saveAll(awards);
+                .filter(s -> s.getPoints() > 0)
+                .max(Comparator.comparingInt(Stats::getPoints))
+                .ifPresent(best -> saveAward(null, tournament, best.getPlayer(),
+                        "MAN_OF_TOURNAMENT", best.getPoints(),
+                        "Highest tournament points: " + best.getPoints()));
     }
+    // ==================== AWARD HELPER ====================
 
-    private Award createAward(Tournament tournament, Player player,
-                              String type, int points, String reason) {
+    private void saveAward(Match match, Tournament tournament, Player player,
+                           String type, int points, String reason) {
         Award a = new Award();
+        a.setMatch(match);
         a.setTournament(tournament);
         a.setPlayer(player);
         a.setAwardType(type);
         a.setPointsEarned(points);
         a.setReason(reason);
-        return a;
+        awardInterface.save(a);
+    }
+
+    // ==================== FANTASY POINTS ====================
+
+    /**
+     * Optional fantasy-style points tally stored on Stats.
+     * Adjust multipliers to taste.
+     */
+    private int calculateFantasyPoints(Stats s) {
+        int pts = 0;
+        pts += s.getRuns();                        // 1 pt per run
+        pts += s.getFours()    * 1;
+        pts += s.getSixes()    * 2;
+        pts += s.getFifties()  * 10;
+        pts += s.getHundreds() * 20;
+        pts += s.getWickets()  * 20;
+        pts += s.getMaidens()  * 5;
+        pts += s.getDotBalls() * 1;
+        pts += s.getThreeWicketHauls() * 10;
+        pts += s.getFiveWicketHauls()  * 20;
+        pts += s.getCatches()   * 8;
+        pts += s.getStumpings() * 10;
+        pts += s.getRunouts()   * 6;
+        pts += s.getPlayerOfMatchCount() * 25;
+        return pts;
     }
 
     // ==================== PLAYER FULL STATS DTO ====================

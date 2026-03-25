@@ -2,6 +2,8 @@ package com.livescore.backend.Interface;
 
 import com.livescore.backend.DTO.CricketBallsScoringDTO;
 import com.livescore.backend.Entity.CricketBall;
+import com.livescore.backend.Entity.Match;
+import com.livescore.backend.Entity.Stats;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
@@ -14,6 +16,8 @@ import java.util.Map;
 
 @Repository
 public interface CricketBallInterface extends JpaRepository<CricketBall, Long> {
+
+
 
     // ✅ MISSING METHOD - Add this for ball auto-increment
     @Query("SELECT cb FROM CricketBall cb WHERE cb.innings.id = :inningsId ORDER BY cb.id DESC LIMIT 1")
@@ -209,6 +213,19 @@ WHERE (b.batsman.id = :playerId
     List<CricketBall> findAllByInningsAndMatch(@Param("inningsId") Long inningsId,
                                                @Param("matchId") Long matchId);
 
+    @Query("""
+    SELECT b FROM CricketBall b
+    WHERE b.innings.match.tournament.id = :tournamentId
+      AND (b.batsman.id = :playerId
+           OR b.bowler.id  = :playerId
+           OR b.fielder.id = :playerId)
+    """)
+    List<CricketBall> findAllByPlayerAndTournament(
+            @Param("playerId") Long playerId,
+            @Param("tournamentId") Long tournamentId);
+
+    @Query("select cb from CricketBall cb where cb.innings.match.id=:mid and cb.innings.team.id=:tid order by cb.id asc")
+    List<CricketBall> findByMatchId(Long mid,Long tid) ;
 
 
 }

@@ -109,4 +109,15 @@ public class MatchController {
         return playerInningsService.getScorecard(Mid,T1id);
     }
 
+    @GetMapping("/match/summary/{mid}")
+    public ResponseEntity<?> getMatchSummary(@PathVariable Long mid){
+        return  playerInningsService.getSummary(mid);
+    }
+
+    @GetMapping("/match/balls/{mid}/{tid}")
+    public ResponseEntity<?> getMatchBalls(@PathVariable Long mid,@PathVariable Long tid){
+        return  playerInningsService.getMatchBalls(mid,tid);
+    }
+
+
 }

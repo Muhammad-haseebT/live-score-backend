@@ -11,5 +11,8 @@ public interface PlayerInningsInterface extends JpaRepository<PlayerInnings, Lon
 
 
     @Query("SELECT pi FROM PlayerInnings pi WHERE pi.innings.match.id = :matchId and pi.innings.team.id=:teamId")
-    List<PlayerInnings> findByMatchId(Long matchId,Long teamId);
+    List<PlayerInnings> findByMatchIdAndTeamId(Long matchId, Long teamId);
+
+    @Query("SELECT pi from PlayerInnings pi where pi.innings.match.id = :mid and pi.innings.no=:no")
+    List<PlayerInnings> findByMatchIdAndInninsNo(Long mid,int no);
 }

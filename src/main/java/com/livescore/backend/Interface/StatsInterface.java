@@ -1,5 +1,6 @@
 package com.livescore.backend.Interface;
 
+import com.livescore.backend.Entity.Match;
 import com.livescore.backend.Entity.Stats;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -24,6 +25,11 @@ public interface StatsInterface extends JpaRepository<Stats,Long> {
     Stats findByPlayerId(@Param("playerId") Long playerId);
 
     List<Stats> findByTournamentId(Long tournamentId);
+
+
+    // ---- StatsInterface ----
+// ADD:
+    List<Stats> findAllByTournamentId(Long tournamentId);
 
 
 }

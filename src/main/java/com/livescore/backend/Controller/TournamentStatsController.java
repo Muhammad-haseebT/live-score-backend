@@ -24,17 +24,20 @@ public class TournamentStatsController {
         }
         return ResponseEntity.ok(dto);
     }
-
+    @PostMapping("/{id}/recalculate")
+    public ResponseEntity<?> recalculate(@PathVariable Long id) {
+        return ResponseEntity.ok(awardService.recalculateAndGetStats(id));
+    }
     /**
      * End tournament — calculate all awards and return results
      * Call this once when tournament is over
-     */
-    @PostMapping("/{tournamentId}/end")
-    public ResponseEntity<?> endTournament(@PathVariable Long tournamentId) {
-        TournamentAwardsDTO dto = awardService.endTournamentAndGenerateAwards(tournamentId);
-        if (dto == null) {
-            return ResponseEntity.badRequest().body("Tournament not found");
-        }
-        return ResponseEntity.ok(dto);
-    }
+//     */
+//    @PostMapping("/{tournamentId}/end")
+//    public ResponseEntity<?> endTournament(@PathVariable Long tournamentId) {
+//        TournamentAwardsDTO dto = awardService.endTournamentAndGenerateAwards(tournamentId);
+//        if (dto == null) {
+//            return ResponseEntity.badRequest().body("Tournament not found");
+//        }
+//        return ResponseEntity.ok(dto);
+//    }
 }

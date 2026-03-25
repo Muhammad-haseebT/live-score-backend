@@ -41,6 +41,7 @@ public class ScoreDTO {
     private Long nonStrikerId;
     private double crr;
     private double rrr;
+    private String matchStatus;
 
     private boolean undo = false;
     PlayerStatDTO batsman1Stats;

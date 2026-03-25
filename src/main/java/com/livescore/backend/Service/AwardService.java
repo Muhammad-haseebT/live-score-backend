@@ -37,6 +37,7 @@ public class AwardService {
         List<Award> awards = awardInterface.findByTournamentId(tournamentId);
 
         List<AwardDTO> allAwardDtos = awards.stream()
+                .filter(a -> "PLAYER_OF_MATCH".equals(a.getAwardType()))
                 .map(this::toAwardDTO)
                 .collect(Collectors.toList());
         dto.setAllAwards(allAwardDtos);
@@ -74,19 +75,20 @@ public class AwardService {
         List<PlayerStatsRow> topBatsmen = allStats.stream()
                 .filter(s -> s.getRuns() != null && s.getRuns() > 0)
                 .sorted(Comparator.comparingInt(Stats::getRuns).reversed())
-                .limit(10)
+                .limit(5)
                 .map(this::toPlayerStatsRow)
                 .collect(Collectors.toList());
         dto.setTopRunScorers(topBatsmen);
 
-        // top 10 wicket takers
+// top 5 bowlers — wickets ke bina bhi dikhao, economy se sort
         List<PlayerStatsRow> topBowlers = allStats.stream()
-                .filter(s -> s.getWickets() != null && s.getWickets() > 0)
-                .sorted(Comparator.comparingInt(Stats::getWickets).reversed())
-                .limit(10)
+                .filter(s -> s.getBallsBowled() != null && s.getBallsBowled() > 0)
+                .sorted(Comparator.comparingInt(Stats::getWickets).reversed()
+                        .thenComparingDouble(s -> s.getEconomy() != null ? s.getEconomy() : 999))
+                .limit(5)
                 .map(this::toPlayerStatsRow)
                 .collect(Collectors.toList());
-        dto.setTopWicketTakers(topBowlers);
+        dto.setTopBowlers(topBowlers); // ✅ rename
 
         return dto;
     }
@@ -94,10 +96,10 @@ public class AwardService {
     /**
      * Call this when tournament ends to generate all awards.
      */
-    public TournamentAwardsDTO endTournamentAndGenerateAwards(Long tournamentId) {
-        statsService.calculateEndOfTournamentAwards(tournamentId);
-        return getTournamentStats(tournamentId);
-    }
+//    public TournamentAwardsDTO endTournamentAndGenerateAwards(Long tournamentId) {
+//        statsService.calculateEndOfTournamentAwards(tournamentId);
+//        return getTournamentStats(tournamentId);
+//    }
 
     private AwardDTO toAwardDTO(Award award) {
         AwardDTO dto = new AwardDTO();
@@ -130,6 +132,16 @@ public class AwardService {
         row.setDotBalls(s.getDotBalls());
         row.setPlayerOfMatchCount(s.getPlayerOfMatchCount());
         row.setTotalPoints(s.getPoints());
+        row.setEconomy(s.getEconomy());
+        row.setRunsConceded(s.getRunsConceded());
         return row;
+    }
+
+    // AwardService mein add karo
+    public TournamentAwardsDTO recalculateAndGetStats(Long tournamentId) {
+        Tournament t = tournamentInterface.findById(tournamentId).orElse(null);
+        if (t == null) return null;
+        statsService.checkAndHandleTournamentEnd(t); // force regenerate
+        return getTournamentStats(tournamentId);
     }
 }

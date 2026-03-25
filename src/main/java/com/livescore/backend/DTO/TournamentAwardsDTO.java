@@ -18,7 +18,7 @@ public class TournamentAwardsDTO {
 
     // top performers lists
     private List<PlayerStatsRow> topRunScorers;
-    private List<PlayerStatsRow> topWicketTakers;
+    private List<PlayerStatsRow> topBowlers;
 
     @Data
     public static class AwardDTO {
@@ -50,5 +50,7 @@ public class TournamentAwardsDTO {
         private Integer dotBalls;
         private Integer playerOfMatchCount;
         private Integer totalPoints;
+        private Double economy;       // ✅ add
+        private Integer runsConceded; // ✅ add
     }
 }

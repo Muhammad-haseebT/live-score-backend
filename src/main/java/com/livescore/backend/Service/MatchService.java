@@ -255,20 +255,19 @@ public class MatchService {
             return ResponseEntity.badRequest().body("Match is missing tournament or teams");
         }
 
-        List<Player> playersTeam1 = playerRequestInterface.findApprovedPlayersByTeamId(match.getTeam1().getId());
-        List<Player> playersTeam2 = playerRequestInterface.findApprovedPlayersByTeamId(match.getTeam2().getId());
-
-        if (playersTeam1 == null || playersTeam2 == null || playersTeam1.isEmpty() || playersTeam2.isEmpty()) {
-            return ResponseEntity.badRequest().body("No players found for team 1 or team 2");
-        }
-
-        // 1. Mark match as finished
+        // ✅ Pehle status set karo aur SAVE karo
         match.setStatus("COMPLETED");
         matchInterface.save(match);
 
-        // 2. Update points table
+        if (match.getWinnerTeam() == null) {
+            statsService.onMatchEnd(matchId);
+            return ResponseEntity.ok("Match ended (no winner set — points table skipped)");
+        }
+
+        // ✅ Points table update
         ptsTableService.updatePointsTableAfterMatch(matchId);
 
+        // ✅ Stats + awards — sirf EK baar
         statsService.onMatchEnd(matchId);
 
         return ResponseEntity.ok("Match ended successfully and stats updated");
