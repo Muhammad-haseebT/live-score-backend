@@ -3,9 +3,13 @@ package com.livescore.backend.Entity;
 import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.annotation.Nullable;
 import jakarta.persistence.*;
 import lombok.Data;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Data
@@ -71,9 +75,11 @@ public class CricketBall {
     @JsonIgnore
     public Player outPlayer;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "media_id")
+    @OneToMany(mappedBy = "ball", cascade = CascadeType.ALL)
+    @JsonManagedReference("ball-media")
     @JsonIgnore
-    private Media media;
+    private List<Media> mediaList = new ArrayList<>();
+
+
 
 }

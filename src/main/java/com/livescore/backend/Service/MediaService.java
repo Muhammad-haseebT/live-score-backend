@@ -164,6 +164,7 @@ package com.livescore.backend.Service;
 import com.livescore.backend.DTO.MediaDTO;
 import com.livescore.backend.Entity.Match;
 import com.livescore.backend.Entity.Media;
+import com.livescore.backend.Interface.CricketBallInterface;
 import com.livescore.backend.Interface.MatchInterface;
 import com.livescore.backend.Interface.MediaInterface;
 import io.imagekit.sdk.ImageKit;
@@ -197,11 +198,13 @@ public class MediaService {
     @Autowired
     private ImageKit imageKit;
 
-    @Value("${upload.mode:local}") // local ya imagekit
+    @Value("local") // local ya imagekit
     private String uploadMode;
 
-    @Value("${media.local.path:${MEDIA_LOCAL_PATH:/tmp/livescore-media}}")
-    private String localPath;
+
+    private String localPath="C:\\Users\\mht34\\Desktop\\server images";
+    @Autowired
+    private CricketBallInterface cricketBallInterface;
 
     public ResponseEntity<?> createMedia(MultipartFile f, MediaDTO media) throws IOException, ForbiddenException, TooManyRequestsException, InternalServerException, UnauthorizedException, BadRequestException, UnknownException {
 
@@ -239,6 +242,8 @@ public class MediaService {
         mediaEntity.setFileUrl(fileUrl);
         mediaEntity.setFileType(f.getContentType());
         mediaEntity.setMatch(matchOpt.get());
+        mediaEntity.setBall(cricketBallInterface.findById(media.getBallId()).orElse(null));
+
 
         Media savedMedia = mediaInterface.save(mediaEntity);
 
@@ -341,25 +346,49 @@ public class MediaService {
         return ResponseEntity.ok(mediaToDto(m));
     }
 
-    public ResponseEntity<?> getMediaBySeasonId(Long id,int page,int size) {
+    public ResponseEntity<?> getMediaBySeasonId(Long id, int page, int size) {
         Pageable pageable = PageRequest.of(page, size);
-        List<Media> mediaList = mediaInterface.findMediaBySeasonId(id,pageable);
+        List<Media> mediaList = mediaInterface.findMediaBySeasonId(id, pageable);
+
         if (mediaList == null || mediaList.isEmpty()) {
             return ResponseEntity.notFound().build();
         }
-        return ResponseEntity.ok(mediaToDto(mediaList));
 
+        return ResponseEntity.ok(mediaToDto(mediaList));
     }
-    List<Map<String,Object>> mediaToDto(List<Media> mediaList) {
+
+    List<Map<String, Object>> mediaToDto(List<Media> mediaList) {
         List<Map<String, Object>> responses = new ArrayList<>();
+
         for (Media media : mediaList) {
             Map<String, Object> response = new HashMap<>();
             response.put("id", media.getId());
-            response.put("url", media.getFileUrl());
             response.put("fileType", media.getFileType());
-            response.put("mode", "imagekit");
-            responses.add(response);
+            response.put("mode", "local");
 
+            try {
+                File file = new File(media.getFileUrl());
+                if (file.exists()) {
+
+                    byte[] fileContent = Files.readAllBytes(file.toPath());
+
+
+                    String base64Image = Base64.getEncoder().encodeToString(fileContent);
+
+
+                    String dataUrl = "data:" + media.getFileType() + ";base64," + base64Image;
+
+                    response.put("url", dataUrl);
+                } else {
+                    response.put("url", null);
+                    response.put("error", "File not found on server");
+                }
+            } catch (IOException e) {
+                response.put("url", null);
+                response.put("error", "Error reading file: " + e.getMessage());
+            }
+
+            responses.add(response);
         }
         return responses;
     }
@@ -381,5 +410,7 @@ public class MediaService {
         }
         return ResponseEntity.ok(mediaToDto(mediaList));
     }
+
+
 }
 

@@ -22,10 +22,14 @@ public class MediaController {
     @PostMapping(value = "/media", consumes = MediaType.MULTIPART_FORM_DATA_VALUE )
     public ResponseEntity<?> createMedia(
             @RequestPart("file") MultipartFile file,
-            @RequestParam("matchId") Long matchId) throws IOException, ForbiddenException, TooManyRequestsException, InternalServerException, UnauthorizedException, BadRequestException, UnknownException {
+            @RequestParam("matchId") Long matchId,
+            @RequestParam("ballId") Long ballId
+            ) throws IOException, ForbiddenException, TooManyRequestsException, InternalServerException, UnauthorizedException, BadRequestException, UnknownException {
 
         MediaDTO media = new MediaDTO();
         media.setMatchId(matchId);
+        media.setBallId(ballId);
+
 
         return mediaService.createMedia(file, media);
     }
@@ -64,6 +68,10 @@ public class MediaController {
     public ResponseEntity<?> getMediaBySportId(@PathVariable Long id, @PathVariable int page, @PathVariable int size) {
         return mediaService.getMediaBySportId(id, page, size);
     }
+
+
+
+
 
 
 

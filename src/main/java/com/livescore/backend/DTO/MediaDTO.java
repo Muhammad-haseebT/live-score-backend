@@ -9,4 +9,5 @@ import java.io.File;
 public class MediaDTO {
     private Long id;
     private Long matchId;
+    private Long ballId;
 }

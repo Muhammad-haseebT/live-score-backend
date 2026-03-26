@@ -25,5 +25,10 @@ public class Media {
     @Column(nullable = false)
     private String fileType;
 
+    @ManyToOne
+    @JoinColumn(name = "ball_id")
+    @JsonBackReference("ball-media")
+    private CricketBall ball;
+
 
 }
