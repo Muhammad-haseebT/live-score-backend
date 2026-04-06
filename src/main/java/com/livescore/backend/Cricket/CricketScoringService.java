@@ -129,7 +129,7 @@ public class CricketScoringService {
             }
 
             if (!scoreDTO.isFirstInnings()) {
-                if (scoreDTO.getWickets() == 10 || balls >= o || scoreDTO.getRuns() >= scoreDTO.getTarget()) {
+                if (scoreDTO.getWickets() == 10 || balls >= o || 0>=scoreDTO.getTarget()) {
                     scoreDTO.setComment("End_Innings");
                 }
                 if (scoreDTO.getWickets() == 10 || balls >= 0) {
@@ -155,6 +155,7 @@ public class CricketScoringService {
         PlayerInnings nonStriker = playerInningsInterface.findByInnings_IdAndPlayer_Id(inningsId, cb.getNonStriker().getId());
         PlayerInnings bowler = playerInningsInterface.findByInnings_IdAndPlayer_Id(inningsId, cb.getBowler().getId());
 
+
         // grab IDs BEFORE delete for stats recalculation
         Long undoBatsmanId = cb.getBatsman() != null ? cb.getBatsman().getId() : null;
         Long undoBowlerId = cb.getBowler() != null ? cb.getBowler().getId() : null;
@@ -162,6 +163,7 @@ public class CricketScoringService {
         Long tournamentId = cb.getMatch().getTournament().getId();
 
         int r = Integer.parseInt(cb.getEvent());
+        Boolean a=cb.getInnings().getNo()==1?true:false;
 
         switch (cb.getEventType()) {
             case "run":
@@ -178,7 +180,12 @@ public class CricketScoringService {
                         ? (double) bowler.getRunsConceded() / bowler.getBallsBowled() : 0);
                 m.setRuns(m.getRuns() - r);
                 decrementBall(m);
+
+                if(a)
                 m.setTarget(m.getTarget() - r);
+                else
+                    m.setTarget(m.getTarget() + r);
+
                 break;
 
             case "bye":
@@ -192,7 +199,11 @@ public class CricketScoringService {
                 m.setExtras(m.getExtras() - r);
                 m.setRuns(m.getRuns() - r);
                 decrementBall(m);
-                m.setTarget(m.getTarget() - r);
+                if(a)
+                    m.setTarget(m.getTarget() - r);
+                else
+                    m.setTarget(m.getTarget() + r);
+
                 break;
 
             case "noball":
@@ -207,7 +218,11 @@ public class CricketScoringService {
                 bowler.setEco(bowler.getBallsBowled() > 0
                         ? (double) bowler.getRunsConceded() / bowler.getBallsBowled() : 0);
                 m.setRuns(m.getRuns() - r - 1);
-                m.setTarget(m.getTarget() - r-1);
+                if(a)
+                    m.setTarget(m.getTarget() - r);
+                else
+                    m.setTarget(m.getTarget() + r);
+
                 break;
 
             case "wide":
@@ -216,12 +231,21 @@ public class CricketScoringService {
                 bowler.setEco(bowler.getBallsBowled() > 0
                         ? (double) bowler.getRunsConceded() / bowler.getBallsBowled() : 0);
                 m.setRuns(m.getRuns() - r - 1);
-                m.setTarget(m.getTarget() - r-1);
+                if(a)
+                    m.setTarget(m.getTarget() - r-1);
+                else
+                    m.setTarget(m.getTarget() + r+1);
+
                 break;
 
             case "wicket":
                 handleUndoWicket(m, batsman, bowler, nonStriker, cb);
-                m.setTarget(m.getTarget() - r);
+                if(a)
+                    m.setTarget(m.getTarget() - r);
+                else
+                    m.setTarget(m.getTarget() + r);
+
+
                 break;
         }
 
@@ -565,6 +589,8 @@ public class CricketScoringService {
 
         if (score.isFirstInnings()) {
             m.setTarget(m.getTarget() + r);
+        }else{
+            m.setTarget(m.getTarget() - r);
         }
         incrementBall(m);
 
@@ -593,6 +619,7 @@ public class CricketScoringService {
             c.setIsSix(true);
             batsman.setSixes(batsman.getSixes() + 1);
         }
+
 
     }
 

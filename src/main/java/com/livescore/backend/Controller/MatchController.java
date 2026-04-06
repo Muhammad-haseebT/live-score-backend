@@ -1,9 +1,12 @@
 package com.livescore.backend.Controller;
 import com.livescore.backend.DTO.MatchDTO;
+import com.livescore.backend.Entity.FavouritePlayer;
 import com.livescore.backend.Entity.Match;
 import com.livescore.backend.Interface.MatchInterface;
+import com.livescore.backend.Service.FavouritePlayerService;
 import com.livescore.backend.Service.MatchService;
 import com.livescore.backend.Service.PlayerInningsService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -13,6 +16,7 @@ import java.time.LocalTime;
 import java.util.List;
 
 @RestController
+@RequiredArgsConstructor
 public class MatchController {
     @Autowired
     private MatchService matchService;
@@ -20,6 +24,8 @@ public class MatchController {
     private MatchInterface matchInterface;
     @Autowired
     private PlayerInningsService playerInningsService;
+    @Autowired
+    private final FavouritePlayerService favouritePlayerService;
 
     @PostMapping("/match")
     public ResponseEntity<?> createMatch(@RequestBody MatchDTO matchDTO) {
@@ -118,6 +124,24 @@ public class MatchController {
     public ResponseEntity<?> getMatchBalls(@PathVariable Long mid,@PathVariable Long tid){
         return  playerInningsService.getMatchBalls(mid,tid);
     }
+
+    @PostMapping("/vote/{mid}/{aid}/{pid}")
+    public ResponseEntity<String> vote(@PathVariable Long mid,@PathVariable Long aid ,@PathVariable Long pid) {
+        return ResponseEntity.ok(
+                favouritePlayerService.submitVote(mid, aid, pid)
+        );
+    }
+
+
+    @GetMapping("/results/{matchId}")
+    public ResponseEntity<FavouritePlayer> results(@PathVariable Long matchId) {
+        return ResponseEntity.ok(favouritePlayerService.getResults(matchId));
+    }
+    @GetMapping("/results/{matchId}/{aid}")
+    public ResponseEntity<?> results(@PathVariable Long matchId,@PathVariable Long aid) {
+        return ResponseEntity.ok(favouritePlayerService.checkVote(matchId, aid));
+    }
+
 
 
 }

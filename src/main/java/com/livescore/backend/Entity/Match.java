@@ -129,4 +129,10 @@ public class Match {
     @JsonManagedReference("match-balls")
     @JsonIgnore
     private List<CricketBall> cricketBalls = new ArrayList<>();
+
+
+    @ManyToOne
+    @JoinColumn(name = "fav_player_id")
+    @JsonIgnore
+    private  FavouritePlayer favouritePlayer;
 }

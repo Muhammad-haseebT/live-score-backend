@@ -1,13 +1,13 @@
 package com.livescore.backend.Service;
 
-import com.livescore.backend.Entity.CricketBall;
-import com.livescore.backend.Entity.Match;
-import com.livescore.backend.Entity.MatchState;
-import com.livescore.backend.Entity.PlayerInnings;
+import com.livescore.backend.Entity.*;
 import com.livescore.backend.Interface.Cricket.MatchStateInterface;
 import com.livescore.backend.Interface.Cricket.PlayerInningsInterface;
 import com.livescore.backend.Interface.CricketBallInterface;
+import com.livescore.backend.Interface.FavouritePlayerInterface;
+import com.livescore.backend.Entity.Player;
 import com.livescore.backend.Interface.MatchInterface;
+import com.livescore.backend.Interface.PlayerInterface;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -27,6 +27,9 @@ public class PlayerInningsService {
     private final MatchInterface matchInterface;
     private final MatchStateInterface matchStateInterface;
     private final CricketBallInterface cricketBallInterface;
+    private final FavouritePlayerInterface favouritePlayerInterface;
+    private final PlayerInterface playerInterface;
+
 
 
     public ResponseEntity<?> getScorecard(Long matchId, Long Team1Id) {
@@ -206,6 +209,9 @@ public class PlayerInningsService {
 
         return ResponseEntity.ok(dtoList);
     }
+
+
+
     @Data
     @AllArgsConstructor
     @NoArgsConstructor // Safety ke liye
