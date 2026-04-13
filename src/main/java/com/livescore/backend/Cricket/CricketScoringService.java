@@ -1,7 +1,9 @@
 package com.livescore.backend.Cricket;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.livescore.backend.DTO.PlayerStatDTO;
-import com.livescore.backend.DTO.ScoreDTO;
+import com.livescore.backend.DTO.ScoringDTOs.ScoreDTO;
 import com.livescore.backend.Entity.*;
 import com.livescore.backend.Interface.Cricket.MatchStateInterface;
 import com.livescore.backend.Interface.Cricket.PlayerInningsInterface;
@@ -9,9 +11,9 @@ import com.livescore.backend.Interface.CricketBallInterface;
 import com.livescore.backend.Interface.CricketInningsInterface;
 import com.livescore.backend.Interface.MatchInterface;
 import com.livescore.backend.Interface.PlayerInterface;
+import com.livescore.backend.Interface.multisportgeneric.ScoringServiceInterface;
 import com.livescore.backend.Service.MatchService;
 import com.livescore.backend.Service.StatsService;
-import com.livescore.backend.Util.Constants;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.CachePut;
@@ -22,9 +24,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Objects;
 
-@Service
+
 @RequiredArgsConstructor
-public class CricketScoringService {
+@Service("CRICKET") // ← sport name as bean name
+public class CricketScoringService implements ScoringServiceInterface {
     private final MatchStateInterface matchStateInterface;
     private final PlayerInningsInterface playerInningsInterface;
     private final CricketInningsInterface cricketInningsInterface;
@@ -33,11 +36,12 @@ public class CricketScoringService {
     private final CricketBallInterface cricketBallInterface;
     private final MatchInterface matchInterface;
     private final MatchService matchService;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
 
     @Transactional(readOnly = true)
     @Cacheable(value = "matchStates", key = "#matchId")
-    public ScoreDTO getCurrentMatchState(Long matchId) {
+    public Object getCurrentMatchState(Long matchId) {
         Match m = matchInterface.findById(matchId).get();
         int size = m.getCricketInnings().size();
         MatchState state = matchStateInterface.findByInnings_Id(m.getCricketInnings().get(size - 1).getId());
@@ -144,7 +148,7 @@ public class CricketScoringService {
 
     @CacheEvict(value = "matchStates", key = "#matchId")
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public ScoreDTO undoLastBall(Long matchId, Long inningsId) {
+    public Object undoLastBall(Long matchId, Long inningsId) {
         CricketBall cb = cricketBallInterface.findLastBallInInnings(inningsId);
         if (cb == null) {
             return getCurrentMatchState(matchId);
@@ -330,29 +334,39 @@ public class CricketScoringService {
     }
 
 
+    @Override
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     @CachePut(value = "matchStates", key = "#result.matchId")
-    public ScoreDTO scoring(ScoreDTO score) {
+    public Object scoring(JsonNode rawPayload) {
+        // ✅ JsonNode -> ScoreDTO — ObjectMapper safely convert karta hai
+        ScoreDTO score = objectMapper.convertValue(rawPayload, ScoreDTO.class);
+        return scoreCricket(score);
+    }
 
-        // ------- 1. Fetch all Player entities ONCE -------
-        Player batsmanPlayer = playerInterface.findActiveById(score.getBatsmanId()).get();
-        Player bowlerPlayer = playerInterface.findActiveById(score.getBowlerId()).get();
-        Player nonStrikerPlayer = playerInterface.findActiveById(score.getNonStrikerId()).get();
-        Player outPlayer = score.getOutPlayerId() != null
+
+
+    // ─────────────────────────────────────────
+    // INTERNAL — original logic (unchanged)
+    // ─────────────────────────────────────────
+
+    private ScoreDTO scoreCricket(ScoreDTO score) {
+        Player batsmanPlayer   = playerInterface.findActiveById(score.getBatsmanId()).get();
+        Player bowlerPlayer    = playerInterface.findActiveById(score.getBowlerId()).get();
+        Player nonStrikerPlayer= playerInterface.findActiveById(score.getNonStrikerId()).get();
+        Player outPlayer  = score.getOutPlayerId() != null
                 ? playerInterface.findActiveById(score.getOutPlayerId()).get() : null;
-        Player newPlayer = score.getNewPlayerId() != null
+        Player newPlayer  = score.getNewPlayerId() != null
                 ? playerInterface.findActiveById(score.getNewPlayerId()).get() : null;
         Player fielderPlayer = score.getFielderId() != null
                 ? playerInterface.findActiveById(score.getFielderId()).get() : null;
-        // ------- 2. Fetch match & innings ONCE -------
-        Match match = matchInterface.findById(score.getMatchId()).get();
-        CricketInnings ci = cricketInningsInterface.findById(score.getInningsId()).get();
 
-        // ------- 3. Fetch MatchState & PlayerInnings -------
-        MatchState m = matchStateInterface.findByInnings_Id(score.getInningsId());
-        PlayerInnings batsman = playerInningsInterface.findByInnings_IdAndPlayer_Id(score.getInningsId(), score.getBatsmanId());
-        PlayerInnings bowler = playerInningsInterface.findByInnings_IdAndPlayer_Id(score.getInningsId(), score.getBowlerId());
-        PlayerInnings nonStriker = playerInningsInterface.findByInnings_IdAndPlayer_Id(score.getInningsId(), score.getNonStrikerId());
+        Match match         = matchInterface.findById(score.getMatchId()).get();
+        CricketInnings ci   = cricketInningsInterface.findById(score.getInningsId()).get();
+
+        MatchState m         = matchStateInterface.findByInnings_Id(score.getInningsId());
+        PlayerInnings batsman   = playerInningsInterface.findByInnings_IdAndPlayer_Id(score.getInningsId(), score.getBatsmanId());
+        PlayerInnings bowler    = playerInningsInterface.findByInnings_IdAndPlayer_Id(score.getInningsId(), score.getBowlerId());
+        PlayerInnings nonStriker= playerInningsInterface.findByInnings_IdAndPlayer_Id(score.getInningsId(), score.getNonStrikerId());
 
         if (m == null) m = new MatchState();
         if (batsman == null) batsman = new PlayerInnings();
@@ -361,29 +375,25 @@ public class CricketScoringService {
         if (m.getStatus() == null) m.setStatus("LIVE");
 
         if (batsman.getPlayer() == null) batsman.setPlayer(batsmanPlayer);
-        if (bowler.getPlayer() == null) bowler.setPlayer(bowlerPlayer);
+        if (bowler.getPlayer() == null)  bowler.setPlayer(bowlerPlayer);
         if (nonStriker.getPlayer() == null) nonStriker.setPlayer(nonStrikerPlayer);
 
         batsman.setInnings(ci);
         bowler.setInnings(ci);
-
         nonStriker.setInnings(ci);
+
         if (score.getDismissalType() != null) {
-            String r = score.getDismissalType().replace(" ", "");
-            score.setDismissalType(r);
-            System.out.println(r);
+            score.setDismissalType(score.getDismissalType().replace(" ", ""));
         }
-        // ------- 4. Set striker/nonStriker/bowler on MatchState using pre-fetched players -------
+
         m.setBowler(bowlerPlayer);
         if (outPlayer == null) {
             m.setStriker(batsmanPlayer);
             m.setNonStriker(nonStrikerPlayer);
         } else {
-
             if (Objects.equals(score.getOutPlayerId(), score.getBatsmanId())) {
                 m.setStriker(newPlayer);
                 m.setNonStriker(nonStrikerPlayer);
-
             } else {
                 m.setStriker(batsmanPlayer);
                 m.setNonStriker(newPlayer);
@@ -397,10 +407,8 @@ public class CricketScoringService {
                 newPlayerInnings.setInnings(ci);
                 playerInningsInterface.save(newPlayerInnings);
             }
-
         }
 
-        // ------- 5. Build a context object to pass pre-fetched entities -------
         BallContext ctx = new BallContext(batsmanPlayer, bowlerPlayer, nonStrikerPlayer,
                 outPlayer, fielderPlayer, match, ci);
 
@@ -409,19 +417,15 @@ public class CricketScoringService {
 
         MatchState matchState = processEvent(score, m, cricketBall, batsman, bowler, ctx);
         m = matchState;
-        boolean a = "End_Innings".equals(score.getEventType(
 
-        ));
-        if (a) {
+        boolean isEndInnings = "End_Innings".equals(score.getEventType());
+        if (isEndInnings) {
             score.setComment("");
             score.setEventType("");
-
         }
 
-
         boolean shouldRotate = false;
-        if (!a) {
-
+        if (!isEndInnings) {
             cricketBall.setInnings(ci);
             bowler.setRole("BOWLER");
             cricketBallInterface.save(cricketBall);
@@ -430,12 +434,10 @@ public class CricketScoringService {
             playerInningsInterface.save(batsman);
             playerInningsInterface.save(bowler);
             shouldRotate = checkRotate(Integer.parseInt(score.getEvent()));
-
         }
-        ScoreDTO s = convertToScoreDTO(m, shouldRotate, a, "");
-        return s;
-    }
 
+        return convertToScoreDTO(m, shouldRotate, isEndInnings, "");
+    }
     private MatchState processEvent(ScoreDTO score, MatchState m, CricketBall c,
                                     PlayerInnings batsman, PlayerInnings bowler, BallContext ctx) {
         boolean a = false;

@@ -216,19 +216,22 @@ public class MatchService {
                 || s.getName().equalsIgnoreCase("Tabletennis")) {
             match.setSets(m.getSets());
         }
-        CricketInnings innings = new CricketInnings();
-        innings.setMatch(match);
-        innings.setNo(1);
-        if (match.getDecision().equalsIgnoreCase("bat")) {
-            innings.setTeam(teamInterface.findById(m.getTossWinnerId()).orElse(null));
-        } else {
-            if (m.getTeam1Id() == null || m.getTeam2Id() == null) {
-                return ResponseEntity.badRequest().body("team1Id and team2Id are required");
+        if(match.getTournament().getSport().getName().equalsIgnoreCase("cricket")){
+            CricketInnings innings = new CricketInnings();
+            innings.setMatch(match);
+            innings.setNo(1);
+            if (match.getDecision().equalsIgnoreCase("bat")) {
+                innings.setTeam(teamInterface.findById(m.getTossWinnerId()).orElse(null));
+            } else {
+                if (m.getTeam1Id() == null || m.getTeam2Id() == null) {
+                    return ResponseEntity.badRequest().body("team1Id and team2Id are required");
+                }
+                Long battingTeamId = m.getTeam1Id().equals(m.getTossWinnerId()) ? m.getTeam2Id() : m.getTeam1Id();
+                innings.setTeam(teamInterface.findById(battingTeamId).orElse(null));
             }
-            Long battingTeamId = m.getTeam1Id().equals(m.getTossWinnerId()) ? m.getTeam2Id() : m.getTeam1Id();
-            innings.setTeam(teamInterface.findById(battingTeamId).orElse(null));
+            cricketInningsRepo.save(innings);
+
         }
-        cricketInningsRepo.save(innings);
 
         match.setDecision(m.getDecision());
         match.setTossWinner(teamInterface.findById(m.getTossWinnerId()).orElse(null));

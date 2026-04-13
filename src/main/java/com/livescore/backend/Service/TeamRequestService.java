@@ -8,10 +8,7 @@ import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Service
 public class TeamRequestService {
@@ -20,10 +17,12 @@ public class TeamRequestService {
     @Autowired
     TeamInterface teamInterface;
     @Autowired
-    AccountInterface playerInterface;
-
+    PlayerInterface playerInterface;
     @Autowired
     PtsTableService ptsTableService;
+    @Autowired
+    AccountInterface accountInterface;
+
 
     private String toUpper(String v) {
         if (v == null) return null;
@@ -58,20 +57,21 @@ public class TeamRequestService {
             );
         }
 
-        Account player=playerInterface.findActiveById(teamRequest.getPlayerId()).orElse(null);
+        Optional<Player> player=playerInterface.findActiveById(teamRequest.getPlayerId());
         if(player==null){
             return ResponseEntity.badRequest().body(
                     Map.of("error", "Team or Player not found")
             );
         }
-        if(teamRequestInterface.existsByTeamAndPlayerAccount(team,player)){
+        Account a=player.get().getAccount();
+        if(teamRequestInterface.existsByTeamAndPlayerAccount(team,a)){
             return ResponseEntity.badRequest().body(
                     Map.of("error", "Team request already exists for this team and player")
             );
         }
         TeamRequest teamRequest1=new TeamRequest();
         teamRequest1.setTeam(team);
-        teamRequest1.setPlayerAccount(player);
+        teamRequest1.setPlayerAccount(a);
         teamRequest1.setStatus("PENDING");
         teamRequestInterface.save(teamRequest1);
         return ResponseEntity.ok().build();
@@ -106,7 +106,7 @@ public class TeamRequestService {
             teamRequest1.setTeam(teamInterface.findById(teamRequest.getTeamId()).orElse(null));
         }
         if (teamRequest.getPlayerId() != null) {
-            teamRequest1.setPlayerAccount(playerInterface.findActiveById(teamRequest.getPlayerId()).orElse(null));
+            teamRequest1.setPlayerAccount(playerInterface.findActiveById(teamRequest.getPlayerId()).get().getAccount());
         }
         if (status != null) {
             teamRequest1.setStatus(status);

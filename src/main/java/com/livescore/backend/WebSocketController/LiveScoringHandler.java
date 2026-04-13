@@ -2,8 +2,10 @@ package com.livescore.backend.WebSocketController;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.livescore.backend.Cricket.CricketScoringService;
-import com.livescore.backend.DTO.ScoreDTO;
+import com.livescore.backend.Entity.Match;
+import com.livescore.backend.Interface.MatchInterface;
+import com.livescore.backend.Interface.multisportgeneric.ScoringServiceInterface;
+import com.livescore.backend.Config.ScoringServiceFactory;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,32 +21,50 @@ import java.util.concurrent.*;
 @Component
 public class LiveScoringHandler extends TextWebSocketHandler {
 
-    private final CricketScoringService liveScoringService;
-    private final ObjectMapper mapper = new ObjectMapper();
-
     private static final Logger log = LoggerFactory.getLogger(LiveScoringHandler.class);
 
-    // Map to track which sessions are subscribed to which matches
+    private final ScoringServiceFactory scoringServiceFactory;
+    private final MatchInterface matchInterface;
+    private final ObjectMapper mapper = new ObjectMapper();
+
+    // matchId -> subscribed sessions
     private final Map<Long, Set<WebSocketSession>> subscriptions = new ConcurrentHashMap<>();
 
-    // Map to track which matches each session is subscribed to
+    // sessionId -> subscribed matchIds
     private final Map<String, Set<Long>> sessionSubscriptions = new ConcurrentHashMap<>();
 
-    // Locks for thread-safe session operations
+    // sessionId -> lock object (safe concurrent sends ke liye)
     private final Map<String, Object> sessionLocks = new ConcurrentHashMap<>();
 
-    // Thread pool for async operations
     private final ExecutorService executor = Executors.newFixedThreadPool(10);
 
-    // ✅ Constructor updated - removed MatchStateCache dependency
-    public LiveScoringHandler(CricketScoringService s) {
-        this.liveScoringService = s;
+    public LiveScoringHandler(ScoringServiceFactory scoringServiceFactory,
+                              MatchInterface matchInterface) {
+        this.scoringServiceFactory = scoringServiceFactory;
+        this.matchInterface = matchInterface;
     }
+
+    // ─────────────────────────────────────────────
+    // Shutdown
+    // ─────────────────────────────────────────────
 
     @PreDestroy
     public void shutdown() {
         executor.shutdown();
+        try {
+            if (!executor.awaitTermination(10, TimeUnit.SECONDS)) {
+                executor.shutdownNow();
+                log.warn("Executor did not terminate gracefully, forced shutdown");
+            }
+        } catch (InterruptedException e) {
+            executor.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
     }
+
+    // ─────────────────────────────────────────────
+    // Connection lifecycle
+    // ─────────────────────────────────────────────
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) {
@@ -56,161 +76,228 @@ public class LiveScoringHandler extends TextWebSocketHandler {
                 try {
                     Long matchId = Long.parseLong(q.split("=")[1]);
                     subscribe(session, matchId);
-                } catch (Exception ignored) {
-                    log.warn("Invalid matchId parameter in WebSocket connection");
+                } catch (NumberFormatException e) {
+                    log.warn("Invalid matchId in WebSocket URI: {}", uri.getQuery());
                 }
             }
         }
     }
+
+    @Override
+    public void afterConnectionClosed(WebSocketSession session, CloseStatus status) {
+        log.debug("WebSocket closed: session={} status={}", session.getId(), status);
+        unsubscribeAll(session);
+    }
+
+    // ─────────────────────────────────────────────
+    // Subscription management
+    // ─────────────────────────────────────────────
 
     private void subscribe(WebSocketSession session, Long matchId) {
         if (matchId == null) return;
 
         subscriptions
-                .computeIfAbsent(matchId,
-                        k -> Collections.newSetFromMap(new ConcurrentHashMap<>()))
+                .computeIfAbsent(matchId, k -> Collections.newSetFromMap(new ConcurrentHashMap<>()))
                 .add(session);
 
         sessionSubscriptions
-                .computeIfAbsent(session.getId(),
-                        k -> ConcurrentHashMap.newKeySet())
+                .computeIfAbsent(session.getId(), k -> ConcurrentHashMap.newKeySet())
                 .add(matchId);
 
         sessionLocks.computeIfAbsent(session.getId(), k -> new Object());
 
-        // Send current match state to newly connected client
         executor.execute(() -> sendCurrentMatchState(session, matchId));
-    }
-
-    // ✅ Simplified - Spring Cache automatically handles caching
-    private void sendCurrentMatchState(WebSocketSession session, Long matchId) {
-        try {
-            // Direct service call - @Cacheable will handle cache lookup
-            ScoreDTO currentState = liveScoringService.getCurrentMatchState(matchId);
-
-            String json = mapper.writeValueAsString(currentState);
-            safeSend(session, json);
-        } catch (Exception e) {
-            log.warn("Failed to send current match state to client", e);
-        }
     }
 
     private void unsubscribeAll(WebSocketSession session) {
         Set<Long> matches = sessionSubscriptions.remove(session.getId());
-
         if (matches != null) {
-            for (Long m : matches) {
-                Set<WebSocketSession> set = subscriptions.get(m);
+            for (Long matchId : matches) {
+                Set<WebSocketSession> set = subscriptions.get(matchId);
                 if (set != null) {
                     set.remove(session);
-                    if (set.isEmpty()) {
-                        subscriptions.remove(m);
-                    }
+                    if (set.isEmpty()) subscriptions.remove(matchId);
                 }
             }
         }
-
         sessionLocks.remove(session.getId());
     }
+
+    // ─────────────────────────────────────────────
+    // Message handling
+    // ─────────────────────────────────────────────
 
     @Override
     protected void handleTextMessage(WebSocketSession session, TextMessage message) {
         try {
             JsonNode node = mapper.readTree(message.getPayload());
 
-            // SUBSCRIBE MESSAGE
+            // ── SUBSCRIBE action ──────────────────────────────────────────
             if (node.has("action")
                     && "subscribe".equalsIgnoreCase(node.get("action").asText())
                     && node.has("matchId")) {
 
                 Long matchId = node.get("matchId").asLong();
                 subscribe(session, matchId);
-
-                safeSend(session,
-                        "{\"status\":\"subscribed\",\"matchId\":" + matchId + "}");
+                safeSend(session, "{\"status\":\"subscribed\",\"matchId\":" + matchId + "}");
                 return;
             }
 
-            ScoreDTO score = mapper.treeToValue(node, ScoreDTO.class);
-
-            if (score.getMatchId() == null) {
-                safeSend(session,
-                        "{\"error\":\"matchId is required\"}");
+            // ── matchId mandatory ─────────────────────────────────────────
+            if (!node.has("matchId") || node.get("matchId").isNull()) {
+                safeSend(session, "{\"error\":\"matchId is required\"}");
                 return;
             }
 
-            // Check if this is an UNDO request
-            if (score.isUndo()) {
-                if (score.getInningsId() == null) {
-                    safeSend(session,
-                            "{\"error\":\"inningsId is required for undo\"}");
-                    return;
-                }
-                executor.execute(() -> processUndo(score.getMatchId(), score.getInningsId()));
+            Long matchId = node.get("matchId").asLong();
+
+            // ── UNDO action ───────────────────────────────────────────────
+            boolean isUndo = node.has("undo") && node.get("undo").asBoolean(false);
+            if (isUndo) {
+                // inningsId optional — futsal mein null bhi chalega
+                Long inningsId = node.has("inningsId") && !node.get("inningsId").isNull()
+                        ? node.get("inningsId").asLong()
+                        : null;
+                executor.execute(() -> processUndo(matchId, inningsId));
                 return;
             }
 
-            // ASYNC PROCESSING
-            executor.execute(() -> processScore(score));
+            // ── SCORE action — raw JsonNode service ko pass karo ─────────
+            executor.execute(() -> processScore(matchId, node));
 
         } catch (Exception e) {
-            log.error("Error handling WebSocket message", e);
-            safeSend(session,
-                    "{\"error\":\"Invalid JSON payload\"}");
+            log.error("Error handling WebSocket message from session={}", session.getId(), e);
+            safeSend(session, "{\"error\":\"Invalid JSON payload\"}");
         }
     }
 
-    // ✅ Simplified - @CacheEvict automatically clears cache
+    // ─────────────────────────────────────────────
+    // Core processing
+    // ─────────────────────────────────────────────
+
+    private void sendCurrentMatchState(WebSocketSession session, Long matchId) {
+        try {
+            ScoringServiceInterface service = getServiceForMatch(matchId);
+            if (service == null) return;
+
+            Object state = service.getCurrentMatchState(matchId);
+            safeSend(session, mapper.writeValueAsString(state));
+        } catch (Exception e) {
+            log.warn("Failed to send current match state for matchId={}", matchId, e);
+        }
+    }
+
+    /**
+     * Raw JsonNode service ko pass karo.
+     * Har service apna DTO khud convert karegi — Cricket ScoreDTO, Futsal FutsalScoreDTO.
+     */
+    private void processScore(Long matchId, JsonNode rawPayload) {
+        try {
+            ScoringServiceInterface service = getServiceForMatch(matchId);
+            if (service == null) return;
+
+            Object updated = service.scoring(rawPayload);
+            broadcastObject(updated, matchId);
+        } catch (Exception e) {
+            log.warn("Failed to process score for matchId={}", matchId, e);
+        }
+    }
+
     private void processUndo(Long matchId, Long inningsId) {
         try {
-            // Service method has @CacheEvict, so cache is automatically cleared
-            ScoreDTO updated = liveScoringService.undoLastBall(matchId, inningsId);
+            ScoringServiceInterface service = getServiceForMatch(matchId);
+            if (service == null) return;
 
-            broadcast(updated);
+            Object updated = service.undoLastBall(matchId, inningsId);
+            broadcastObject(updated, matchId);
         } catch (Exception e) {
-            log.warn("Failed to process undo", e);
+            log.warn("Failed to process undo for matchId={}", matchId, e);
         }
     }
 
-    // ✅ Simplified - @CachePut automatically updates cache
-    private void processScore(ScoreDTO score) {
-        try {
-            // Service method has @CachePut, so cache is automatically updated
-            ScoreDTO updated = liveScoringService.scoring(score);
+    // ─────────────────────────────────────────────
+    // Factory helper
+    // ─────────────────────────────────────────────
 
-            broadcast(updated);
+    private ScoringServiceInterface getServiceForMatch(Long matchId) {
+        try {
+            Match match = matchInterface.findByIdWithSport(matchId)
+                    .orElseThrow(() -> new RuntimeException("Match not found: " + matchId));
+
+            String sportName = resolveSportName(match);
+            return scoringServiceFactory.getService(sportName);
+
         } catch (Exception e) {
-            log.warn("Failed to process score", e);
+            log.error("Could not resolve sport service for matchId={}", matchId, e);
+            return null;
         }
     }
 
-    private void broadcast(ScoreDTO updated) {
+    /**
+     * Match entity se sport name nikalo.
+     * Tournament -> Sport -> getName() — e.g. "futsal", "cricket"
+     * Factory mein toUpperCase() hota hai, toh yahan kuch bhi return karo.
+     */
+    private String resolveSportName(Match match) {
+        if (match.getTournament() != null
+                && match.getTournament().getSport() != null) {
+            return match.getTournament().getSport().getName();
+        }
+        throw new RuntimeException("Sport not found on match id=" + match.getId());
+    }
+
+    // ─────────────────────────────────────────────
+    // Broadcast
+    // ─────────────────────────────────────────────
+
+    /**
+     * Kisi bhi Object ko broadcast karo — ScoreDTO ya FutsalScoreDTO dono chalenge.
+     * matchId alag pass karte hain kyunki Object pe getMatchId() nahi hota.
+     */
+    private void broadcastObject(Object payload, Long matchId) {
+        if (payload == null || matchId == null) return;
+
+        Set<WebSocketSession> subs = subscriptions.get(matchId);
+        if (subs == null || subs.isEmpty()) return;
+
+        String json;
         try {
-            String json = mapper.writeValueAsString(updated);
-            Set<WebSocketSession> subs = subscriptions.get(updated.getMatchId());
+            json = mapper.writeValueAsString(payload);
+        } catch (Exception e) {
+            log.warn("Failed to serialize payload for broadcast, matchId={}", matchId, e);
+            return;
+        }
 
-            if (subs == null) return;
+        List<WebSocketSession> snapshot = new ArrayList<>(subs);
+        List<WebSocketSession> deadSessions = new ArrayList<>();
 
-            for (WebSocketSession s : subs) {
-                try {
-                    safeSend(s, json);
-                } catch (Exception ex) {
-                    unsubscribeAll(s);
-                    try {
-                        s.close();
-                    } catch (Exception ignore) {}
-                }
+        for (WebSocketSession s : snapshot) {
+            if (!s.isOpen()) {
+                deadSessions.add(s);
+                continue;
             }
-        } catch (Exception e) {
-            log.warn("Failed to broadcast score update", e);
+            try {
+                safeSend(s, json);
+            } catch (Exception ex) {
+                log.warn("Broadcast failed for session={}", s.getId());
+                deadSessions.add(s);
+            }
+        }
+
+        for (WebSocketSession dead : deadSessions) {
+            unsubscribeAll(dead);
+            try { dead.close(); } catch (Exception ignored) {}
         }
     }
+
+    // ─────────────────────────────────────────────
+    // Safe send
+    // ─────────────────────────────────────────────
 
     private void safeSend(WebSocketSession session, String payload) {
         if (session == null || !session.isOpen()) return;
 
-        Object lock = sessionLocks.computeIfAbsent(
-                session.getId(), k -> new Object());
+        Object lock = sessionLocks.computeIfAbsent(session.getId(), k -> new Object());
 
         synchronized (lock) {
             try {
@@ -218,16 +305,10 @@ public class LiveScoringHandler extends TextWebSocketHandler {
                     session.sendMessage(new TextMessage(payload));
                 }
             } catch (Exception e) {
-                log.warn("Error sending message to WebSocket session", e);
-                unsubscribeAll(session);
+                log.warn("Error sending to session={}", session.getId(), e);
+                // synchronized block ke bahar — deadlock avoid karne ke liye
+                executor.execute(() -> unsubscribeAll(session));
             }
         }
     }
-
-    @Override
-    public void afterConnectionClosed(WebSocketSession session, CloseStatus status) {
-        log.debug("WebSocket connection closed: {}", status);
-        unsubscribeAll(session);
-    }
 }
-

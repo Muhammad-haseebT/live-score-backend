@@ -10,6 +10,7 @@ import org.springframework.stereotype.Repository;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface MatchInterface extends JpaRepository<Match,Long> {
@@ -81,9 +82,13 @@ public interface MatchInterface extends JpaRepository<Match,Long> {
 @Query("select  count(*) from Match m where m.manOfMatch.id=:playerId")
     int findMatchesBPom(Long playerId);
 
-
-
-
+    @Query("""
+    SELECT m FROM Match m
+    JOIN FETCH m.tournament t
+    JOIN FETCH t.sport
+    WHERE m.id = :id
+""")
+    Optional<Match> findByIdWithSport(@Param("id") Long id);
 //
 
 
