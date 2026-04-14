@@ -3,6 +3,7 @@ package com.livescore.backend.Futsal;
 import com.livescore.backend.Entity.Futsal.FutsalEvent;
 import com.livescore.backend.Entity.Futsal.FutsalMatchState;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 
 import java.util.List;
 import java.util.Optional;
@@ -15,5 +16,8 @@ public interface FutsalEventInterface extends JpaRepository<FutsalEvent, Long> {
 
     // Sare events ek match ke
     List<FutsalEvent> findByMatch_IdOrderByIdAsc(Long matchId);
+
+    @Query("select e from FutsalEvent e where e.player.id = :playerId and e.match.tournament.id = :tournamentId")
+    List<FutsalEvent> findByPlayerIdAndTournamentId(Long playerId, Long tournamentId);
 }
 

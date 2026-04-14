@@ -16,6 +16,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,6 +33,7 @@ public class FutsalScoringService implements ScoringServiceInterface {
     private final MatchInterface matchInterface;
     private final PlayerInterface playerInterface;
     private final TeamInterface teamInterface;
+    private final FutsalStatsService futsalStatsService;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -113,7 +115,9 @@ public class FutsalScoringService implements ScoringServiceInterface {
                 throw new IllegalArgumentException("Unknown eventType: " + score.getEventType());
         }
 
+
         futsalMatchStateInterface.save(state);
+
         return toDTO(state, "");
     }
 
@@ -190,6 +194,7 @@ public class FutsalScoringService implements ScoringServiceInterface {
         }
 
         futsalEventInterface.save(ev);
+        futsalStatsService.onEventSaved(ev);
     }
 
     private void handleFoul(FutsalScoreDTO score, FutsalMatchState state, Match match) {
@@ -221,6 +226,7 @@ public class FutsalScoringService implements ScoringServiceInterface {
         ev.setCardType(cardType);
         ev.setExtraTime(state.getInExtraTime());
         futsalEventInterface.save(ev);
+        futsalStatsService.onEventSaved(ev);
     }
 
     private void handleSubstitution(FutsalScoreDTO score, FutsalMatchState state, Match match) {
@@ -245,8 +251,11 @@ public class FutsalScoringService implements ScoringServiceInterface {
         ev.setExtraTime(state.getInExtraTime());
         futsalEventInterface.save(ev);
     }
-
-    private void handleEndHalf(FutsalMatchState state, Match match) {
+    @Caching(evict = {
+            @CacheEvict(value = "matches", allEntries = true, beforeInvocation = false),
+            @CacheEvict(value = "matchById", allEntries = true, beforeInvocation = false)
+    })
+    protected void handleEndHalf(FutsalMatchState state, Match match) {
         int halfJustEnded = state.getCurrentHalf();
 
         FutsalEvent ev = buildEvent(match, null, null, "END_HALF", state);
@@ -270,8 +279,11 @@ public class FutsalScoringService implements ScoringServiceInterface {
             } else {
                 // Determine winner
                 state.setStatus("COMPLETED");
+                match.setStatus("COMPLETED");
+                matchInterface.save(match);
 
                 determineWinner(state, match);
+                futsalStatsService.onMatchEnd(match.getId());
             }
             state.setHalfStartTime(null);
         } else {

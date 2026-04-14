@@ -544,39 +544,78 @@ public class StatsService {
 
     // ==================== PLAYER FULL STATS DTO ====================
 
+    // ── Paste this method into your existing StatsService.java ──────────────
+// Replaces the existing getPlayerFullStats() method
+
     public PlayerFullStatsDTO getPlayerFullStats(Long playerId, Long tournamentId) {
         PlayerFullStatsDTO dto = new PlayerFullStatsDTO();
+
         Stats s;
         if (tournamentId == null) {
             s = statsInterface.findByPlayerId(playerId);
         } else {
             s = statsInterface.findByPlayerIdAndTournamentId(playerId, tournamentId).orElse(null);
         }
+
         if (s == null) return dto;
 
         dto.setPlayerId(playerId);
         dto.setPlayerName(s.getPlayer().getName());
-        dto.setTotalRuns(s.getRuns());
-        dto.setBallsFaced(s.getBallsFaced());
-        dto.setFours(s.getFours());
-        dto.setSixes(s.getSixes());
-        dto.setHighest(s.getHighest());
-        dto.setNotOuts(s.getNotOut());
-        dto.setStrikeRate((double) s.getStrikeRate());
-        dto.setWickets(s.getWickets());
-        dto.setRunsConceded(s.getRunsConceded());
-        dto.setBattingAvg(s.getBattingAverage() != null ? s.getBattingAverage() : 0);
-        dto.setBowlingAverage(s.getBowlingAverage() != null ? s.getBowlingAverage() : 0);
-        dto.setEconomy(s.getEconomy() != null ? s.getEconomy() : 0);
+
+        // ── Sport identifier ─────────────────────────────────────────
+        // Stats entity has sportType field (Sports entity with getName())
+        if (s.getSportType() != null && s.getSportType().getName() != null) {
+            dto.setSport(s.getSportType().getName().toLowerCase()); // "cricket" / "futsal"
+        } else {
+            dto.setSport("cricket"); // fallback
+        }
+
+        // ── Shared ────────────────────────────────────────────────────
+        int pomCount = awardInterface.countPomByPlayerId(playerId);
+        dto.setPomCount(pomCount);
 
         int matches = matchRepo.findMatchesByTeam(playerId);
         dto.setMatchesPlayed(matches);
 
-        int pomCount = awardInterface.countPomByPlayerId(playerId);
-        dto.setPomCount(pomCount);
+        // ── Cricket stats ─────────────────────────────────────────────
+        dto.setTotalRuns(safeInt(s.getRuns()));
+        dto.setBallsFaced(safeInt(s.getBallsFaced()));
+        dto.setStrikeRate(s.getStrikeRate() != null ? s.getStrikeRate() : 0);
+        dto.setBattingAvg(s.getBattingAverage() != null ? s.getBattingAverage() : 0);
+        dto.setHighest(safeInt(s.getHighest()));
+        dto.setFours(safeInt(s.getFours()));
+        dto.setSixes(safeInt(s.getSixes()));
+        dto.setNotOuts(safeInt(s.getNotOut()));
+        dto.setFifties(safeInt(s.getFifties()));
+        dto.setHundreds(safeInt(s.getHundreds()));
+
+        dto.setWickets(safeInt(s.getWickets()));
+        dto.setBallsBowled(safeInt(s.getBallsBowled()));
+        dto.setRunsConceded(safeInt(s.getRunsConceded()));
+        dto.setEconomy(s.getEconomy() != null ? s.getEconomy() : 0);
+        dto.setBowlingAverage(s.getBowlingAverage() != null ? s.getBowlingAverage() : 0);
+        dto.setBowlingStrikeRate(s.getBowlingStrikeRate() != null ? s.getBowlingStrikeRate() : 0);
+        dto.setMaidens(safeInt(s.getMaidens()));
+        dto.setDotBalls(safeInt(s.getDotBalls()));
+        dto.setThreeWicketHauls(safeInt(s.getThreeWicketHauls()));
+        dto.setFiveWicketHauls(safeInt(s.getFiveWicketHauls()));
+
+        dto.setCatches(safeInt(s.getCatches()));
+        dto.setStumpings(safeInt(s.getStumpings()));
+        dto.setRunouts(safeInt(s.getRunouts()));
+
+        // ── Futsal stats ─────────────────────────────────────────────
+        dto.setGoals(safeInt(s.getGoals()));
+        dto.setAssists(safeInt(s.getAssists()));
+        dto.setFutsalFouls(safeInt(s.getFouls()));
+        dto.setYellowCards(safeInt(s.getYellowCards()));
+        dto.setRedCards(safeInt(s.getRedCards()));
 
         return dto;
     }
+
+// safeInt helper (already exists in your StatsService, no need to add again)
+// private int safeInt(Integer value) { return value != null ? value : 0; }
 
     // ==================== HELPERS ====================
 

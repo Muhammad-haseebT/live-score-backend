@@ -4,28 +4,50 @@ import lombok.Data;
 
 @Data
 public class PlayerFullStatsDTO {
-    public Long playerId;
-    public String playerName;
 
-    public Integer totalRuns;
-    public Integer highest;
-    public Integer ballsFaced;
+    private Long   playerId;
+    private String playerName;
+    private int    matchesPlayed;
+    private int    pomCount;
 
-    public Integer ballsBowled;
-    public Integer runsConceded;
+    // ── Sport identifier — frontend checks this ───────────────────
+    // "cricket", "futsal", etc.
+    private String sport;
 
-    public Double strikeRate;
-    public Double economy;
+    // ── CRICKET — Batting ────────────────────────────────────────
+    private int    totalRuns;
+    private int    ballsFaced;
+    private double strikeRate;
+    private double battingAvg;
+    private int    highest;
+    private int    fours;
+    private int    sixes;
+    private int    notOuts;
+    private int    fifties;
+    private int    hundreds;
 
-    public Double battingAvg;
-    public Double bowlingAverage;
+    // ── CRICKET — Bowling ────────────────────────────────────────
+    private int    wickets;
+    private int    ballsBowled;
+    private int    runsConceded;
+    private double economy;
+    private double bowlingAverage;
+    private double bowlingStrikeRate;
+    private int    maidens;
+    private int    dotBalls;
+    private int    threeWicketHauls;
+    private int    fiveWicketHauls;
 
-    public Integer notOuts;
-    public Integer matchesPlayed;
+    // ── CRICKET — Fielding ───────────────────────────────────────
+    private int    catches;
+    private int    stumpings;
+    private int    runouts;
 
-    public Integer wickets;
-    public Integer fours;
-    public Integer sixes;
-
-    public Integer pomCount;
+    // ── FUTSAL ──────────────────────────────────────────────────
+    private int    goals;
+    private int    assists;
+    private int    ownGoals;
+    private int    futsalFouls;
+    private int    yellowCards;
+    private int    redCards;
 }
