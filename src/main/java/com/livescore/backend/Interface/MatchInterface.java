@@ -89,7 +89,7 @@ public interface MatchInterface extends JpaRepository<Match,Long> {
     LEFT JOIN m.team1.players p1
     LEFT JOIN m.team2.players p2
     WHERE m.status = 'COMPLETED'
-    AND m.tournament.sport.name = 'cricket'
+    AND m.tournament.sport.name = 'Cricket'
     AND (p1.id = :playerId OR p2.id = :playerId)
 """)
     int findCricketMatchesByPlayer(@Param("playerId") Long playerId);
@@ -102,7 +102,7 @@ public interface MatchInterface extends JpaRepository<Match,Long> {
     LEFT JOIN m.team1.players p1
     LEFT JOIN m.team2.players p2
     WHERE m.status = 'COMPLETED'
-    AND m.tournament.sport.name = 'futsal'
+    AND m.tournament.sport.name = 'Futsal'
     AND (p1.id = :playerId OR p2.id = :playerId)
 """)
     int findFutsalMatchesByPlayer(@Param("playerId") Long playerId);

@@ -556,13 +556,16 @@ public class StatsService {
             s = statsInterface.findByPlayerIdAndTournamentId(playerId, tournamentId).orElse(null);
         }
 
-        if (s == null) return dto;
+        if (s == null){
+            dto.setSport(tournamentInterface.findById(tournamentId).get().getSport().getName());
+            return dto;
+        }
 
         dto.setPlayerId(playerId);
         dto.setPlayerName(s.getPlayer().getName());
 
         // ── Sport identifier ─────────────────────────────────────────
-        String sport = "cricket";
+        String sport = "Cricket";
         if (s.getSportType() != null && s.getSportType().getName() != null) {
             sport = s.getSportType().getName().toLowerCase();
         }
@@ -575,7 +578,7 @@ public class StatsService {
         dto.setCricketMatchesPlayed(cricketMatches);
         dto.setFutsalMatchesPlayed(futsalMatches);
         // matchesPlayed = current sport's count (for the stats component header)
-        dto.setMatchesPlayed("futsal".equals(sport) ? futsalMatches : cricketMatches);
+        dto.setMatchesPlayed("Futsal".equals(sport) ? futsalMatches : cricketMatches);
 
         // ── POM count ─────────────────────────────────────────────────
         int pomCount = awardInterface.countPomByPlayerId(playerId);
