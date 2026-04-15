@@ -544,8 +544,7 @@ public class StatsService {
 
     // ==================== PLAYER FULL STATS DTO ====================
 
-    // ── Paste this method into your existing StatsService.java ──────────────
-// Replaces the existing getPlayerFullStats() method
+// ─── Replace getPlayerFullStats() in StatsService.java ────────────────────────
 
     public PlayerFullStatsDTO getPlayerFullStats(Long playerId, Long tournamentId) {
         PlayerFullStatsDTO dto = new PlayerFullStatsDTO();
@@ -563,19 +562,24 @@ public class StatsService {
         dto.setPlayerName(s.getPlayer().getName());
 
         // ── Sport identifier ─────────────────────────────────────────
-        // Stats entity has sportType field (Sports entity with getName())
+        String sport = "cricket";
         if (s.getSportType() != null && s.getSportType().getName() != null) {
-            dto.setSport(s.getSportType().getName().toLowerCase()); // "cricket" / "futsal"
-        } else {
-            dto.setSport("cricket"); // fallback
+            sport = s.getSportType().getName().toLowerCase();
         }
+        dto.setSport(sport);
 
-        // ── Shared ────────────────────────────────────────────────────
+        // ── Sport-specific match counts ───────────────────────────────
+        int cricketMatches = matchRepo.findCricketMatchesByPlayer(playerId);
+        int futsalMatches  = matchRepo.findFutsalMatchesByPlayer(playerId);
+
+        dto.setCricketMatchesPlayed(cricketMatches);
+        dto.setFutsalMatchesPlayed(futsalMatches);
+        // matchesPlayed = current sport's count (for the stats component header)
+        dto.setMatchesPlayed("futsal".equals(sport) ? futsalMatches : cricketMatches);
+
+        // ── POM count ─────────────────────────────────────────────────
         int pomCount = awardInterface.countPomByPlayerId(playerId);
         dto.setPomCount(pomCount);
-
-        int matches = matchRepo.findMatchesByTeam(playerId);
-        dto.setMatchesPlayed(matches);
 
         // ── Cricket stats ─────────────────────────────────────────────
         dto.setTotalRuns(safeInt(s.getRuns()));
@@ -613,7 +617,6 @@ public class StatsService {
 
         return dto;
     }
-
 // safeInt helper (already exists in your StatsService, no need to add again)
 // private int safeInt(Integer value) { return value != null ? value : 0; }
 

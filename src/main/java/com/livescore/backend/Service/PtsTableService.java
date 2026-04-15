@@ -305,6 +305,7 @@ public class PtsTableService {
                     dto.setLosses(pt.getLosses());
                     dto.setPoints(pt.getPoints());
                     dto.setNrr(pt.getNrr());
+                    dto.setSport("cricket");
                     return dto;
                 })
                 // Points zyada → pehle; tie mein NRR zyada → pehle

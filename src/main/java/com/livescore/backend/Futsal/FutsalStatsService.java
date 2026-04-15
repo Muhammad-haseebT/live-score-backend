@@ -7,6 +7,9 @@ import com.livescore.backend.Entity.Futsal.FutsalMatchStats;
 import com.livescore.backend.Interface.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -50,13 +53,17 @@ public class FutsalStatsService {
             recalculatePlayerMatchStats(pid, match);
         }
     }
-
+    @Autowired
+    private FutsalPtsTableService futsalPtsTableService;
     // ─────────────────────────────────────────────
     // Called when match ends — POM, tournament awards
     // ─────────────────────────────────────────────
-
+    @Caching(evict = {
+            @CacheEvict(value = "matches", allEntries = true, beforeInvocation = false),
+            @CacheEvict(value = "matchById", allEntries = true, beforeInvocation = false)
+    })
     @Transactional
-    public void onMatchEnd(Long matchId) {
+    public void onMatchEnd(Long matchId,int ts1,int ts2) {
         Match match = matchInterface.findById(matchId).orElse(null);
         if (match == null || match.getTournament() == null) return;
 
@@ -77,6 +84,9 @@ public class FutsalStatsService {
 
         calculatePlayerOfMatch(matchId, events, match);
         updateTournamentAwards(match.getTournament());
+        futsalPtsTableService.updateAfterMatch(matchId);
+        futsalPtsTableService.updateGoalData(matchId, ts1, ts2);
+
     }
 
     // ─────────────────────────────────────────────

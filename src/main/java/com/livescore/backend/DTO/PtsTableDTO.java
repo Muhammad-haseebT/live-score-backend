@@ -24,4 +24,5 @@ public class PtsTableDTO {
     private int goalsFor;
     private int goalsAgainst;
     private int goalDifference; // calculated: goalsFor - goalsAgainst
+    private String sport; // "cricket" / "futsal" — frontend uses this
 }

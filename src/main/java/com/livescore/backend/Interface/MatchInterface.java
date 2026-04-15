@@ -17,7 +17,8 @@ public interface MatchInterface extends JpaRepository<Match,Long> {
 
     @Query("SELECT m FROM Match m WHERE m.tournament.id = :tournamentId")
     List<Match> findByTournamentId(@Param("tournamentId") Long tournamentId);
-
+@Query("select m from Match m where (m.team1.id = :teamId or m.team2.id = :teamId) and m.tournament.id = :tournamentId and m.status = 'COMPLETED'")
+    List<Match> findCompletedMatchesByTeam(Long teamId, Long tournamentId);
 
 
 
@@ -34,17 +35,6 @@ public interface MatchInterface extends JpaRepository<Match,Long> {
 
     @Query("SELECT m FROM Match m WHERE m.team1.id = :team1 OR m.team2.id = :team2")
     List<Match> findByTeam1IdOrTeam2Id(@Param("team1") Long team1, @Param("team2") Long team2);
-
-    @Query("""
-        SELECT m FROM Match m
-        WHERE m.tournament.id = :tournamentId
-          AND m.status = 'COMPLETED'
-          AND (m.team1.id = :teamId OR m.team2.id = :teamId)
-    """)
-    List<Match> findCompletedMatchesByTeam(
-            @Param("teamId") Long teamId,
-            @Param("tournamentId") Long tournamentId
-    );
 
 
     @Query("SELECT m.manOfMatch.id, COUNT(m) FROM Match m WHERE m.tournament.id = :tournamentId AND m.manOfMatch IS NOT NULL GROUP BY m.manOfMatch.id ORDER BY COUNT(m) DESC")
@@ -90,6 +80,32 @@ public interface MatchInterface extends JpaRepository<Match,Long> {
 """)
     Optional<Match> findByIdWithSport(@Param("id") Long id);
 //
+
+    /**
+     * Cricket matches played by this player.
+     */
+    @Query("""
+    SELECT COUNT(DISTINCT m.id) FROM Match m
+    LEFT JOIN m.team1.players p1
+    LEFT JOIN m.team2.players p2
+    WHERE m.status = 'COMPLETED'
+    AND m.tournament.sport.name = 'cricket'
+    AND (p1.id = :playerId OR p2.id = :playerId)
+""")
+    int findCricketMatchesByPlayer(@Param("playerId") Long playerId);
+
+    /**
+     * Futsal matches played by this player.
+     */
+    @Query("""
+    SELECT COUNT(DISTINCT m.id) FROM Match m
+    LEFT JOIN m.team1.players p1
+    LEFT JOIN m.team2.players p2
+    WHERE m.status = 'COMPLETED'
+    AND m.tournament.sport.name = 'futsal'
+    AND (p1.id = :playerId OR p2.id = :playerId)
+""")
+    int findFutsalMatchesByPlayer(@Param("playerId") Long playerId);
 
 
 

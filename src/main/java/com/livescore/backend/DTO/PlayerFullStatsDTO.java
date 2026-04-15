@@ -7,12 +7,14 @@ public class PlayerFullStatsDTO {
 
     private Long   playerId;
     private String playerName;
-    private int    matchesPlayed;
-    private int    pomCount;
+    private String sport; // "cricket" / "futsal"
 
-    // ── Sport identifier — frontend checks this ───────────────────
-    // "cricket", "futsal", etc.
-    private String sport;
+    // ── matchesPlayed — sport-specific ───────────────────────────
+    private int    matchesPlayed;        // current sport ka count
+    private int    cricketMatchesPlayed; // cricket only
+    private int    futsalMatchesPlayed;  // futsal only
+
+    private int    pomCount;
 
     // ── CRICKET — Batting ────────────────────────────────────────
     private int    totalRuns;

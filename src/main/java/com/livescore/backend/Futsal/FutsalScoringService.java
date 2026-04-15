@@ -251,10 +251,7 @@ public class FutsalScoringService implements ScoringServiceInterface {
         ev.setExtraTime(state.getInExtraTime());
         futsalEventInterface.save(ev);
     }
-    @Caching(evict = {
-            @CacheEvict(value = "matches", allEntries = true, beforeInvocation = false),
-            @CacheEvict(value = "matchById", allEntries = true, beforeInvocation = false)
-    })
+
     protected void handleEndHalf(FutsalMatchState state, Match match) {
         int halfJustEnded = state.getCurrentHalf();
 
@@ -283,7 +280,7 @@ public class FutsalScoringService implements ScoringServiceInterface {
                 matchInterface.save(match);
 
                 determineWinner(state, match);
-                futsalStatsService.onMatchEnd(match.getId());
+                futsalStatsService.onMatchEnd(match.getId(),state.getTeam1Score(),state.getTeam2Score());
             }
             state.setHalfStartTime(null);
         } else {
