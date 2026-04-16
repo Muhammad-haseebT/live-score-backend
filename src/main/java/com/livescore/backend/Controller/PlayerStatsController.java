@@ -15,9 +15,10 @@ public class PlayerStatsController {
     @GetMapping("/{playerId}/stats")
     public ResponseEntity<PlayerFullStatsDTO> getPlayerStats(
             @PathVariable Long playerId,
-            @RequestParam(required = false) Long tournamentId
+            @RequestParam(required = false) Long tournamentId,
+            @RequestParam(required = false) String sport  // ✅ new param
     ) {
-        PlayerFullStatsDTO dto = statsService.getPlayerFullStats(playerId, tournamentId);
+        PlayerFullStatsDTO dto = statsService.getPlayerFullStats(playerId, tournamentId, sport);
         return ResponseEntity.ok(dto);
     }
 

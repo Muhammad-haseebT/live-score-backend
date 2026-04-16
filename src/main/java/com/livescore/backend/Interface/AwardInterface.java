@@ -33,6 +33,15 @@ public interface AwardInterface extends JpaRepository<Award, Long> {
 // ADD:
     boolean existsByTournamentIdAndAwardType(Long tournamentId, String awardType);
 
-
+    @Query("""
+    SELECT COUNT(a) FROM Award a
+    WHERE a.player.id = :playerId
+    AND a.awardType = 'PLAYER_OF_MATCH'
+    AND LOWER(a.match.tournament.sport.name) = LOWER(:sport)
+""")
+    int countPomByPlayerIdAndSport(
+            @Param("playerId") Long playerId,
+            @Param("sport") String sport
+    );
 
 }

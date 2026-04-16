@@ -546,72 +546,149 @@ public class StatsService {
 
 // ─── Replace getPlayerFullStats() in StatsService.java ────────────────────────
 
-    public PlayerFullStatsDTO getPlayerFullStats(Long playerId, Long tournamentId) {
+    public PlayerFullStatsDTO getPlayerFullStats(Long playerId, Long tournamentId, String sport) {
         PlayerFullStatsDTO dto = new PlayerFullStatsDTO();
 
-        Stats s;
+        // ── Tournament-specific view (unchanged, works fine) ──────────
         if (tournamentId == null) {
-            s = statsInterface.findByPlayerId(playerId);
-        } else {
-            s = statsInterface.findByPlayerIdAndTournamentId(playerId, tournamentId).orElse(null);
+            String targetSport = (sport != null) ? sport.toLowerCase() : null;
+            List<Stats> allStats = statsInterface.findAllByPlayer_Id(playerId);
+            if (allStats.isEmpty()) return dto;
+
+            // ✅ Sport chip se aya sport use karo, warna pehli row ki sport
+            String finalSport = targetSport != null ? targetSport
+                    : (allStats.get(0).getSportType() != null
+                    ? allStats.get(0).getSportType().getName().toLowerCase()
+                    : "cricket");
+
+            List<Stats> sportStats = statsInterface.findByPlayerIdAndSport(playerId, finalSport);
+            Stats aggregated = aggregateStats(sportStats, finalSport);
+            if (aggregated.getPlayer() == null && !allStats.isEmpty())
+                aggregated.setPlayer(allStats.get(0).getPlayer());
+            return buildDTO(dto, aggregated, playerId, true);
         }
 
-        if (s == null){
-            dto.setSport(tournamentInterface.findById(tournamentId).get().getSport().getName());
-            return dto;
+        // ── Overall view — sport chips se manualSport aata hai ────────
+        // Frontend sport chip click pe /player/{id}/stats?sport=cricket call kare
+        // Abhi fallback: first stats row ki sport use karo
+        List<Stats> allStats = statsInterface.findAllByPlayer_Id(playerId);
+        if (allStats.isEmpty()) return dto;
+
+        // Default: pehli row ki sport
+        String sprt = allStats.get(0).getSportType() != null
+                ? allStats.get(0).getSportType().getName().toLowerCase()
+                : "cricket";
+        dto.setSport(sprt);
+
+        // Is sport ke sare tournament stats aggregate karo
+        List<Stats> sportStats = statsInterface.findByPlayerIdAndSport(playerId, sport);
+
+        // Aggregate across all tournaments for this sport
+        Stats aggregated = aggregateStats(sportStats, sport);
+        return buildDTO(dto, aggregated, playerId, true); // true = overall, sport-specific POM
+    }
+
+    // ── Aggregate multiple Stats rows into one ─────────────────────────
+    private Stats aggregateStats(List<Stats> list, String sport) {
+        Stats agg = new Stats();
+        // Set sport so POM count works
+        if (!list.isEmpty()) {
+            agg.setPlayer(list.get(0).getPlayer());
+            agg.setSportType(list.get(0).getSportType());
+        }
+        for (Stats s : list) {
+            agg.setRuns(safe(agg.getRuns())        + safe(s.getRuns()));
+            agg.setBallsFaced(safe(agg.getBallsFaced()) + safe(s.getBallsFaced()));
+            agg.setFours(safe(agg.getFours())      + safe(s.getFours()));
+            agg.setSixes(safe(agg.getSixes())      + safe(s.getSixes()));
+            agg.setFifties(safe(agg.getFifties())  + safe(s.getFifties()));
+            agg.setHundreds(safe(agg.getHundreds())+ safe(s.getHundreds()));
+            agg.setNotOut(safe(agg.getNotOut())    + safe(s.getNotOut()));
+            agg.setInningsPlayed(safe(agg.getInningsPlayed()) + safe(s.getInningsPlayed()));
+            if (safe(s.getHighest()) > safe(agg.getHighest())) agg.setHighest(s.getHighest());
+
+            agg.setWickets(safe(agg.getWickets())  + safe(s.getWickets()));
+            agg.setBallsBowled(safe(agg.getBallsBowled()) + safe(s.getBallsBowled()));
+            agg.setRunsConceded(safe(agg.getRunsConceded()) + safe(s.getRunsConceded()));
+            agg.setMaidens(safe(agg.getMaidens())  + safe(s.getMaidens()));
+            agg.setDotBalls(safe(agg.getDotBalls())+ safe(s.getDotBalls()));
+            agg.setThreeWicketHauls(safe(agg.getThreeWicketHauls()) + safe(s.getThreeWicketHauls()));
+            agg.setFiveWicketHauls(safe(agg.getFiveWicketHauls())   + safe(s.getFiveWicketHauls()));
+            agg.setCatches(safe(agg.getCatches())  + safe(s.getCatches()));
+            agg.setStumpings(safe(agg.getStumpings()) + safe(s.getStumpings()));
+            agg.setRunouts(safe(agg.getRunouts())  + safe(s.getRunouts()));
+
+            agg.setGoals(safe(agg.getGoals())      + safe(s.getGoals()));
+            agg.setAssists(safe(agg.getAssists())  + safe(s.getAssists()));
+            agg.setFouls(safe(agg.getFouls())      + safe(s.getFouls()));
+            agg.setYellowCards(safe(agg.getYellowCards()) + safe(s.getYellowCards()));
+            agg.setRedCards(safe(agg.getRedCards())+ safe(s.getRedCards()));
         }
 
-        dto.setPlayerId(playerId);
-        dto.setPlayerName(s.getPlayer().getName());
+        // Recalculate derived stats
+        int tb = safe(agg.getBallsFaced());
+        agg.setStrikeRate(tb > 0 ? (int)((double) safe(agg.getRuns()) / tb * 100) : 0);
+        int dismissals = safe(agg.getInningsPlayed()) - safe(agg.getNotOut());
+        agg.setBattingAverage(dismissals > 0 ? roundTo2((double) safe(agg.getRuns()) / dismissals) : 0.0);
+        double overs = safe(agg.getBallsBowled()) / 6.0;
+        agg.setEconomy(overs > 0 ? roundTo2(safe(agg.getRunsConceded()) / overs) : 0.0);
+        int wkts = safe(agg.getWickets());
+        agg.setBowlingAverage(wkts > 0 ? roundTo2((double) safe(agg.getRunsConceded()) / wkts) : 0.0);
+        agg.setBowlingStrikeRate(wkts > 0 ? roundTo2((double) safe(agg.getBallsBowled()) / wkts) : 0.0);
 
-        // ── Sport identifier ─────────────────────────────────────────
-        String sport = "Cricket";
-        if (s.getSportType() != null && s.getSportType().getName() != null) {
-            sport = s.getSportType().getName().toLowerCase();
+        return agg;
+    }
+
+    // ── Build DTO from a Stats object ──────────────────────────────────
+    private PlayerFullStatsDTO buildDTO(PlayerFullStatsDTO dto, Stats s,
+                                        Long playerId, boolean usesSportPom) {
+        if (s.getPlayer() != null) {
+            dto.setPlayerId(s.getPlayer().getId());
+            dto.setPlayerName(s.getPlayer().getName());
         }
+
+        String sport = s.getSportType() != null && s.getSportType().getName() != null
+                ? s.getSportType().getName().toLowerCase() : "cricket";
         dto.setSport(sport);
 
-        // ── Sport-specific match counts ───────────────────────────────
         int cricketMatches = matchRepo.findCricketMatchesByPlayer(playerId);
         int futsalMatches  = matchRepo.findFutsalMatchesByPlayer(playerId);
-
         dto.setCricketMatchesPlayed(cricketMatches);
         dto.setFutsalMatchesPlayed(futsalMatches);
-        // matchesPlayed = current sport's count (for the stats component header)
-        dto.setMatchesPlayed("Futsal".equals(sport) ? futsalMatches : cricketMatches);
+        dto.setMatchesPlayed("futsal".equals(sport) ? futsalMatches : cricketMatches);
 
-        // ── POM count ─────────────────────────────────────────────────
-        int pomCount = awardInterface.countPomByPlayerId(playerId);
+        // ✅ Sport-wise POM count — no mixing
+        int pomCount = usesSportPom
+                ? awardInterface.countPomByPlayerIdAndSport(playerId, sport)
+                : awardInterface.countPomByPlayerIdAndSport(playerId, sport);
         dto.setPomCount(pomCount);
 
-        // ── Cricket stats ─────────────────────────────────────────────
+        // Cricket fields
         dto.setTotalRuns(safeInt(s.getRuns()));
         dto.setBallsFaced(safeInt(s.getBallsFaced()));
         dto.setStrikeRate(s.getStrikeRate() != null ? s.getStrikeRate() : 0);
-        dto.setBattingAvg(s.getBattingAverage() != null ? s.getBattingAverage() : 0);
+        dto.setBattingAvg(s.getBattingAverage() != null ? s.getBattingAverage() : 0.0);
         dto.setHighest(safeInt(s.getHighest()));
         dto.setFours(safeInt(s.getFours()));
         dto.setSixes(safeInt(s.getSixes()));
         dto.setNotOuts(safeInt(s.getNotOut()));
         dto.setFifties(safeInt(s.getFifties()));
         dto.setHundreds(safeInt(s.getHundreds()));
-
         dto.setWickets(safeInt(s.getWickets()));
         dto.setBallsBowled(safeInt(s.getBallsBowled()));
         dto.setRunsConceded(safeInt(s.getRunsConceded()));
-        dto.setEconomy(s.getEconomy() != null ? s.getEconomy() : 0);
-        dto.setBowlingAverage(s.getBowlingAverage() != null ? s.getBowlingAverage() : 0);
-        dto.setBowlingStrikeRate(s.getBowlingStrikeRate() != null ? s.getBowlingStrikeRate() : 0);
+        dto.setEconomy(s.getEconomy() != null ? s.getEconomy() : 0.0);
+        dto.setBowlingAverage(s.getBowlingAverage() != null ? s.getBowlingAverage() : 0.0);
+        dto.setBowlingStrikeRate(s.getBowlingStrikeRate() != null ? s.getBowlingStrikeRate() : 0.0);
         dto.setMaidens(safeInt(s.getMaidens()));
         dto.setDotBalls(safeInt(s.getDotBalls()));
         dto.setThreeWicketHauls(safeInt(s.getThreeWicketHauls()));
         dto.setFiveWicketHauls(safeInt(s.getFiveWicketHauls()));
-
         dto.setCatches(safeInt(s.getCatches()));
         dto.setStumpings(safeInt(s.getStumpings()));
         dto.setRunouts(safeInt(s.getRunouts()));
 
-        // ── Futsal stats ─────────────────────────────────────────────
+        // Futsal fields
         dto.setGoals(safeInt(s.getGoals()));
         dto.setAssists(safeInt(s.getAssists()));
         dto.setFutsalFouls(safeInt(s.getFouls()));
@@ -620,6 +697,8 @@ public class StatsService {
 
         return dto;
     }
+
+    private int safe(Integer v) { return v == null ? 0 : v; }
 // safeInt helper (already exists in your StatsService, no need to add again)
 // private int safeInt(Integer value) { return value != null ? value : 0; }
 

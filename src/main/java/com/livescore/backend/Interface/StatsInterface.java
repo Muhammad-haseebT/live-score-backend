@@ -32,4 +32,19 @@ public interface StatsInterface extends JpaRepository<Stats,Long> {
     List<Stats> findAllByTournamentId(Long tournamentId);
 
 
+
+    List<Stats> findAllByPlayer_Id(Long playerId);
+
+    // Sport-wise aggregate ke liye
+    @Query("""
+    SELECT s FROM Stats s
+    WHERE s.player.id = :playerId
+    AND LOWER(s.sportType.name) = LOWER(:sport)
+""")
+    List<Stats> findByPlayerIdAndSport(
+            @Param("playerId") Long playerId,
+            @Param("sport") String sport
+    );
+
+
 }
