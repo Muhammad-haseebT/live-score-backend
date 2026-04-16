@@ -549,45 +549,56 @@ public class StatsService {
     public PlayerFullStatsDTO getPlayerFullStats(Long playerId, Long tournamentId, String sport) {
         PlayerFullStatsDTO dto = new PlayerFullStatsDTO();
 
-        // ── Tournament-specific view (unchanged, works fine) ──────────
-        if (tournamentId == null) {
-            String targetSport = (sport != null) ? sport.toLowerCase() : null;
-            List<Stats> allStats = statsInterface.findAllByPlayer_Id(playerId);
-            if (allStats.isEmpty()) return dto;
-
-            // ✅ Sport chip se aya sport use karo, warna pehli row ki sport
-            String finalSport = targetSport != null ? targetSport
-                    : (allStats.get(0).getSportType() != null
-                    ? allStats.get(0).getSportType().getName().toLowerCase()
-                    : "cricket");
-
-            List<Stats> sportStats = statsInterface.findByPlayerIdAndSport(playerId, finalSport);
-            Stats aggregated = aggregateStats(sportStats, finalSport);
-            if (aggregated.getPlayer() == null && !allStats.isEmpty())
-                aggregated.setPlayer(allStats.get(0).getPlayer());
-            return buildDTO(dto, aggregated, playerId, true);
+        if (tournamentId != null) {
+            // ── Tournament-specific view ──────────────────────────────────
+            Stats s = statsInterface.findByPlayerIdAndTournamentId(playerId, tournamentId).orElse(null);
+            if (s == null) {
+                // Tournament exist karta hai but player ne us mein kuch nahi kiya
+                String sp = tournamentInterface.findById(tournamentId)
+                        .map(t -> t.getSport() != null ? t.getSport().getName().toLowerCase() : "cricket")
+                        .orElse("cricket");
+                dto.setSport(sp);
+                return dto; // sab 0 return hoga
+            }
+            return buildDTO(dto, s, playerId, false);
         }
 
-        // ── Overall view — sport chips se manualSport aata hai ────────
-        // Frontend sport chip click pe /player/{id}/stats?sport=cricket call kare
-        // Abhi fallback: first stats row ki sport use karo
-        List<Stats> allStats = statsInterface.findAllByPlayer_Id(playerId);
-        if (allStats.isEmpty()) return dto;
+        // ── Overall view (no tournamentId) ────────────────────────────────
+        String targetSport = (sport != null) ? sport.toLowerCase() : null;
 
-        // Default: pehli row ki sport
-        String sprt = allStats.get(0).getSportType() != null
-                ? allStats.get(0).getSportType().getName().toLowerCase()
-                : "cricket";
-        dto.setSport(sprt);
+        // Agar sport specify nahi hua, pehli row se detect karo
+        if (targetSport == null) {
+            List<Stats> allStats = statsInterface.findAllByPlayer_Id(playerId);
+            if (allStats.isEmpty()) return dto; // player ki koi stats nahi
+            targetSport = allStats.get(0).getSportType() != null
+                    ? allStats.get(0).getSportType().getName().toLowerCase()
+                    : "cricket";
+        }
 
-        // Is sport ke sare tournament stats aggregate karo
-        List<Stats> sportStats = statsInterface.findByPlayerIdAndSport(playerId, sport);
+        // ✅ Sirf is sport ki stats fetch karo
+        List<Stats> sportStats = statsInterface.findByPlayerIdAndSport(playerId, targetSport);
 
-        // Aggregate across all tournaments for this sport
-        Stats aggregated = aggregateStats(sportStats, sport);
-        return buildDTO(dto, aggregated, playerId, true); // true = overall, sport-specific POM
+        // ✅ KEY FIX: Agar is sport ki koi stats nahi — zero DTO return karo, fallback NAHI
+        if (sportStats.isEmpty()) {
+            dto.setSport(targetSport);
+            // Player name set karne ke liye koi bhi stats row use karo (naam chahiye sirf)
+            statsInterface.findAllByPlayer_Id(playerId).stream().findFirst()
+                    .ifPresent(any -> {
+                        dto.setPlayerId(playerId);
+                        dto.setPlayerName(any.getPlayer() != null ? any.getPlayer().getName() : "");
+                    });
+            int cricketMatches = matchRepo.findCricketMatchesByPlayer(playerId);
+            int futsalMatches  = matchRepo.findFutsalMatchesByPlayer(playerId);
+            dto.setCricketMatchesPlayed(cricketMatches);
+            dto.setFutsalMatchesPlayed(futsalMatches);
+            dto.setMatchesPlayed("futsal".equals(targetSport) ? futsalMatches : cricketMatches);
+            return dto; // baaki sab fields 0/null as default
+        }
+
+        // Stats exist karti hain — aggregate karo
+        Stats aggregated = aggregateStats(sportStats, targetSport);
+        return buildDTO(dto, aggregated, playerId, true);
     }
-
     // ── Aggregate multiple Stats rows into one ─────────────────────────
     private Stats aggregateStats(List<Stats> list, String sport) {
         Stats agg = new Stats();
@@ -658,9 +669,7 @@ public class StatsService {
         dto.setMatchesPlayed("futsal".equals(sport) ? futsalMatches : cricketMatches);
 
         // ✅ Sport-wise POM count — no mixing
-        int pomCount = usesSportPom
-                ? awardInterface.countPomByPlayerIdAndSport(playerId, sport)
-                : awardInterface.countPomByPlayerIdAndSport(playerId, sport);
+        int pomCount = awardInterface.countPomByPlayerIdAndSport(playerId, sport);
         dto.setPomCount(pomCount);
 
         // Cricket fields
