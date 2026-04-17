@@ -17,9 +17,10 @@ public class PtsTable {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    // PtsTable.java
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "team_id")
-    @JsonIgnore
+    @JsonIgnore   // keep this
     private Team team;
 
     @ManyToOne(fetch = FetchType.LAZY)

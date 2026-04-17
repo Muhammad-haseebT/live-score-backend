@@ -40,10 +40,9 @@ public class Team {
     @JsonManagedReference("team-players")
     private List<Player> players = new ArrayList<>();
 
+    // Team.java
     @OneToOne(mappedBy = "team", cascade = CascadeType.ALL)
-    @JsonManagedReference("team-pointsTableEntry")
     private PtsTable pointsTableEntry;
-
     private String status;
 
     @PrePersist
