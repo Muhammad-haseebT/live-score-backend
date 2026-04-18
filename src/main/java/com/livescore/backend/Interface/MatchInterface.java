@@ -108,6 +108,19 @@ public interface MatchInterface extends JpaRepository<Match,Long> {
     int findFutsalMatchesByPlayer(@Param("playerId") Long playerId);
 
 
+// MatchInterface.java mein yeh query add karo
+// (cricket aur futsal wali queries ke saath)
 
-
+    /**
+     * Volleyball matches played by this player.
+     */
+    @Query("""
+    SELECT COUNT(DISTINCT m.id) FROM Match m
+    LEFT JOIN m.team1.players p1
+    LEFT JOIN m.team2.players p2
+    WHERE m.status = 'COMPLETED'
+    AND m.tournament.sport.name = 'VolleyBall'
+    AND (p1.id = :playerId OR p2.id = :playerId)
+""")
+    int findVolleyballMatchesByPlayer(@Param("playerId") Long playerId);
 }

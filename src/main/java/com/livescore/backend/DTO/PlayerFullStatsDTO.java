@@ -7,12 +7,13 @@ public class PlayerFullStatsDTO {
 
     private Long   playerId;
     private String playerName;
-    private String sport; // "cricket" / "futsal"
+    private String sport; // "cricket" / "futsal" / "volleyball"
 
     // ── matchesPlayed — sport-specific ───────────────────────────
-    private int    matchesPlayed;        // current sport ka count
-    private int    cricketMatchesPlayed; // cricket only
-    private int    futsalMatchesPlayed;  // futsal only
+    private int    matchesPlayed;           // current sport ka count
+    private int    cricketMatchesPlayed;
+    private int    futsalMatchesPlayed;
+    private int    volleyballMatchesPlayed; // ✅ NEW
 
     private int    pomCount;
 
@@ -45,11 +46,11 @@ public class PlayerFullStatsDTO {
     private int    stumpings;
     private int    runouts;
 
-    // ── FUTSAL ──────────────────────────────────────────────────
-    private int    goals;
-    private int    assists;
+    // ── FUTSAL / VOLLEYBALL ──────────────────────────────────────
+    private int    goals;        // futsal: goals    | volleyball: points scored
+    private int    assists;      // futsal: assists  | volleyball: aces
     private int    ownGoals;
-    private int    futsalFouls;
-    private int    yellowCards;
-    private int    redCards;
+    private int    futsalFouls;  // futsal: fouls    | volleyball: blocks
+    private int    yellowCards;  // futsal: yellow   | volleyball: attack errors
+    private int    redCards;     // futsal: red      | volleyball: service errors
 }

@@ -662,13 +662,24 @@ public class StatsService {
                 ? s.getSportType().getName().toLowerCase() : "cricket";
         dto.setSport(sport);
 
-        int cricketMatches = matchRepo.findCricketMatchesByPlayer(playerId);
-        int futsalMatches  = matchRepo.findFutsalMatchesByPlayer(playerId);
+        // ✅ Tino sports ke matches count karo separately
+        int cricketMatches    = matchRepo.findCricketMatchesByPlayer(playerId);
+        int futsalMatches     = matchRepo.findFutsalMatchesByPlayer(playerId);
+        int volleyballMatches = matchRepo.findVolleyballMatchesByPlayer(playerId); // ✅ NEW
+
         dto.setCricketMatchesPlayed(cricketMatches);
         dto.setFutsalMatchesPlayed(futsalMatches);
-        dto.setMatchesPlayed("futsal".equals(sport) ? futsalMatches : cricketMatches);
+        dto.setVolleyballMatchesPlayed(volleyballMatches); // ✅ NEW
 
-        // ✅ Sport-wise POM count — no mixing
+        // ✅ matchesPlayed = current sport ka count
+        int currentSportMatches = switch (sport) {
+            case "futsal"     -> futsalMatches;
+            case "volleyball" -> volleyballMatches;
+            default           -> cricketMatches;
+        };
+        dto.setMatchesPlayed(currentSportMatches);
+
+        // ✅ Sport-wise POM count
         int pomCount = awardInterface.countPomByPlayerIdAndSport(playerId, sport);
         dto.setPomCount(pomCount);
 
@@ -697,7 +708,7 @@ public class StatsService {
         dto.setStumpings(safeInt(s.getStumpings()));
         dto.setRunouts(safeInt(s.getRunouts()));
 
-        // Futsal fields
+        // Futsal / Volleyball fields
         dto.setGoals(safeInt(s.getGoals()));
         dto.setAssists(safeInt(s.getAssists()));
         dto.setFutsalFouls(safeInt(s.getFouls()));

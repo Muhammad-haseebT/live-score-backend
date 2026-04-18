@@ -47,6 +47,11 @@ public class Match {
     private String venue;
     private LocalDate date;
     private LocalTime time;
+    @Column(name = "points_per_set")
+    private Integer pointsPerSet;   // 25 for volleyball, 21 for badminton
+
+    @Column(name = "final_set_points")
+    private Integer finalSetPoints;
 
     @PrePersist
     public void prePersist() {

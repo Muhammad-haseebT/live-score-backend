@@ -34,5 +34,7 @@ public class MatchDTO {
     private int overs;
     private int sets;
     private Long InningsId;
+    private Integer pointsPerSet;   // volleyball: 25, badminton: 21, table tennis: 11
+    private Integer finalSetPoints;
 }
 
