@@ -647,28 +647,28 @@ public class StatsService {
         return dto;
     }
 
-    // ── Match count helper ────────────────────────────────────────────
     private void setMatchCounts(PlayerFullStatsDTO dto, Long playerId, String sport) {
-        int cricket    = matchRepo.findCricketMatchesByPlayer(playerId);
-        int futsal     = matchRepo.findFutsalMatchesByPlayer(playerId);
-        int volleyball = matchRepo.findVolleyballMatchesByPlayer(playerId);
-        int badminton  = matchRepo.findBadmintonMatchesByPlayer(playerId);
-        int tabletennis= matchRepo.findTableTennisMatchesByPlayer(playerId);
+        int cricket     = matchRepo.findCricketMatchesByPlayer(playerId);
+        int futsal      = matchRepo.findFutsalMatchesByPlayer(playerId);
+        int volleyball  = matchRepo.findVolleyballMatchesByPlayer(playerId);
+        int badminton   = matchRepo.findBadmintonMatchesByPlayer(playerId);
+        int tabletennis = matchRepo.findTableTennisMatchesByPlayer(playerId);
+        int tugofwar    = matchRepo.findTableTugOfWarMatchesByPlayer(playerId);
 
         dto.setCricketMatchesPlayed(cricket);
         dto.setFutsalMatchesPlayed(futsal);
         dto.setVolleyballMatchesPlayed(volleyball);
         dto.setBadmintonMatchesPlayed(badminton);
         dto.setTableTennisMatchesPlayed(tabletennis);
+        dto.setTugOfWarMatchesPlayed(tugofwar);   // ✅ yeh line missing thi
 
-        // ✅ matchesPlayed = ONLY current sport
-        dto.setMatchesPlayed(switch (sport) {
-            case "futsal"       -> futsal;
-            case "volleyball"   -> volleyball;
-            case "badminton"    -> badminton;
-            case "table tennis",
-                 "tabletennis"  -> tabletennis;
-            default             -> cricket;
+        dto.setMatchesPlayed(switch (sport.toLowerCase().trim()) {
+            case "futsal"                    -> futsal;
+            case "volleyball"                -> volleyball;
+            case "badminton"                 -> badminton;
+            case "table tennis", "tabletennis" -> tabletennis;
+            case "tug of war", "tugofwar"    -> tugofwar;  // ✅ "tug of war" add kiya
+            default                          -> cricket;
         });
     }
 

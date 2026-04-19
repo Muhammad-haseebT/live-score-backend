@@ -212,12 +212,19 @@ public class MatchService {
         Sports s = sportsInterface.findById(m.getSportId()).orElse(null);
         if (s.getName().equalsIgnoreCase("cricket")) {
             match.setOvers(m.getOvers());
-        }  else if (s.getName().equalsIgnoreCase("volleyball")
+        } else if (s.getName().equalsIgnoreCase("volleyball")
                 || s.getName().equalsIgnoreCase("Badminton")
-                || s.getName().equalsIgnoreCase("Tabletennis")) {
-            match.setSets(m.getSets() != 0 ? m.getSets() : 3);           // sets to win (default 3)
-            match.setPointsPerSet(m.getPointsPerSet() != null ? m.getPointsPerSet() : 25);  // default 25
-            match.setFinalSetPoints(m.getFinalSetPoints() != null ? m.getFinalSetPoints() : 15); // default 15
+                || s.getName().equalsIgnoreCase("Tabletennis")
+                || s.getName().equalsIgnoreCase("Table Tennis")) {
+            match.setSets(m.getSets() != 0 && m.getSets() > 0 ? m.getSets() : 3);
+            match.setPointsPerSet(m.getPointsPerSet() != null ? m.getPointsPerSet() : 25);
+            match.setFinalSetPoints(m.getFinalSetPoints() != null ? m.getFinalSetPoints() : 15);
+
+        } else if (s.getName().equalsIgnoreCase("Tug Of War")
+                || s.getName().equalsIgnoreCase("TugOfWar")) {
+            // ✅ Only rounds needed (sets = rounds to win)
+            match.setSets(m.getSets() != 0 && m.getSets() > 0 ? m.getSets() : 3);
+            // pointsPerSet and finalSetPoints not used in Tug of War
         }
 
         if(match.getTournament().getSport().getName().equalsIgnoreCase("cricket")){

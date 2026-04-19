@@ -16,6 +16,7 @@ public class PlayerFullStatsDTO {
     private int volleyballMatchesPlayed;
     private int badmintonMatchesPlayed;
     private int tableTennisMatchesPlayed;
+    private int TugOfWarMatchesPlayed;
 
     private int pomCount;
 

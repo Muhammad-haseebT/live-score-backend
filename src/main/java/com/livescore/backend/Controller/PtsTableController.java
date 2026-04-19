@@ -6,6 +6,8 @@ import com.livescore.backend.Entity.Tournament;
 import com.livescore.backend.Sport.Futsal.FutsalPtsTableService;
 import com.livescore.backend.Interface.TournamentInterface;
 import com.livescore.backend.Service.PtsTableService;
+import com.livescore.backend.Sport.TableTennis.TableTennisPtsTableService;
+import com.livescore.backend.Sport.TugOfWar.TugOfWarPtsTableService;
 import com.livescore.backend.Sport.Volleyball.VolleyballPtsTableService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -20,6 +22,8 @@ public class PtsTableController {
     private final VolleyballPtsTableService  volleyballPtsTableService;
     private final BadmintonPtsTableService   badmintonPtsTableService;
     private final TournamentInterface        tournamentInterface;
+    private final TableTennisPtsTableService tableTennisPtsTableService;
+    private final TugOfWarPtsTableService tugOfWarPtsTableService;
 
     @PostMapping("/ptsTable")
     public ResponseEntity<?> createPtsTable(@RequestBody PtsTable ptsTable) {
@@ -58,6 +62,9 @@ public class PtsTableController {
             case "futsal"     -> futsalPtsTableService.getTable(tournamentId);
             case "volleyball" -> volleyballPtsTableService.getTable(tournamentId);
             case "badminton"  -> badmintonPtsTableService.getTable(tournamentId);
+            case "table tennis",
+                 "tabletennis"   -> tableTennisPtsTableService.getTable(tournamentId);
+            case "tug of war","tugofwar"         -> tugOfWarPtsTableService.getTable(tournamentId);
             default           -> ptsTableService.getPtsTablesByTournament(tournamentId);
         };
     }
