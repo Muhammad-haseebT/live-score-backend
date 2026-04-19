@@ -22,7 +22,7 @@ public interface StatsInterface extends JpaRepository<Stats,Long> {
     Optional<Stats> findByTournamentIdAndPlayerId(@Param("tournamentId") Long tournamentId, @Param("playerId") Long playerId);
 
     @Query("select s from Stats s where s.player.id=:playerId")
-    Stats findByPlayerId(@Param("playerId") Long playerId);
+    List<Stats> findByPlayerId(@Param("playerId") Long playerId);
 
     List<Stats> findByTournamentId(Long tournamentId);
 

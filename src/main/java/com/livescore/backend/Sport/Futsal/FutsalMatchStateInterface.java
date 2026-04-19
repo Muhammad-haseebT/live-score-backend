@@ -1,4 +1,4 @@
-package com.livescore.backend.Futsal;
+package com.livescore.backend.Sport.Futsal;
 
 import com.livescore.backend.Entity.Futsal.FutsalMatchState;
 import org.springframework.data.jpa.repository.JpaRepository;

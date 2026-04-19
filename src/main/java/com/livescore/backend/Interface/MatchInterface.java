@@ -81,46 +81,63 @@ public interface MatchInterface extends JpaRepository<Match,Long> {
     Optional<Match> findByIdWithSport(@Param("id") Long id);
 //
 
-    /**
-     * Cricket matches played by this player.
-     */
-    @Query("""
-    SELECT COUNT(DISTINCT m.id) FROM Match m
-    LEFT JOIN m.team1.players p1
-    LEFT JOIN m.team2.players p2
+    @Query(value = """
+    SELECT COUNT(DISTINCT m.id) 
+    FROM match m
+    JOIN tournament t ON m.tournament_id = t.id
+    JOIN sports s ON t.sports_id = s.id
+    JOIN stats st ON st.tournament_id = t.id
     WHERE m.status = 'COMPLETED'
-    AND m.tournament.sport.name = 'Cricket'
-    AND (p1.id = :playerId OR p2.id = :playerId)
-""")
-    int findCricketMatchesByPlayer(@Param("playerId") Long playerId);
+    AND s.name = 'Cricket'
+    AND st.player_id = ?1
+""", nativeQuery = true)
+    int findCricketMatchesByPlayer(Long playerId);
 
-    /**
-     * Futsal matches played by this player.
-     */
-    @Query("""
-    SELECT COUNT(DISTINCT m.id) FROM Match m
-    LEFT JOIN m.team1.players p1
-    LEFT JOIN m.team2.players p2
+    @Query(value = """
+    SELECT COUNT(DISTINCT m.id) 
+    FROM match m
+    JOIN tournament t ON m.tournament_id = t.id
+    JOIN sports s ON t.sports_id = s.id
+    JOIN stats st ON st.tournament_id = t.id
     WHERE m.status = 'COMPLETED'
-    AND m.tournament.sport.name = 'Futsal'
-    AND (p1.id = :playerId OR p2.id = :playerId)
-""")
-    int findFutsalMatchesByPlayer(@Param("playerId") Long playerId);
+    AND s.name = 'Futsal'
+    AND st.player_id = ?1
+""", nativeQuery = true)
+    int findFutsalMatchesByPlayer(Long playerId);
 
-
-// MatchInterface.java mein yeh query add karo
-// (cricket aur futsal wali queries ke saath)
-
-    /**
-     * Volleyball matches played by this player.
-     */
-    @Query("""
-    SELECT COUNT(DISTINCT m.id) FROM Match m
-    LEFT JOIN m.team1.players p1
-    LEFT JOIN m.team2.players p2
+    @Query(value = """
+    SELECT COUNT(DISTINCT m.id) 
+    FROM match m
+    JOIN tournament t ON m.tournament_id = t.id
+    JOIN sports s ON t.sports_id = s.id
+    JOIN stats st ON st.tournament_id = t.id
     WHERE m.status = 'COMPLETED'
-    AND m.tournament.sport.name = 'VolleyBall'
-    AND (p1.id = :playerId OR p2.id = :playerId)
-""")
-    int findVolleyballMatchesByPlayer(@Param("playerId") Long playerId);
+    AND s.name = 'VolleyBall'
+    AND st.player_id = ?1
+""", nativeQuery = true)
+    int findVolleyballMatchesByPlayer(Long playerId);
+
+    @Query(value = """
+    SELECT COUNT(DISTINCT m.id) 
+    FROM match m
+    JOIN tournament t ON m.tournament_id = t.id
+    JOIN sports s ON t.sports_id = s.id
+    JOIN stats st ON st.tournament_id = t.id
+    WHERE m.status = 'COMPLETED'
+    AND s.name = 'Badminton'
+    AND st.player_id = ?1
+""", nativeQuery = true)
+    int findBadmintonMatchesByPlayer(Long playerId);
+
+    @Query(value = """
+    SELECT COUNT(DISTINCT m.id) 
+    FROM match m
+    JOIN tournament t ON m.tournament_id = t.id
+    JOIN sports s ON t.sports_id = s.id
+    JOIN stats st ON st.tournament_id = t.id
+    WHERE m.status = 'COMPLETED'
+    AND s.name = 'TabbleTennis'
+    AND st.player_id = ?1
+""", nativeQuery = true)
+    int findTableTennisMatchesByPlayer(Long playerId);
 }

@@ -141,7 +141,7 @@ public class TeamRequestService {
         teamRequestInterface.save(teamRequest);
         return ResponseEntity.ok().build();
     }
-    @CacheEvict(value = {"teamByTournamentId","teams","teamById","teamByTournamentIdAndAccountId","teamByPlayers"},allEntries = true)
+    @CacheEvict(value = {"teamByTournamentId","teams","teamById","teamByTournamentIdAndAccountId","teamByPlayers","tournamentOverview"},allEntries = true)
 
     public ResponseEntity<?> approveTeamRequest(Long id) {
         TeamRequest teamRequest=teamRequestInterface.findById(id).orElse(null);

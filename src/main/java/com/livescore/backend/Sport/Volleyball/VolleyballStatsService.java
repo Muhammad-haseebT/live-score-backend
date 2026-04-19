@@ -1,4 +1,4 @@
-package com.livescore.backend.Volleyball;
+package com.livescore.backend.Sport.Volleyball;
 
 import com.livescore.backend.Entity.*;
 import com.livescore.backend.Entity.Volleyball.VolleyballEvent;

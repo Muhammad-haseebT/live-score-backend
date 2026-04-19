@@ -1,4 +1,4 @@
-package com.livescore.backend.Cricket;
+package com.livescore.backend.Sport.Cricket;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;

@@ -1,4 +1,4 @@
-package com.livescore.backend.Volleyball;
+package com.livescore.backend.Sport.Volleyball;
 
 import com.livescore.backend.Entity.Volleyball.VolleyballEvent;
 import org.springframework.data.jpa.repository.JpaRepository;

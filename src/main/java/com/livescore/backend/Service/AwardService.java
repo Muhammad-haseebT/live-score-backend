@@ -20,10 +20,10 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class AwardService {
 
-    private final AwardInterface awardInterface;
-    private final StatsInterface statsInterface;
+    private final AwardInterface      awardInterface;
+    private final StatsInterface      statsInterface;
     private final TournamentInterface tournamentInterface;
-    private final StatsService statsService;
+    private final StatsService        statsService;
 
     public TournamentAwardsDTO getTournamentStats(Long tournamentId) {
         Tournament tournament = tournamentInterface.findById(tournamentId).orElse(null);
@@ -50,50 +50,71 @@ public class AwardService {
         switch (sport) {
             case "futsal"     -> buildFutsalStats(dto, awards, allStats);
             case "volleyball" -> buildVolleyballStats(dto, awards, allStats);
+            case "badminton"  -> buildBadmintonStats(dto, awards, allStats);
             default           -> buildCricketStats(dto, awards, allStats);
         }
 
         return dto;
     }
 
-    private void buildCricketStats(TournamentAwardsDTO dto, List<Award> awards, List<Stats> allStats) {
+    // ── Cricket ──────────────────────────────────────────────────
+
+    private void buildCricketStats(TournamentAwardsDTO dto, List<Award> awards, List<Stats> s) {
         awards.stream().filter(a -> "BEST_BATSMAN".equals(a.getAwardType())).findFirst().ifPresent(a -> dto.setBestBatsman(toAwardDTO(a)));
         awards.stream().filter(a -> "BEST_BOWLER".equals(a.getAwardType())).findFirst().ifPresent(a -> dto.setBestBowler(toAwardDTO(a)));
         awards.stream().filter(a -> "BEST_FIELDER".equals(a.getAwardType())).findFirst().ifPresent(a -> dto.setBestFielder(toAwardDTO(a)));
         awards.stream().filter(a -> "MOST_SIXES".equals(a.getAwardType())).findFirst().ifPresent(a -> dto.setMostSixes(toAwardDTO(a)));
-        dto.setTopRunScorers(allStats.stream().filter(s -> s.getRuns() != null && s.getRuns() > 0)
+        dto.setTopRunScorers(s.stream().filter(x -> x.getRuns() != null && x.getRuns() > 0)
                 .sorted(Comparator.comparingInt(Stats::getRuns).reversed()).limit(5)
                 .map(this::toPlayerStatsRow).collect(Collectors.toList()));
-        dto.setTopBowlers(allStats.stream().filter(s -> s.getBallsBowled() != null && s.getBallsBowled() > 0)
+        dto.setTopBowlers(s.stream().filter(x -> x.getBallsBowled() != null && x.getBallsBowled() > 0)
                 .sorted(Comparator.comparingInt(Stats::getWickets).reversed()
-                        .thenComparingDouble(s -> s.getEconomy() != null ? s.getEconomy() : 999))
+                        .thenComparingDouble(x -> x.getEconomy() != null ? x.getEconomy() : 999))
                 .limit(5).map(this::toPlayerStatsRow).collect(Collectors.toList()));
     }
 
-    private void buildFutsalStats(TournamentAwardsDTO dto, List<Award> awards, List<Stats> allStats) {
+    // ── Futsal ───────────────────────────────────────────────────
+
+    private void buildFutsalStats(TournamentAwardsDTO dto, List<Award> awards, List<Stats> s) {
         awards.stream().filter(a -> "TOP_SCORER".equals(a.getAwardType())).findFirst().ifPresent(a -> dto.setTopScorer(toAwardDTO(a)));
         awards.stream().filter(a -> "TOP_ASSIST".equals(a.getAwardType())).findFirst().ifPresent(a -> dto.setTopAssist(toAwardDTO(a)));
-        dto.setTopGoalScorers(allStats.stream().filter(s -> s.getGoals() != null && s.getGoals() > 0)
+        dto.setTopGoalScorers(s.stream().filter(x -> x.getGoals() != null && x.getGoals() > 0)
                 .sorted(Comparator.comparingInt(Stats::getGoals).reversed()
-                        .thenComparingInt(s -> s.getYellowCards() != null ? s.getYellowCards() : 0)
-                        .thenComparingInt(s -> s.getRedCards() != null ? s.getRedCards() : 0))
+                        .thenComparingInt(x -> x.getYellowCards() != null ? x.getYellowCards() : 0)
+                        .thenComparingInt(x -> x.getRedCards() != null ? x.getRedCards() : 0))
                 .limit(5).map(this::toPlayerStatsRow).collect(Collectors.toList()));
-        dto.setTopAssisters(allStats.stream().filter(s -> s.getAssists() != null && s.getAssists() > 0)
+        dto.setTopAssisters(s.stream().filter(x -> x.getAssists() != null && x.getAssists() > 0)
                 .sorted(Comparator.comparingInt(Stats::getAssists).reversed())
                 .limit(5).map(this::toPlayerStatsRow).collect(Collectors.toList()));
     }
 
-    // Volleyball: goals=points, assists=aces, fouls=blocks
-    private void buildVolleyballStats(TournamentAwardsDTO dto, List<Award> awards, List<Stats> allStats) {
+    // ── Volleyball (goals=pts, assists=aces, fouls=blocks) ───────
+
+    private void buildVolleyballStats(TournamentAwardsDTO dto, List<Award> awards, List<Stats> s) {
         awards.stream().filter(a -> "TOP_SCORER".equals(a.getAwardType())).findFirst().ifPresent(a -> dto.setTopScorer(toAwardDTO(a)));
         awards.stream().filter(a -> "BEST_SERVER".equals(a.getAwardType())).findFirst().ifPresent(a -> dto.setTopAssist(toAwardDTO(a)));
-        dto.setTopGoalScorers(allStats.stream().filter(s -> s.getGoals() != null && s.getGoals() > 0)
+        dto.setTopGoalScorers(s.stream().filter(x -> x.getGoals() != null && x.getGoals() > 0)
                 .sorted(Comparator.comparingInt(Stats::getGoals).reversed())
                 .limit(5).map(this::toPlayerStatsRow).collect(Collectors.toList()));
-        dto.setTopAssisters(allStats.stream().filter(s -> s.getAssists() != null && s.getAssists() > 0)
+        dto.setTopAssisters(s.stream().filter(x -> x.getAssists() != null && x.getAssists() > 0)
                 .sorted(Comparator.comparingInt(Stats::getAssists).reversed())
                 .limit(5).map(this::toPlayerStatsRow).collect(Collectors.toList()));
     }
+
+    // ── Badminton (goals=points, assists=smashes+aces, fouls=faults) ─
+
+    private void buildBadmintonStats(TournamentAwardsDTO dto, List<Award> awards, List<Stats> s) {
+        awards.stream().filter(a -> "TOP_SCORER".equals(a.getAwardType())).findFirst().ifPresent(a -> dto.setTopScorer(toAwardDTO(a)));
+        awards.stream().filter(a -> "TOP_ATTACKER".equals(a.getAwardType())).findFirst().ifPresent(a -> dto.setTopAssist(toAwardDTO(a)));
+        dto.setTopGoalScorers(s.stream().filter(x -> x.getGoals() != null && x.getGoals() > 0)
+                .sorted(Comparator.comparingInt(Stats::getGoals).reversed())
+                .limit(5).map(this::toPlayerStatsRow).collect(Collectors.toList()));
+        dto.setTopAssisters(s.stream().filter(x -> x.getAssists() != null && x.getAssists() > 0)
+                .sorted(Comparator.comparingInt(Stats::getAssists).reversed())
+                .limit(5).map(this::toPlayerStatsRow).collect(Collectors.toList()));
+    }
+
+    // ── Common ───────────────────────────────────────────────────
 
     public TournamentAwardsDTO recalculateAndGetStats(Long tournamentId) {
         Tournament t = tournamentInterface.findById(tournamentId).orElse(null);
@@ -113,24 +134,23 @@ public class AwardService {
     }
 
     private PlayerStatsRow toPlayerStatsRow(Stats s) {
-        PlayerStatsRow row = new PlayerStatsRow();
-        row.setPlayerId(s.getPlayer().getId());
-        row.setPlayerName(s.getPlayer().getName());
-        row.setRuns(safe(s.getRuns())); row.setWickets(safe(s.getWickets()));
-        row.setBallsFaced(safe(s.getBallsFaced())); row.setBallsBowled(safe(s.getBallsBowled()));
-        row.setFours(safe(s.getFours())); row.setSixes(safe(s.getSixes()));
-        row.setHighest(safe(s.getHighest())); row.setStrikeRate(s.getStrikeRate());
-        row.setCatches(safe(s.getCatches())); row.setRunouts(safe(s.getRunouts()));
-        row.setStumpings(safe(s.getStumpings())); row.setFifties(safe(s.getFifties()));
-        row.setHundreds(safe(s.getHundreds())); row.setMaidens(safe(s.getMaidens()));
-        row.setDotBalls(safe(s.getDotBalls())); row.setRunsConceded(safe(s.getRunsConceded()));
-        row.setEconomy(s.getEconomy());
-        row.setGoals(safe(s.getGoals())); row.setAssists(safe(s.getAssists()));
-        row.setFutsalFouls(safe(s.getFouls())); row.setYellowCards(safe(s.getYellowCards()));
-        row.setRedCards(safe(s.getRedCards()));
-        row.setPlayerOfMatchCount(safe(s.getPlayerOfMatchCount()));
-        row.setTotalPoints(safe(s.getPoints()));
-        return row;
+        PlayerStatsRow r = new PlayerStatsRow();
+        r.setPlayerId(s.getPlayer().getId()); r.setPlayerName(s.getPlayer().getName());
+        r.setRuns(safe(s.getRuns())); r.setWickets(safe(s.getWickets()));
+        r.setBallsFaced(safe(s.getBallsFaced())); r.setBallsBowled(safe(s.getBallsBowled()));
+        r.setFours(safe(s.getFours())); r.setSixes(safe(s.getSixes()));
+        r.setHighest(safe(s.getHighest())); r.setStrikeRate(s.getStrikeRate());
+        r.setCatches(safe(s.getCatches())); r.setRunouts(safe(s.getRunouts()));
+        r.setStumpings(safe(s.getStumpings())); r.setFifties(safe(s.getFifties()));
+        r.setHundreds(safe(s.getHundreds())); r.setMaidens(safe(s.getMaidens()));
+        r.setDotBalls(safe(s.getDotBalls())); r.setRunsConceded(safe(s.getRunsConceded()));
+        r.setEconomy(s.getEconomy());
+        r.setGoals(safe(s.getGoals())); r.setAssists(safe(s.getAssists()));
+        r.setFutsalFouls(safe(s.getFouls())); r.setYellowCards(safe(s.getYellowCards()));
+        r.setRedCards(safe(s.getRedCards()));
+        r.setPlayerOfMatchCount(safe(s.getPlayerOfMatchCount()));
+        r.setTotalPoints(safe(s.getPoints()));
+        return r;
     }
 
     private int safe(Integer v) { return v != null ? v : 0; }

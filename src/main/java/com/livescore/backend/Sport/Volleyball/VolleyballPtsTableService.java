@@ -1,4 +1,4 @@
-package com.livescore.backend.Volleyball;
+package com.livescore.backend.Sport.Volleyball;
 
 import com.livescore.backend.DTO.PtsTableDTO;
 import com.livescore.backend.Entity.*;

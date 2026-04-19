@@ -2,7 +2,7 @@ package com.livescore.backend.Controller;
 
 import com.livescore.backend.Entity.Futsal.FutsalMatchStats;
 import com.livescore.backend.Entity.Stats;
-import com.livescore.backend.Futsal.FutsalStatsService;
+import com.livescore.backend.Sport.Futsal.FutsalStatsService;
 import com.livescore.backend.Interface.StatsInterface;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
