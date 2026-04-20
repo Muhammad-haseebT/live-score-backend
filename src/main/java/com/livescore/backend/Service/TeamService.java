@@ -4,10 +4,7 @@ import com.livescore.backend.Entity.Player;
 import com.livescore.backend.Entity.PlayerRequest;
 import com.livescore.backend.Entity.Team;
 import com.livescore.backend.Entity.Tournament;
-import com.livescore.backend.Interface.PlayerInterface;
-import com.livescore.backend.Interface.PlayerRequestInterface;
-import com.livescore.backend.Interface.TeamInterface;
-import com.livescore.backend.Interface.TournamentInterface;
+import com.livescore.backend.Interface.*;
 import com.livescore.backend.Util.Constants;
 import com.livescore.backend.Util.ValidationUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,6 +28,8 @@ public class TeamService {
 
     @Autowired
     private TournamentInterface tournamentInterface;
+    @Autowired
+    private PlayerRequestInterface playerRequestInterface;
 
 
     @CacheEvict(value = {"teamByTournamentId", "teams", "teamById", "teamByTournamentIdAndAccountId", "teamByPlayers"}, allEntries = true)
@@ -58,6 +57,9 @@ public class TeamService {
         Player p1 = playerOpt.get();
         team.setTournament(tournamentOpt.get());
         team.setCreator(p1);
+        List<Player> players = teamInterface.findPlayersByteamId(team.getId());
+        players.add(p1);
+        team.setPlayers(players);
         Team savedTeam = teamInterface.save(team);
         p1.setPlayerRole(Constants.ROLE_CAPTAIN);
         playerInterface.save(p1);
@@ -195,7 +197,16 @@ public class TeamService {
     @Cacheable(value = "teamByPlayers", key = "#teamId")
 
     public ResponseEntity<?> findPlayersByTeam(Long teamId) {
+        // Team exist karta hai?
         Team team = teamInterface.findById(teamId).orElse(null);
-        return ResponseEntity.ok(team.getPlayers());
+        if (team == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        // player_request se APPROVED players fetch karo
+        List<Player> players = playerRequestInterface
+                .findApprovedPlayersByTeamId(teamId);
+
+        return ResponseEntity.ok(players);
     }
 }

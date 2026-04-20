@@ -8,6 +8,8 @@ import com.livescore.backend.Entity.*;
 import com.livescore.backend.Entity.TugOfWar.TugOfWarEvent;
 import com.livescore.backend.Interface.*;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,6 +22,11 @@ public class TugOfWarStatsService {
     private final TugOfWarEventInterface towEventInterface;
 
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "matches", allEntries = true, beforeInvocation = false),
+            @CacheEvict(value = "matchById", allEntries = true, beforeInvocation = false)
+    })
+
     public void onMatchEnd(Long matchId) {
         Match match = matchInterface.findById(matchId).orElse(null);
         if (match == null || match.getTournament() == null) return;

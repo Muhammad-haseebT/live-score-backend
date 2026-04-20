@@ -160,6 +160,7 @@ public class TableTennisScoringService implements ScoringServiceInterface {
         checkMatchOver(state, match);
     }
 
+
     private void checkMatchOver(TableTennisMatchState state, Match match) {
         if (state.getTeam1Games() >= state.getGamesToWin()
                 || state.getTeam2Games() >= state.getGamesToWin()) {

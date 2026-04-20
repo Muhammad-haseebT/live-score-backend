@@ -1,5 +1,6 @@
 package com.livescore.backend.Interface;
 
+import com.livescore.backend.Entity.Player;
 import com.livescore.backend.Entity.Team;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -38,4 +39,6 @@ public interface TeamInterface extends JpaRepository<Team, Long> {
             """)
     List<Long> findTournamentPlayerIds(@Param("tournamentId") Long tournamentId);
 
+    @Query("select p from Team t join t.players p where t.id = :teamId")
+    List<Player> findPlayersByteamId(Long id);
 }
