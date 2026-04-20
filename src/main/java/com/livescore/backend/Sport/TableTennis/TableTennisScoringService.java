@@ -21,7 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.stream.Collectors;
 
-@Service("TABLE TENNIS")
+@Service("TABLETENNIS")
 @RequiredArgsConstructor
 public class TableTennisScoringService implements ScoringServiceInterface {
 

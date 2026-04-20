@@ -136,7 +136,7 @@ public interface MatchInterface extends JpaRepository<Match,Long> {
     JOIN sports s ON t.sports_id = s.id
     JOIN stats st ON st.tournament_id = t.id
     WHERE LOWER(m.status) = LOWER('COMPLETED')
-    AND LOWER(s.name) LIKE LOWER('%Table Tennis%')
+    AND LOWER(s.name) LIKE LOWER('%Table%Tennis%')
     AND st.player_id = ?1
 """, nativeQuery = true)
     int findTableTennisMatchesByPlayer(Long playerId);
