@@ -49,6 +49,7 @@ public class TugOfWarStatsService {
         awardInterface.save(a);
 
         match.setManOfMatch(pom);
+        match.setStatus("COMPLETED");
         matchInterface.save(match);
     }
 }
