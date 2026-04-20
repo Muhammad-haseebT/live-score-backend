@@ -1,26 +1,25 @@
 package com.livescore.backend.DTO;
-
 import lombok.Data;
 
 @Data
 public class PlayerFullStatsDTO {
-
     private Long   playerId;
     private String playerName;
     private String sport;
 
-    // ── ✅ Sport-specific match counts ────────────────────────────
-    private int matchesPlayed;           // ONLY current sport
+    // ✅ Each sport has its own count — matchesPlayed = only current sport
+    private int matchesPlayed;
     private int cricketMatchesPlayed;
     private int futsalMatchesPlayed;
     private int volleyballMatchesPlayed;
     private int badmintonMatchesPlayed;
     private int tableTennisMatchesPlayed;
-    private int TugOfWarMatchesPlayed;
+    private int tugOfWarMatchesPlayed;
+    private int ludoMatchesPlayed;
 
     private int pomCount;
 
-    // ── CRICKET — Batting ────────────────────────────────────────
+    // Cricket — Batting
     private int    totalRuns;
     private int    ballsFaced;
     private double strikeRate;
@@ -32,7 +31,7 @@ public class PlayerFullStatsDTO {
     private int    fifties;
     private int    hundreds;
 
-    // ── CRICKET — Bowling ────────────────────────────────────────
+    // Cricket — Bowling
     private int    wickets;
     private int    ballsBowled;
     private int    runsConceded;
@@ -44,12 +43,12 @@ public class PlayerFullStatsDTO {
     private int    threeWicketHauls;
     private int    fiveWicketHauls;
 
-    // ── CRICKET — Fielding ───────────────────────────────────────
+    // Cricket — Fielding
     private int catches;
     private int stumpings;
     private int runouts;
 
-    // ── MULTI-SPORT ──────────────────────────────────────────────
+    // Multi-sport (futsal/volleyball/badminton/tt/ludo)
     private int goals;
     private int assists;
     private int ownGoals;

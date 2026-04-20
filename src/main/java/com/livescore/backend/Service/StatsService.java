@@ -654,20 +654,21 @@ public class StatsService {
         int badminton   = matchRepo.findBadmintonMatchesByPlayer(playerId);
         int tabletennis = matchRepo.findTableTennisMatchesByPlayer(playerId);
         int tugofwar    = matchRepo.findTableTugOfWarMatchesByPlayer(playerId);
-
+        int ludo       = matchRepo.findLudoMatchesByPlayer(playerId);
         dto.setCricketMatchesPlayed(cricket);
         dto.setFutsalMatchesPlayed(futsal);
         dto.setVolleyballMatchesPlayed(volleyball);
         dto.setBadmintonMatchesPlayed(badminton);
         dto.setTableTennisMatchesPlayed(tabletennis);
         dto.setTugOfWarMatchesPlayed(tugofwar);   // ✅ yeh line missing thi
-
+        dto.setLudoMatchesPlayed(ludo);
         dto.setMatchesPlayed(switch (sport.toLowerCase().trim()) {
             case "futsal"                    -> futsal;
             case "volleyball"                -> volleyball;
             case "badminton"                 -> badminton;
             case "table tennis", "tabletennis" -> tabletennis;
-            case "tug of war", "tugofwar"    -> tugofwar;  // ✅ "tug of war" add kiya
+            case "tug of war", "tugofwar"    -> tugofwar;
+            case "ludo"                       -> ludo;
             default                          -> cricket;
         });
     }

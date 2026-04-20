@@ -225,7 +225,9 @@ public class MatchService {
             // ✅ Only rounds needed (sets = rounds to win)
             match.setSets(m.getSets() != 0 && m.getSets() > 0 ? m.getSets() : 3);
             // pointsPerSet and finalSetPoints not used in Tug of War
-        }
+        } else if (s.getName().equalsIgnoreCase("Ludo")) {
+
+    }
 
         if(match.getTournament().getSport().getName().equalsIgnoreCase("cricket")){
             CricketInnings innings = new CricketInnings();
@@ -334,7 +336,12 @@ public class MatchService {
     )
     public List<MatchDTO> getmatchbystatusandSport(String sport, String status) {
         List<Match> matches;
-        boolean isSportAll = (sport == null || sport.isEmpty() || sport.equalsIgnoreCase("All"));
+        if (sport != null) {
+            sport=sport.replace(" ","");
+            System.out.println(sport);
+
+        }
+        boolean isSportAll = (sport == null|| sport.isEmpty() || sport.equalsIgnoreCase("All"));
         boolean isStatusAll = (status == null || status.isEmpty() || status.equalsIgnoreCase("All"));
 
         if (isSportAll && isStatusAll) {

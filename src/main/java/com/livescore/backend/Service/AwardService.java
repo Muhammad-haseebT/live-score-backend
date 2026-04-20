@@ -51,74 +51,77 @@ public class AwardService {
             case "volleyball"                    -> buildVolleyballStats(dto, awards, allStats);
             case "badminton"                     -> buildBadmintonStats(dto, awards, allStats);
             case "table tennis", "tabletennis"   -> buildTableTennisStats(dto, awards, allStats);
+            case "ludo"                          -> buildLudoStats(dto, awards, allStats);
             default                              -> buildCricketStats(dto, awards, allStats);
         }
         return dto;
     }
 
+    // ── Cricket ──────────────────────────────────────────────────
     private void buildCricketStats(TournamentAwardsDTO dto, List<Award> awards, List<Stats> s) {
         awards.stream().filter(a->"BEST_BATSMAN".equals(a.getAwardType())).findFirst().ifPresent(a->dto.setBestBatsman(toAwardDTO(a)));
         awards.stream().filter(a->"BEST_BOWLER".equals(a.getAwardType())).findFirst().ifPresent(a->dto.setBestBowler(toAwardDTO(a)));
         awards.stream().filter(a->"BEST_FIELDER".equals(a.getAwardType())).findFirst().ifPresent(a->dto.setBestFielder(toAwardDTO(a)));
         dto.setTopRunScorers(s.stream().filter(x->x.getRuns()!=null&&x.getRuns()>0)
-                .sorted(Comparator.comparingInt(Stats::getRuns).reversed()).limit(5).map(this::toPlayerStatsRow).collect(Collectors.toList()));
+                .sorted(Comparator.comparingInt(Stats::getRuns).reversed())
+                .limit(5).map(this::toPlayerStatsRow).collect(Collectors.toList()));
         dto.setTopBowlers(s.stream().filter(x->x.getBallsBowled()!=null&&x.getBallsBowled()>0)
                 .sorted(Comparator.comparingInt(Stats::getWickets).reversed()
                         .thenComparingDouble(x->x.getEconomy()!=null?x.getEconomy():999))
                 .limit(5).map(this::toPlayerStatsRow).collect(Collectors.toList()));
     }
 
+    // ── Futsal ───────────────────────────────────────────────────
     private void buildFutsalStats(TournamentAwardsDTO dto, List<Award> awards, List<Stats> s) {
         awards.stream().filter(a->"TOP_SCORER".equals(a.getAwardType())).findFirst().ifPresent(a->dto.setTopScorer(toAwardDTO(a)));
         awards.stream().filter(a->"TOP_ASSIST".equals(a.getAwardType())).findFirst().ifPresent(a->dto.setTopAssist(toAwardDTO(a)));
-        dto.setTopGoalScorers(s.stream().filter(x->x.getGoals()!=null&&x.getGoals()>0)
-                .sorted(Comparator.comparingInt(Stats::getGoals).reversed()
-                        .thenComparingInt(x->x.getYellowCards()!=null?x.getYellowCards():0))
-                .limit(5).map(this::toPlayerStatsRow).collect(Collectors.toList()));
-        dto.setTopAssisters(s.stream().filter(x->x.getAssists()!=null&&x.getAssists()>0)
-                .sorted(Comparator.comparingInt(Stats::getAssists).reversed())
-                .limit(5).map(this::toPlayerStatsRow).collect(Collectors.toList()));
+        dto.setTopGoalScorers(topN(s, Comparator.comparingInt(Stats::getGoals).reversed()));
+        dto.setTopAssisters(topN(s, Comparator.comparingInt(Stats::getAssists).reversed()));
     }
 
+    // ── Volleyball ───────────────────────────────────────────────
     private void buildVolleyballStats(TournamentAwardsDTO dto, List<Award> awards, List<Stats> s) {
         awards.stream().filter(a->"TOP_SCORER".equals(a.getAwardType())).findFirst().ifPresent(a->dto.setTopScorer(toAwardDTO(a)));
         awards.stream().filter(a->"BEST_SERVER".equals(a.getAwardType())).findFirst().ifPresent(a->dto.setTopAssist(toAwardDTO(a)));
-        dto.setTopGoalScorers(s.stream().filter(x->x.getGoals()!=null&&x.getGoals()>0)
-                .sorted(Comparator.comparingInt(Stats::getGoals).reversed())
-                .limit(5).map(this::toPlayerStatsRow).collect(Collectors.toList()));
-        dto.setTopAssisters(s.stream().filter(x->x.getAssists()!=null&&x.getAssists()>0)
-                .sorted(Comparator.comparingInt(Stats::getAssists).reversed())
-                .limit(5).map(this::toPlayerStatsRow).collect(Collectors.toList()));
+        dto.setTopGoalScorers(topN(s, Comparator.comparingInt(Stats::getGoals).reversed()));
+        dto.setTopAssisters(topN(s, Comparator.comparingInt(Stats::getAssists).reversed()));
     }
 
+    // ── Badminton ────────────────────────────────────────────────
     private void buildBadmintonStats(TournamentAwardsDTO dto, List<Award> awards, List<Stats> s) {
         awards.stream().filter(a->"TOP_SCORER".equals(a.getAwardType())).findFirst().ifPresent(a->dto.setTopScorer(toAwardDTO(a)));
         awards.stream().filter(a->"TOP_ATTACKER".equals(a.getAwardType())).findFirst().ifPresent(a->dto.setTopAssist(toAwardDTO(a)));
-        dto.setTopGoalScorers(s.stream().filter(x->x.getGoals()!=null&&x.getGoals()>0)
-                .sorted(Comparator.comparingInt(Stats::getGoals).reversed())
-                .limit(5).map(this::toPlayerStatsRow).collect(Collectors.toList()));
-        dto.setTopAssisters(s.stream().filter(x->x.getAssists()!=null&&x.getAssists()>0)
-                .sorted(Comparator.comparingInt(Stats::getAssists).reversed())
-                .limit(5).map(this::toPlayerStatsRow).collect(Collectors.toList()));
+        dto.setTopGoalScorers(topN(s, Comparator.comparingInt(Stats::getGoals).reversed()));
+        dto.setTopAssisters(topN(s, Comparator.comparingInt(Stats::getAssists).reversed()));
     }
 
-    // Table Tennis — same structure as badminton
+    // ── Table Tennis ─────────────────────────────────────────────
     private void buildTableTennisStats(TournamentAwardsDTO dto, List<Award> awards, List<Stats> s) {
         awards.stream().filter(a->"TOP_SCORER".equals(a.getAwardType())).findFirst().ifPresent(a->dto.setTopScorer(toAwardDTO(a)));
         awards.stream().filter(a->"TOP_ATTACKER".equals(a.getAwardType())).findFirst().ifPresent(a->dto.setTopAssist(toAwardDTO(a)));
-        dto.setTopGoalScorers(s.stream().filter(x->x.getGoals()!=null&&x.getGoals()>0)
-                .sorted(Comparator.comparingInt(Stats::getGoals).reversed())
-                .limit(5).map(this::toPlayerStatsRow).collect(Collectors.toList()));
-        dto.setTopAssisters(s.stream().filter(x->x.getAssists()!=null&&x.getAssists()>0)
-                .sorted(Comparator.comparingInt(Stats::getAssists).reversed())
-                .limit(5).map(this::toPlayerStatsRow).collect(Collectors.toList()));
+        dto.setTopGoalScorers(topN(s, Comparator.comparingInt(Stats::getGoals).reversed()));
+        dto.setTopAssisters(topN(s, Comparator.comparingInt(Stats::getAssists).reversed()));
     }
+
+    // ── Ludo (goals=homeRuns, assists=captures) ───────────────────
+    private void buildLudoStats(TournamentAwardsDTO dto, List<Award> awards, List<Stats> s) {
+        awards.stream().filter(a->"TOP_SCORER".equals(a.getAwardType())).findFirst().ifPresent(a->dto.setTopScorer(toAwardDTO(a)));
+        awards.stream().filter(a->"TOP_ATTACKER".equals(a.getAwardType())).findFirst().ifPresent(a->dto.setTopAssist(toAwardDTO(a)));
+        dto.setTopGoalScorers(topN(s, Comparator.comparingInt(Stats::getGoals).reversed()));
+        dto.setTopAssisters(topN(s, Comparator.comparingInt(Stats::getAssists).reversed()));
+    }
+
+    // ─────────────────────────────────────────────────────────────
 
     public TournamentAwardsDTO recalculateAndGetStats(Long tournamentId) {
         Tournament t = tournamentInterface.findById(tournamentId).orElse(null);
         if (t == null) return null;
         statsService.checkAndHandleTournamentEnd(t);
         return getTournamentStats(tournamentId);
+    }
+
+    private List<PlayerStatsRow> topN(List<Stats> s, Comparator<Stats> cmp) {
+        return s.stream().sorted(cmp).limit(5).map(this::toPlayerStatsRow).collect(Collectors.toList());
     }
 
     private AwardDTO toAwardDTO(Award award) {
