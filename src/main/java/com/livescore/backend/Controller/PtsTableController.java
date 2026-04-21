@@ -3,6 +3,7 @@ package com.livescore.backend.Controller;
 import com.livescore.backend.Sport.Badminton.BadmintonPtsTableService;
 import com.livescore.backend.Entity.PtsTable;
 import com.livescore.backend.Entity.Tournament;
+import com.livescore.backend.Sport.Chess.ChessPtsTableService;
 import com.livescore.backend.Sport.Futsal.FutsalPtsTableService;
 import com.livescore.backend.Interface.TournamentInterface;
 import com.livescore.backend.Service.PtsTableService;
@@ -26,6 +27,7 @@ public class PtsTableController {
     private final TableTennisPtsTableService tableTennisPtsTableService;
     private final TugOfWarPtsTableService tugOfWarPtsTableService;
     private final LudoPtsTableService ludoPtsTableService;
+    private final ChessPtsTableService chessPtsTableService;
 
     @PostMapping("/ptsTable")
     public ResponseEntity<?> createPtsTable(@RequestBody PtsTable ptsTable) {
@@ -68,6 +70,7 @@ public class PtsTableController {
                  "tabletennis"   -> tableTennisPtsTableService.getTable(tournamentId);
             case "tug of war","tugofwar"         -> tugOfWarPtsTableService.getTable(tournamentId);
             case "ludo"                        -> ludoPtsTableService.getTable(tournamentId);
+            case "chess"                      -> chessPtsTableService.getTable(tournamentId);
             default           -> ptsTableService.getPtsTablesByTournament(tournamentId);
         };
     }

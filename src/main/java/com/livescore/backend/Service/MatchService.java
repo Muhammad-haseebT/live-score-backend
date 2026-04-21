@@ -227,7 +227,7 @@ public class MatchService {
             // pointsPerSet and finalSetPoints not used in Tug of War
         } else if (s.getName().equalsIgnoreCase("Ludo")) {
 
-    }
+    }else if (s.getName().equalsIgnoreCase("Chess")) {}
 
         if(match.getTournament().getSport().getName().equalsIgnoreCase("cricket")){
             CricketInnings innings = new CricketInnings();
