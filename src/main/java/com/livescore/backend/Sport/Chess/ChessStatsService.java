@@ -118,6 +118,7 @@ public class ChessStatsService {
         a.setPointsEarned(10); a.setReason("Winner of chess match");
         awardInterface.save(a);
         match.setManOfMatch(pom);
+        match.setStatus("COMPLETED");
         matchInterface.save(match);
 
         // Increment wins (goals) for winning team players
