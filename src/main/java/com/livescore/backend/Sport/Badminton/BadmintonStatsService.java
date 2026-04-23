@@ -133,6 +133,7 @@ public class BadmintonStatsService {
         a.setReason("Best badminton performance: " + scoreMap.get(bestPid) + " pts");
         awardInterface.save(a);
         match.setManOfMatch(playerMap.get(bestPid));
+        match.setStatus("COMPLETED");
         matchInterface.save(match);
     }
 

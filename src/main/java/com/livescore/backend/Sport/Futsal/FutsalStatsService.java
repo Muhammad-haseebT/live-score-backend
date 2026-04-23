@@ -204,7 +204,10 @@ public class FutsalStatsService {
     // ─────────────────────────────────────────────
     // PLAYER OF THE MATCH
     // ─────────────────────────────────────────────
-
+    @Caching(evict = {
+            @CacheEvict(value = "matches", allEntries = true, beforeInvocation = false),
+            @CacheEvict(value = "matchById", allEntries = true, beforeInvocation = false)
+    })
     @Transactional
     public void calculatePlayerOfMatch(Long matchId, List<FutsalEvent> events, Match match) {
         if (!awardInterface.findByMatchIdAndAwardType(matchId, "PLAYER_OF_MATCH").isEmpty()) return;
@@ -253,7 +256,7 @@ public class FutsalStatsService {
         award.setPointsEarned(bestScore);
         award.setReason("Best futsal performance: " + bestScore + " pts");
         awardInterface.save(award);
-
+    match.setStatus("COMPLETED");
         match.setManOfMatch(best);
         matchInterface.save(match);
 

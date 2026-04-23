@@ -12,6 +12,7 @@ import com.livescore.backend.Interface.PlayerInterface;
 import com.livescore.backend.Interface.TeamInterface;
 import com.livescore.backend.Interface.multisportgeneric.ScoringServiceInterface;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -41,7 +42,7 @@ public class VolleyballScoringService implements ScoringServiceInterface {
     // ─────────────────────────────────────────
 
     @Override
-    @Transactional(readOnly = true)
+    @Cacheable(value = "vbStates", key = "#matchId")
     public Object getCurrentMatchState(Long matchId) {
         VolleyballMatchState state = volleyballMatchStateInterface.findByMatch_Id(matchId)
                 .orElseGet(() -> createInitialState(matchId));

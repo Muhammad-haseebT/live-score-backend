@@ -105,6 +105,7 @@ public class LudoStatsService {
         a.setReason("Best Ludo performance: " + scoreMap.get(bestPid) + " pts");
         awardInterface.save(a);
         match.setManOfMatch(playerMap.get(bestPid));
+        match.setStatus("COMPLETED");
         matchInterface.save(match);
     }
 
