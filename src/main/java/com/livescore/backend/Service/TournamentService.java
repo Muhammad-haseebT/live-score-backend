@@ -37,7 +37,7 @@ public class TournamentService {
     private PtsTableInterface ptsTableInterface;
 
 
-    @CacheEvict(value = {"tournamentOverview","tournamentNames","tournamentById","tournaments","seasons"},allEntries = true)
+    @CacheEvict(value = {"tournamentOverview","tournamentNames","tournamentById","tournaments","seasons","seasonById"},allEntries = true)
     public ResponseEntity<?> createTournament(TournamentRequestDTO tournament) {
         // Validate input
         ResponseEntity<?> validation = ValidationUtils.validateNotNull(tournament, "Tournament details");
