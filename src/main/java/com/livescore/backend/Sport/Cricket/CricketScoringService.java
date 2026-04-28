@@ -630,10 +630,17 @@ public class CricketScoringService implements ScoringServiceInterface {
                     System.out.println(ci.get(0).getTeam().getName() + " vs " + ci.get(1).getTeam().getName());
                     if (score.getTarget() <= 0) {
 
-                        winnerTeam = ci.get(1).getTeam();
+                        if(score.isSuperOver())
+                            winnerTeam = ci.get(0).getTeam();
+                        else
+                            winnerTeam = ci.get(1).getTeam();
+
                     } else {
                         // first batting team won
-                        winnerTeam = ci.get(0).getTeam();
+                        if(score.isSuperOver())
+                            winnerTeam = ci.get(1).getTeam();
+                        else
+                            winnerTeam = ci.get(0).getTeam();
                     }
                     match.setWinnerTeam(winnerTeam);
                     score.setComment(winnerTeam.getName());
