@@ -80,6 +80,9 @@ public class CricketBall {
     @JsonIgnore
     private List<Media> mediaList = new ArrayList<>();
 
+    @Column(name = "is_super_over",nullable = true)
+    boolean super_over = false;
+
 
 
 }

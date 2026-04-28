@@ -38,8 +38,16 @@ public class PlayerInningsService {
         if (m == null) {
             return ResponseEntity.notFound().build();
         }
-        MatchState matchState = matchStateInterface.findByTeam_Id(Team1Id, matchId);
-        List<PlayerInnings> playerInningsList1 = playerInningsInterface.findByMatchIdAndTeamId(matchId, Team1Id);
+        MatchState matchState = matchStateInterface
+                .findAll().stream()
+                .filter(ms -> ms.getInnings().getMatch().getId().equals(matchId)
+                        && ms.getInnings().getTeam().getId().equals(Team1Id)
+                        && !ms.getInnings().isSuper_Over())
+                .findFirst().orElse(null);
+
+        List<PlayerInnings> playerInningsList1 = playerInningsInterface.findByMatchIdAndTeamId(matchId, Team1Id).stream()
+                .filter(pi -> !pi.getInnings().isSuper_Over())
+                .toList();;
         Scorecard scorecard = new Scorecard();
         List<batsmanScore> batsmanScores = new ArrayList<>();
         List<bowlerScore> bowlerScores = new ArrayList<>();
@@ -91,15 +99,17 @@ public class PlayerInningsService {
     public ResponseEntity<?> getSummary(Long mid) {
         List<PlayerInnings> p1=playerInningsInterface.findByMatchIdAndInninsNo(mid,1);
         List<PlayerInnings> p2=playerInningsInterface.findByMatchIdAndInninsNo(mid,2);
-
+        if (p1.isEmpty() || p2.isEmpty()) return ResponseEntity.badRequest().body("Innings data missing");
         MatchState m1=matchStateInterface.findByMatchIdAndInningsNo(mid,1);
         MatchState m2=matchStateInterface.findByMatchIdAndInningsNo(mid,2);
 
 
         summary summary = new summary();
         Match m = matchInterface.findById(mid).orElse(null);
-        summary.setResult(m.getWinnerTeam().getName()+" won the match");
-        summary.setManOfTheMatch(m.getManOfMatch().getName());
+        String result = m.getWinnerTeam() != null ? m.getWinnerTeam().getName() + " won" : "Match Tied";
+        summary.setResult(result);
+        String mom = m.getManOfMatch() != null ? m.getManOfMatch().getName() : "TBD";
+        summary.setManOfTheMatch(mom);
 
         summary.setTeam1Name(p1.get(0).getInnings().getTeam().getName());
         summary.setTeam2Name(p2.get(0).getInnings().getTeam().getName());

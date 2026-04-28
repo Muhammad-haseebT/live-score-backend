@@ -69,16 +69,28 @@ public class CricketScoringService implements ScoringServiceInterface {
         scoreDTO.setCrr(state.getCrr());
         scoreDTO.setTarget(state.getTarget());
         scoreDTO.setExtra(state.getExtras());
-        scoreDTO.setFirstInnings((state.getInnings().getNo() == 1));
+
+        // ── Super Over + firstInnings detection ──────────────────────
+        boolean isSuperOver = state.getInnings().isSuper_Over();
+        scoreDTO.setSuperOver(isSuperOver);
+
+        int inningsNo = state.getInnings().getNo();
+        if (isSuperOver) {
+            // odd no = SO 1st innings, even no = SO 2nd innings
+            scoreDTO.setFirstInnings(inningsNo % 2 == 1);
+        } else {
+            scoreDTO.setFirstInnings(inningsNo == 1);
+        }
+        // ─────────────────────────────────────────────────────────────
 
         if (!a) {
-            PlayerStatDTO batsmanDto = new PlayerStatDTO();
+            PlayerStatDTO batsmanDto   = new PlayerStatDTO();
             PlayerStatDTO nonStrikerDto = new PlayerStatDTO();
-            PlayerStatDTO bowlerDto = new PlayerStatDTO();
-            PlayerInnings batsman = playerInningsInterface.findByInnings_IdAndPlayer_Id(state.getInnings().getId(), state.getStriker().getId());
-            PlayerInnings bowler = playerInningsInterface.findByInnings_IdAndPlayer_Id(state.getInnings().getId(), state.getBowler().getId());
-            PlayerInnings nonStriker = playerInningsInterface.findByInnings_IdAndPlayer_Id(state.getInnings().getId(), state.getNonStriker().getId());
+            PlayerStatDTO bowlerDto    = new PlayerStatDTO();
 
+            PlayerInnings batsman    = playerInningsInterface.findByInnings_IdAndPlayer_Id(state.getInnings().getId(), state.getStriker().getId());
+            PlayerInnings bowler     = playerInningsInterface.findByInnings_IdAndPlayer_Id(state.getInnings().getId(), state.getBowler().getId());
+            PlayerInnings nonStriker = playerInningsInterface.findByInnings_IdAndPlayer_Id(state.getInnings().getId(), state.getNonStriker().getId());
 
             if (batsman != null && batsman.getPlayer() != null) {
                 scoreDTO.setBatsmanId(batsman.getPlayer().getId());
@@ -121,28 +133,57 @@ public class CricketScoringService implements ScoringServiceInterface {
             scoreDTO.setBatsman2Stats(nonStrikerDto);
             scoreDTO.setBowlerStats(bowlerDto);
         }
-        scoreDTO.setCricketBalls(cricketBallInterface.getBalls(scoreDTO.getInningsId(), scoreDTO.getMatchId()));
+
         if (!a) {
-            int o = matchInterface.findById(scoreDTO.getMatchId()).get().getOvers() * 6;
-            int balls = scoreDTO.getOvers() * 6 + scoreDTO.getBalls();
+            int maxBalls = matchInterface.findById(scoreDTO.getMatchId()).get().getOvers() * 6;
+            int balls    = scoreDTO.getOvers() * 6 + scoreDTO.getBalls();
 
-            if (scoreDTO.isFirstInnings() && (balls >= o || scoreDTO.getWickets() == 10)) {
-                scoreDTO.setComment("End_Innings");
-                state.setTarget(state.getTarget() + 1);
-                matchStateInterface.save(state);
-            }
-
-            if (!scoreDTO.isFirstInnings()) {
-                if (scoreDTO.getWickets() == 10 || balls >= o || 0>=scoreDTO.getTarget()) {
+            if (!isSuperOver) {
+                if (scoreDTO.isFirstInnings() && (balls >= maxBalls || scoreDTO.getWickets() == 10)) {
                     scoreDTO.setComment("End_Innings");
+                    state.setTarget(state.getTarget() + 1);
+                    matchStateInterface.save(state);
                 }
-                if (scoreDTO.getWickets() == 10 || balls >= 0) {
-                    if (scoreDTO.getRuns() == scoreDTO.getTarget() - 1) {
-                        scoreDTO.setComment("Super_Over");
+                if (!scoreDTO.isFirstInnings()) {
+                    // ✅ FIX: target <= 0 matlab jeet gaye, innings over
+                    boolean inningsOver = scoreDTO.getWickets() == 10
+                            || balls >= maxBalls
+                            || scoreDTO.getTarget() <= 0;  // ← WAS: <= 1
+                    if (inningsOver) {
+                        if (scoreDTO.getTarget() == 1) {
+                            scoreDTO.setComment("Super_Over"); // TIE — innings khatam aur score equal
+                        } else {
+                            scoreDTO.setComment("End_Innings"); // WIN or LOSS
+                        }
+                    }
+                }
+            } else {
+                // Super Over same fix
+                if (scoreDTO.isFirstInnings() && (balls >= maxBalls || scoreDTO.getWickets() == 10)) {
+                    scoreDTO.setComment("End_Innings");
+                    state.setTarget(state.getTarget() + 1);
+                    matchStateInterface.save(state);
+                }
+                if (!scoreDTO.isFirstInnings()) {
+                    // ✅ FIX: same — innings khatam tab hi decide karo
+                    boolean inningsOver = scoreDTO.getWickets() == 10
+                            || balls >= maxBalls
+                            || scoreDTO.getTarget() <= 0;  // ← WAS: <= 1
+                    if (inningsOver) {
+                        if (scoreDTO.getTarget() == 1) {
+                            scoreDTO.setComment("Super_Over"); // Another SO tie
+                        } else {
+                            scoreDTO.setComment("End_Innings");
+                        }
                     }
                 }
             }
+
+            scoreDTO.setCricketBalls(
+                    cricketBallInterface.getBalls(scoreDTO.getInningsId(), scoreDTO.getMatchId(), isSuperOver)
+            );
         }
+
         return scoreDTO;
     }
 
@@ -350,32 +391,46 @@ public class CricketScoringService implements ScoringServiceInterface {
     // ─────────────────────────────────────────
 
     private ScoreDTO scoreCricket(ScoreDTO score) {
-        Player batsmanPlayer   = playerInterface.findActiveById(score.getBatsmanId()).get();
-        Player bowlerPlayer    = playerInterface.findActiveById(score.getBowlerId()).get();
-        Player nonStrikerPlayer= playerInterface.findActiveById(score.getNonStrikerId()).get();
-        Player outPlayer  = score.getOutPlayerId() != null
+
+        // ─── DLS: no ball, no players needed — just target update ────
+        if ("dls".equalsIgnoreCase(score.getEventType())) {
+            MatchState m = matchStateInterface.findByInnings_Id(score.getInningsId());
+            m.setTarget(score.getDlsTarget());
+            int tb = m.getOvers() * 6 + m.getBalls();
+            if (tb > 0) m.setRequiredRR((double) m.getTarget() * 6 / tb);
+            matchStateInterface.save(m);
+            ScoreDTO result = convertToScoreDTO(m, false, false, "");
+            result.setComment("DLS_UPDATED");
+            return result;
+        }
+        // ─────────────────────────────────────────────────────────────
+
+        Player batsmanPlayer    = playerInterface.findActiveById(score.getBatsmanId()).get();
+        Player bowlerPlayer     = playerInterface.findActiveById(score.getBowlerId()).get();
+        Player nonStrikerPlayer = playerInterface.findActiveById(score.getNonStrikerId()).get();
+        Player outPlayer   = score.getOutPlayerId() != null
                 ? playerInterface.findActiveById(score.getOutPlayerId()).get() : null;
-        Player newPlayer  = score.getNewPlayerId() != null
+        Player newPlayer   = score.getNewPlayerId() != null
                 ? playerInterface.findActiveById(score.getNewPlayerId()).get() : null;
         Player fielderPlayer = score.getFielderId() != null
                 ? playerInterface.findActiveById(score.getFielderId()).get() : null;
 
-        Match match         = matchInterface.findById(score.getMatchId()).get();
-        CricketInnings ci   = cricketInningsInterface.findById(score.getInningsId()).get();
+        Match match        = matchInterface.findById(score.getMatchId()).get();
+        CricketInnings ci  = cricketInningsInterface.findById(score.getInningsId()).get();
+        MatchState m       = matchStateInterface.findByInnings_Id(score.getInningsId());
 
-        MatchState m         = matchStateInterface.findByInnings_Id(score.getInningsId());
-        PlayerInnings batsman   = playerInningsInterface.findByInnings_IdAndPlayer_Id(score.getInningsId(), score.getBatsmanId());
-        PlayerInnings bowler    = playerInningsInterface.findByInnings_IdAndPlayer_Id(score.getInningsId(), score.getBowlerId());
-        PlayerInnings nonStriker= playerInningsInterface.findByInnings_IdAndPlayer_Id(score.getInningsId(), score.getNonStrikerId());
+        PlayerInnings batsman    = playerInningsInterface.findByInnings_IdAndPlayer_Id(score.getInningsId(), score.getBatsmanId());
+        PlayerInnings bowler     = playerInningsInterface.findByInnings_IdAndPlayer_Id(score.getInningsId(), score.getBowlerId());
+        PlayerInnings nonStriker = playerInningsInterface.findByInnings_IdAndPlayer_Id(score.getInningsId(), score.getNonStrikerId());
 
         if (m == null) m = new MatchState();
-        if (batsman == null) batsman = new PlayerInnings();
-        if (bowler == null) bowler = new PlayerInnings();
+        if (batsman == null)    batsman = new PlayerInnings();
+        if (bowler == null)     bowler = new PlayerInnings();
         if (nonStriker == null) nonStriker = new PlayerInnings();
         if (m.getStatus() == null) m.setStatus("LIVE");
 
-        if (batsman.getPlayer() == null) batsman.setPlayer(batsmanPlayer);
-        if (bowler.getPlayer() == null)  bowler.setPlayer(bowlerPlayer);
+        if (batsman.getPlayer() == null)    batsman.setPlayer(batsmanPlayer);
+        if (bowler.getPlayer() == null)     bowler.setPlayer(bowlerPlayer);
         if (nonStriker.getPlayer() == null) nonStriker.setPlayer(nonStrikerPlayer);
 
         batsman.setInnings(ci);
@@ -398,14 +453,13 @@ public class CricketScoringService implements ScoringServiceInterface {
                 m.setStriker(batsmanPlayer);
                 m.setNonStriker(newPlayer);
             }
-
-            PlayerInnings existingNewPlayer = playerInningsInterface
+            PlayerInnings existingNew = playerInningsInterface
                     .findByInnings_IdAndPlayer_Id(score.getInningsId(), newPlayer.getId());
-            if (existingNewPlayer == null) {
-                PlayerInnings newPlayerInnings = new PlayerInnings();
-                newPlayerInnings.setPlayer(newPlayer);
-                newPlayerInnings.setInnings(ci);
-                playerInningsInterface.save(newPlayerInnings);
+            if (existingNew == null) {
+                PlayerInnings newPI = new PlayerInnings();
+                newPI.setPlayer(newPlayer);
+                newPI.setInnings(ci);
+                playerInningsInterface.save(newPI);
             }
         }
 
@@ -415,10 +469,14 @@ public class CricketScoringService implements ScoringServiceInterface {
         CricketBall cricketBall = new CricketBall();
         m.setInnings(ci);
 
-        MatchState matchState = processEvent(score, m, cricketBall, batsman, bowler, ctx);
-        m = matchState;
+        m = processEvent(score, m, cricketBall, batsman, bowler, ctx);
 
-        boolean isEndInnings = "End_Innings".equals(score.getEventType());
+        // ── End Innings + Super Over both skip ball saving ────────────
+        boolean isEndInnings = "End_Innings".equals(score.getEventType())
+                || "Super_Over".equals(score.getEventType());
+        // ── Penalty doesn't rotate strikers ──────────────────────────
+        boolean isPenalty = "penalty".equalsIgnoreCase(score.getEventType());
+
         if (isEndInnings) {
             score.setComment("");
             score.setEventType("");
@@ -427,13 +485,15 @@ public class CricketScoringService implements ScoringServiceInterface {
         boolean shouldRotate = false;
         if (!isEndInnings) {
             cricketBall.setInnings(ci);
-            bowler.setRole("BOWLER");
+            if (!isPenalty) bowler.setRole("BOWLER");
             cricketBallInterface.save(cricketBall);
             matchStateInterface.save(m);
             playerInningsInterface.save(nonStriker);
             playerInningsInterface.save(batsman);
             playerInningsInterface.save(bowler);
-            shouldRotate = checkRotate(Integer.parseInt(score.getEvent()));
+            if (!isPenalty) {
+                shouldRotate = checkRotate(Integer.parseInt(score.getEvent()));
+            }
         }
 
         return convertToScoreDTO(m, shouldRotate, isEndInnings, "");
@@ -441,42 +501,74 @@ public class CricketScoringService implements ScoringServiceInterface {
     private MatchState processEvent(ScoreDTO score, MatchState m, CricketBall c,
                                     PlayerInnings batsman, PlayerInnings bowler, BallContext ctx) {
         boolean a = false;
+
         switch (score.getEventType()) {
+
             case "run":
             case "boundary":
                 addScore(score, m, c, batsman, bowler, ctx);
                 break;
+
             case "wide":
             case "noball":
             case "legbye":
             case "bye":
                 handleExtras(score, m, c, batsman, bowler, ctx);
                 break;
+
             case "wicket":
                 handleWickets(score, m, c, batsman, bowler, ctx);
                 break;
+
+            // ── PENALTY ───────────────────────────────────────────────
+            case "penalty": {
+                int pr = Integer.parseInt(score.getEvent());
+                m.setRuns(m.getRuns() + pr);
+                m.setExtras(m.getExtras() + pr);
+                if (score.isFirstInnings()) {
+                    m.setTarget(m.getTarget() + pr);
+                } else {
+                    m.setTarget(m.getTarget() - pr);
+                    int tb = m.getOvers() * 6 + m.getBalls();
+                    if (tb > 0) m.setRequiredRR((double) m.getTarget() * 6 / tb);
+                }
+                int tb = m.getOvers() * 6 + m.getBalls();
+                m.setCrr(tb > 0 ? (double) m.getRuns() * 6 / tb : 0);
+
+                c.setRuns(pr);
+                c.setEventType("penalty");
+                c.setEvent(score.getEvent());
+                c.setLegalDelivery(false);
+                c.setBatsman(ctx.batsman);
+                c.setBowler(ctx.bowler);
+                c.setNonStriker(ctx.nonStriker);
+                c.setMatch(ctx.match);
+                c.setBallNumber(m.getBalls());
+                c.setOverNumber(m.getOvers());
+                break;
+            }
+
+            // ── END INNINGS ───────────────────────────────────────────
             case "End_Innings":
                 a = true;
-                if (score.isFirstInnings()) {
+                if (score.isFirstInnings() && !score.isSuperOver()) {
+                    // ── Regular 1st innings ended → start 2nd innings ─
                     score.setFirstInnings(false);
                     Match match = ctx.match;
 
-                    // ✅ Pehli innings ki actual team DB se lo — score.getTeamId() pe trust mat karo
                     CricketInnings firstInnings = match.getCricketInnings().get(0);
                     Team firstBattingTeam = firstInnings.getTeam();
                     Team secondBattingTeam = firstBattingTeam.getId().equals(match.getTeam1().getId())
-                            ? match.getTeam2()
-                            : match.getTeam1();
+                            ? match.getTeam2() : match.getTeam1();
 
-                    CricketInnings cricketInnings = new CricketInnings();
-                    cricketInnings.setNo(2);
-                    cricketInnings.setMatch(match);
-                    cricketInnings.setTeam(secondBattingTeam); // ✅ Correct opponent team
-
-                    cricketInnings = cricketInningsInterface.save(cricketInnings);
+                    CricketInnings newInnings = new CricketInnings();
+                    newInnings.setNo(2);
+                    newInnings.setMatch(match);
+                    newInnings.setTeam(secondBattingTeam);
+                    newInnings = cricketInningsInterface.save(newInnings);
 
                     MatchState newState = new MatchState();
-                    newState.setInnings(cricketInnings);
+                    newState.setInnings(newInnings);
                     newState.setRuns(0);
                     newState.setWickets(0);
                     newState.setRr(0.0);
@@ -485,37 +577,127 @@ public class CricketScoringService implements ScoringServiceInterface {
                     newState.setOvers(0);
                     newState.setBalls(0);
                     newState.setTarget(score.getTarget());
-
+                    newState.setStatus("LIVE");
                     m = matchStateInterface.save(newState);
                     score.setComment("");
-                }else {
-                    Match match = ctx.match;
 
-                    // Determine winner correctly
+                } else if (score.isFirstInnings() && score.isSuperOver()) {
+                    // ── Super Over 1st innings ended → start SO 2nd innings ─
+                    Match soMatch = ctx.match;
+                    Team firstSOTeam = m.getInnings().getTeam();
+                    Team secondSOTeam = firstSOTeam.getId().equals(soMatch.getTeam1().getId())
+                            ? soMatch.getTeam2() : soMatch.getTeam1();
+
+                    CricketInnings soInnings2 = new CricketInnings();
+                    soInnings2.setNo(soMatch.getCricketInnings().size() + 1);
+                    soInnings2.setMatch(soMatch);
+                    soInnings2.setSuper_Over(true);
+                    soInnings2.setTeam(secondSOTeam);
+                    soInnings2 = cricketInningsInterface.save(soInnings2);
+
+                    MatchState soState2 = new MatchState();
+                    soState2.setInnings(soInnings2);
+                    soState2.setRuns(0);
+                    soState2.setWickets(0);
+                    soState2.setTarget(score.getTarget()); // SO 1st innings total+1
+                    soState2.setOvers(0);
+                    soState2.setBalls(0);
+                    soState2.setRr(0.0);
+                    soState2.setCrr(0.0);
+                    soState2.setExtras(0);
+                    soState2.setStatus("LIVE");
+                    m = matchStateInterface.save(soState2);
+                    score.setComment("");
+
+                } else {
+                    // ── Regular 2nd innings ended → end match ─────────
+                    Match match = ctx.match;
                     Team winnerTeam;
-                    if (score.getRuns() >= score.getTarget()) {
-                        // Chasing team (2nd innings team) won
+                    if (score.getTarget() <= 0) {
+                        // chasing team won
                         winnerTeam = match.getCricketInnings().get(1).getTeam();
                     } else {
-                        // First batting team won
+                        // first batting team won
                         winnerTeam = match.getCricketInnings().get(0).getTeam();
                     }
-
                     match.setWinnerTeam(winnerTeam);
                     score.setComment(winnerTeam.getName());
-
-                    // ✅ Save winner to DB BEFORE calling endMatch
-                    // ✅ Do NOT set status here — endMatch will do it
                     matchInterface.save(match);
-
-                    // endMatch will: set COMPLETED, update points table, run stats + awards
                     matchService.endMatch(match.getId());
                 }
+                break;
+
+            // ── SUPER OVER ────────────────────────────────────────────
+            case "Super_Over":
+                a = true;
+                Match soMatch = ctx.match;
+
+                if (!score.isSuperOver()) {
+                    // ── First ever super over triggered (tie at end of 2nd innings) ─
+                    CricketInnings soInnings1 = new CricketInnings();
+                    soInnings1.setNo(soMatch.getCricketInnings().size() + 1); // 3
+                    soInnings1.setMatch(soMatch);
+                    soInnings1.setSuper_Over(true);
+                    soInnings1.setTeam(m.getInnings().getTeam()); // 2nd innings team bats first in SO
+                    soInnings1 = cricketInningsInterface.save(soInnings1);
+
+                    MatchState soState = new MatchState();
+                    soState.setInnings(soInnings1);
+                    soState.setRuns(0);
+                    soState.setWickets(0);
+                    soState.setTarget(0);
+                    soState.setOvers(0);
+                    soState.setBalls(0);
+                    soState.setRr(0.0);
+                    soState.setCrr(0.0);
+                    soState.setExtras(0);
+                    soState.setStatus("LIVE");
+                    m = matchStateInterface.save(soState);
+
+                    score.setInningsId(soInnings1.getId());
+                    score.setSuperOver(true);
+                    score.setFirstInnings(true);
+                    score.setComment("");
+
+                } else {
+                    // ── Another super over (SO 2nd innings also tied) ─
+                    // Find last SO 1st innings team
+                    int size = soMatch.getCricketInnings().size();
+                    Team prevFirstSOTeam = soMatch.getCricketInnings().get(size - 2).getTeam();
+
+                    // Same team that batted 2nd in last SO bats first in new SO
+                    CricketInnings newSO = new CricketInnings();
+                    newSO.setNo(size + 1);
+                    newSO.setMatch(soMatch);
+                    newSO.setSuper_Over(true);
+                    newSO.setTeam(m.getInnings().getTeam()); // current (losing) 2nd SO team bats first
+                    newSO = cricketInningsInterface.save(newSO);
+
+                    MatchState newSOState = new MatchState();
+                    newSOState.setInnings(newSO);
+                    newSOState.setRuns(0);
+                    newSOState.setWickets(0);
+                    newSOState.setTarget(0);
+                    newSOState.setOvers(0);
+                    newSOState.setBalls(0);
+                    newSOState.setRr(0.0);
+                    newSOState.setCrr(0.0);
+                    newSOState.setExtras(0);
+                    newSOState.setStatus("LIVE");
+                    m = matchStateInterface.save(newSOState);
+
+                    score.setInningsId(newSO.getId());
+                    score.setSuperOver(true);
+                    score.setFirstInnings(true);
+                    score.setComment("");
+                }
+                break;
+
+            // ── SO 2nd innings end → End_Innings is sent with isSuperOver=true, firstInnings=false
+            // Already handled above in End_Innings case. No separate case needed.
         }
 
-
         c.setEvent(score.getEvent());
-
         c.setEventType(score.getEventType());
         return m;
     }

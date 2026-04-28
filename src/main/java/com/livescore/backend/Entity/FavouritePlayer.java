@@ -1,5 +1,6 @@
 package com.livescore.backend.Entity;
 
+import com.livescore.backend.Config.FeedbackMapConverter;
 import com.livescore.backend.Config.MapConverter;
 import com.livescore.backend.Config.SetConverter;
 import jakarta.persistence.*;
@@ -29,4 +30,8 @@ public class FavouritePlayer {
     @Convert(converter = MapConverter.class)
     @Column(columnDefinition = "TEXT")
     private Map<Long, Integer> playerVoteCounts = new HashMap<>();
+
+    @Convert(converter = FeedbackMapConverter.class)
+    @Column(name = "feedbacks", columnDefinition = "TEXT")
+    private Map<Long, String> feedbacks = new HashMap<>();
 }

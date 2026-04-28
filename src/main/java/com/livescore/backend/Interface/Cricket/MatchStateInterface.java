@@ -10,7 +10,7 @@ public interface MatchStateInterface extends JpaRepository<MatchState, Long> {
 
     Long innings(CricketInnings innings);
 
-    @Query("SELECT ms FROM MatchState ms WHERE ms.innings.team.id = :teamId and ms.innings.match.id=:matchId")
+    @Query("SELECT ms FROM MatchState ms WHERE ms.innings.team.id = :teamId AND ms.innings.match.id = :matchId AND ms.innings.isSuper_Over = false")
     MatchState findByTeam_Id(Long teamId, Long matchId);
 
     @Query("select  m from MatchState m where m.innings.no=:i and m.innings.match.id=:mid")

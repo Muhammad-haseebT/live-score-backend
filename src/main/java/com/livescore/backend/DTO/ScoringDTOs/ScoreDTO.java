@@ -35,6 +35,8 @@ public class ScoreDTO {
     private boolean isFour;
     private boolean isSix;
     private boolean firstInnings = true;
+    private boolean isSuperOver = false;
+
     private String comment;
     private Long mediaId;
     private Long nonStrikerId;
@@ -46,7 +48,7 @@ public class ScoreDTO {
     private PlayerStatDTO batsman2Stats;
     private PlayerStatDTO bowlerStats;
     private List<CricketBallsScoringDTO> cricketBalls;
-
+    private int dlsTarget;
     // ═══════════════════════════════════
     // 🆕 FUTSAL / FOOTBALL FIELDS
     // (null/0 for cricket — frontend ignore karega)

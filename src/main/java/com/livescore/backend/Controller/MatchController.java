@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequiredArgsConstructor
@@ -125,11 +126,24 @@ public class MatchController {
         return  playerInningsService.getMatchBalls(mid,tid);
     }
 
-    @PostMapping("/vote/{mid}/{aid}/{pid}")
-    public ResponseEntity<String> vote(@PathVariable Long mid,@PathVariable Long aid ,@PathVariable Long pid) {
-        return ResponseEntity.ok(
-                favouritePlayerService.submitVote(mid, aid, pid)
-        );
+    @PostMapping("/vote")
+    public ResponseEntity<?> vote(@RequestBody Map<String, Object> body) {
+        try {
+            Long matchId   = body.get("matchId") != null ? ((Number) body.get("matchId")).longValue() : null;
+            Long accountId = body.get("accountId") != null ? ((Number) body.get("accountId")).longValue() : null;
+            Long playerId  = body.get("playerId") != null ? ((Number) body.get("playerId")).longValue() : null;
+            String feedback = body.get("feedback") != null ? body.get("feedback").toString() : null;
+
+            if (matchId == null || accountId == null || playerId == null) {
+                return ResponseEntity.badRequest().body("matchId, accountId, playerId required");
+            }
+
+            String result = favouritePlayerService.submitVote(matchId, accountId, playerId, feedback);
+            return ResponseEntity.ok(result);
+
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(409).body(e.getMessage());
+        }
     }
 
 
