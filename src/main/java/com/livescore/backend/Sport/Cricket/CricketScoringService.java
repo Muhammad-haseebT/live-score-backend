@@ -22,6 +22,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Objects;
 
 
@@ -588,7 +589,7 @@ public class CricketScoringService implements ScoringServiceInterface {
                     newState.setExtras(0);
                     newState.setOvers(0);
                     newState.setBalls(0);
-                    newState.setTarget(score.getTarget());
+                    newState.setTarget(score.getTarget()+1);
                     newState.setStatus("LIVE");
                     m = matchStateInterface.save(newState);
                     score.setComment("");
@@ -625,12 +626,14 @@ public class CricketScoringService implements ScoringServiceInterface {
 
                     Match match = ctx.match;
                     Team winnerTeam;
+                    List<CricketInnings> ci=matchInterface.findteambyinningsandmatch(match.getId());
+                    System.out.println(ci.get(0).getTeam().getName() + " vs " + ci.get(1).getTeam().getName());
                     if (score.getTarget() <= 0) {
 
-                        winnerTeam = match.getCricketInnings().get(1).getTeam();
+                        winnerTeam = ci.get(1).getTeam();
                     } else {
                         // first batting team won
-                        winnerTeam = match.getCricketInnings().get(0).getTeam();
+                        winnerTeam = ci.get(0).getTeam();
                     }
                     match.setWinnerTeam(winnerTeam);
                     score.setComment(winnerTeam.getName());

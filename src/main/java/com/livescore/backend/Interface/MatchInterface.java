@@ -1,7 +1,9 @@
 package com.livescore.backend.Interface;
 
+import com.livescore.backend.Entity.CricketInnings;
 import com.livescore.backend.Entity.Match;
 import com.livescore.backend.Entity.Stats;
+import com.livescore.backend.Entity.Team;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -177,4 +179,9 @@ public interface MatchInterface extends JpaRepository<Match,Long> {
     AND st.player_id = ?1
 """, nativeQuery = true)
     int findChessMatchesByPlayer(Long playerId);
+
+
+
+    @Query("select m.cricketInnings from Match m where m.id=:id")
+    List<CricketInnings> findteambyinningsandmatch(Long id);
 }
