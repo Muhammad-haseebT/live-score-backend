@@ -292,6 +292,14 @@ public class CricketScoringService implements ScoringServiceInterface {
 
 
                 break;
+            case "penalty":
+                m.setRuns(m.getRuns() - r);
+                if(a)
+                    m.setTarget(m.getTarget() - r);
+                else
+                    m.setTarget(m.getTarget() + r);
+
+                break;
         }
 
         // restore striker/nonStriker/bowler on MatchState
@@ -335,6 +343,10 @@ public class CricketScoringService implements ScoringServiceInterface {
 
 
         return s;
+    }
+
+    private void handlePenalty(MatchState m, PlayerInnings batsman, PlayerInnings bowler, PlayerInnings nonStriker, CricketBall cb) {
+
     }
 
     private void handleUndoWicket(MatchState m, PlayerInnings batsman, PlayerInnings bowler, PlayerInnings nonStriker, CricketBall cb) {
@@ -610,11 +622,11 @@ public class CricketScoringService implements ScoringServiceInterface {
                     score.setComment("");
 
                 } else {
-                    // ── Regular 2nd innings ended → end match ─────────
+
                     Match match = ctx.match;
                     Team winnerTeam;
                     if (score.getTarget() <= 0) {
-                        // chasing team won
+
                         winnerTeam = match.getCricketInnings().get(1).getTeam();
                     } else {
                         // first batting team won

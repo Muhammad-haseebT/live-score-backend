@@ -40,7 +40,9 @@ public class VolleyballStatsService {
     @Transactional
     @Caching(evict = {
             @CacheEvict(value = "matches", allEntries = true, beforeInvocation = false),
-            @CacheEvict(value = "matchById", allEntries = true, beforeInvocation = false)
+            @CacheEvict(value = "matchById", allEntries = true, beforeInvocation = false),
+            @CacheEvict(value = "vbStates", allEntries = true, beforeInvocation = false)
+
     })
     public void onMatchEnd(Long matchId) {
         Match match = matchInterface.findById(matchId).orElse(null);
@@ -140,7 +142,7 @@ public class VolleyballStatsService {
         award.setPointsEarned(scoreMap.get(bestPid));
         award.setReason("Best volleyball performance: " + scoreMap.get(bestPid) + " pts");
         awardInterface.save(award);
-
+        match.setStatus("COMPLETED");
         match.setManOfMatch(playerMap.get(bestPid));
         matchInterface.save(match);
     }
