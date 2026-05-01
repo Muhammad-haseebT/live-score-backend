@@ -162,6 +162,7 @@
 package com.livescore.backend.Service;
 
 import com.livescore.backend.DTO.MediaDTO;
+import com.livescore.backend.Entity.CricketBall;
 import com.livescore.backend.Entity.Match;
 import com.livescore.backend.Entity.Media;
 import com.livescore.backend.Interface.CricketBallInterface;
@@ -173,6 +174,7 @@ import io.imagekit.sdk.models.FileCreateRequest;
 import io.imagekit.sdk.models.results.Result;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
@@ -206,6 +208,7 @@ public class MediaService {
     @Autowired
     private CricketBallInterface cricketBallInterface;
 
+    @CacheEvict(value = "matchStates",key="#media.matchId")
     public ResponseEntity<?> createMedia(MultipartFile f, MediaDTO media) throws IOException, ForbiddenException, TooManyRequestsException, InternalServerException, UnauthorizedException, BadRequestException, UnknownException {
 
         // Validation checks (aapke existing checks)
@@ -242,11 +245,12 @@ public class MediaService {
         mediaEntity.setFileUrl(fileUrl);
         mediaEntity.setFileType(f.getContentType());
         mediaEntity.setMatch(matchOpt.get());
-        mediaEntity.setBall(cricketBallInterface.findById(media.getBallId()).orElse(null));
-
-
+        CricketBall b=cricketBallInterface.findById(media.getBallId()).orElse(null);
+        mediaEntity.setBall(b);
         Media savedMedia = mediaInterface.save(mediaEntity);
-
+        assert b != null;
+        b.setMediaList(mediaInterface.findByBallId(b.getId()));
+        cricketBallInterface.save(b);
         return ResponseEntity.ok(Map.of(
                 "message", "Media uploaded successfully",
                 "mediaId", savedMedia.getId(),

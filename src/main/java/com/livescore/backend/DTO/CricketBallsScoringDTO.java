@@ -13,4 +13,5 @@ public class CricketBallsScoringDTO {
     Long id;
     String event;
     String eventType;
+    int mediaCount;
 }

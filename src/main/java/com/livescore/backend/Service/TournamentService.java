@@ -1,6 +1,7 @@
 package com.livescore.backend.Service;
 
 import com.livescore.backend.DTO.TournamentRequestDTO;
+import com.livescore.backend.Entity.Player;
 import com.livescore.backend.Entity.Season;
 import com.livescore.backend.Entity.Sports;
 import com.livescore.backend.Entity.Tournament;
@@ -35,6 +36,10 @@ public class TournamentService {
     private SeasonInterface seasonInterface;
     @Autowired
     private PtsTableInterface ptsTableInterface;
+    @Autowired
+    private PlayerRequestInterface playerRequestInterface;
+    @Autowired
+    private PlayerInterface playerInterface;
 
 
     @CacheEvict(value = {"tournamentOverview","tournamentNames","tournamentById","tournaments","seasons","seasonById"},allEntries = true)
@@ -68,6 +73,7 @@ public class TournamentService {
         if (!seasonInterface.existsById(tournament.getSeasonId())) {
             return ValidationUtils.badRequest("Season not found");
         }
+
         Tournament tournament1=new Tournament();
         tournament1.setName(tournament.getName());
         

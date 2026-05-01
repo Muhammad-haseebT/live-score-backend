@@ -54,6 +54,10 @@ public class TeamService {
         if (playerOpt.isEmpty()) {
             return ValidationUtils.badRequest("Player not found with ID: " + playerId);
         }
+
+        if(playerRequestInterface.findExistingRequest(playerId,tournamentId)!=null){
+            return ValidationUtils.badRequest("Player already in an other team");
+        }
         Player p1 = playerOpt.get();
         team.setTournament(tournamentOpt.get());
         team.setCreator(p1);
