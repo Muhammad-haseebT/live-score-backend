@@ -7,7 +7,7 @@ import java.io.File;
 
 @Data
 public class MediaDTO {
-    private Long id;
     private Long matchId;
     private Long ballId;
+    private String comment; // ✅ NEW
 }

@@ -245,6 +245,7 @@ public class MediaService {
         mediaEntity.setFileUrl(fileUrl);
         mediaEntity.setFileType(f.getContentType());
         mediaEntity.setMatch(matchOpt.get());
+        mediaEntity.setComment(media.getComment()); // ✅ NEW field set karo
         CricketBall b=cricketBallInterface.findById(media.getBallId()).orElse(null);
         mediaEntity.setBall(b);
         Media savedMedia = mediaInterface.save(mediaEntity);

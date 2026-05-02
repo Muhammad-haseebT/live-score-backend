@@ -6,7 +6,6 @@ import lombok.Data;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
-
 @Entity
 @Data
 public class Media {
@@ -19,7 +18,6 @@ public class Media {
     @JsonBackReference("match-media")
     private Match match;
 
-
     private String fileUrl;
 
     @Column(nullable = false)
@@ -30,5 +28,7 @@ public class Media {
     @JsonBackReference("ball-media")
     private CricketBall ball;
 
-
+    // ✅ NEW
+    @Column(length = 500)
+    private String comment;
 }

@@ -89,7 +89,15 @@ public class MatchService {
         match.setTournament(tournamentInterface.findById(matchDTO.getTournamentId()).orElse(null));
         match.setTeam1(teamInterface.findById(matchDTO.getTeam1Id()).orElse(null));
         match.setTeam2(teamInterface.findById(matchDTO.getTeam2Id()).orElse(null));
-        match.setScorer(accountInterface.findActiveByUsername(matchDTO.getScorerId()).orElse(null));
+        if (matchDTO.getScorerId() != null && !matchDTO.getScorerId().isBlank()) {
+            accountInterface.findActiveByUsername(matchDTO.getScorerId())
+                    .ifPresent(match::setScorer);
+        }
+// ✅ Media Scorer
+        if (matchDTO.getMediaScorerUsername() != null && !matchDTO.getMediaScorerUsername().isBlank()) {
+            accountInterface.findActiveByUsername(matchDTO.getMediaScorerUsername())
+                    .ifPresent(match::setMediaScorer);
+        }
         match.setVenue(matchDTO.getVenue());
         match.setDate(matchDTO.getDate());
         match.setTime(matchDTO.getTime());
@@ -199,8 +207,15 @@ public class MatchService {
         if (m.getScorerId() == null || accountInterface.findActiveByUsername(m.getScorerId()).isEmpty()) {
             return ResponseEntity.badRequest().body("Scorer account not found");
         }
-        match.setScorer(accountInterface.findActiveByUsername(m.getScorerId()).orElse(null));
 
+        match.setScorer(accountInterface.findActiveByUsername(m.getScorerId()).orElse(null));
+        if (m.getMediaScorerUsername() != null && !m.getMediaScorerUsername().isBlank()) {
+            Account mediaAccount = accountInterface.findActiveByUsername(m.getMediaScorerUsername()).orElse(null);
+            if (mediaAccount == null) {
+                return ResponseEntity.badRequest().body("Media scorer account not found");
+            }
+            match.setMediaScorer(mediaAccount);
+        }
         if (m.getTossWinnerId() == null || teamInterface.findById(m.getTossWinnerId()).isEmpty()) {
             return ResponseEntity.badRequest().body("Toss winner team not found");
         }
@@ -372,6 +387,7 @@ public class MatchService {
         matchDTO.setTeam1Name(match.getTeam1().getName());
         matchDTO.setTeam2Id(match.getTeam2().getId());
         matchDTO.setTeam2Name(match.getTeam2().getName());
+        matchDTO.setMediaScorerUsername(match.getMediaScorer()!=null?match.getMediaScorer().getUsername():null);
         matchDTO.setScorerId(match.getScorer().getUsername());
         matchDTO.setStatus(match.getStatus().toUpperCase());
         matchDTO.setVenue(match.getVenue());

@@ -19,18 +19,19 @@ public class MediaController {
     private MediaService mediaService;
 
     //10 mb limit
-    @PostMapping(value = "/media", consumes = MediaType.MULTIPART_FORM_DATA_VALUE )
+    @PostMapping(value = "/media", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> createMedia(
             @RequestPart("file") MultipartFile file,
             @RequestParam("matchId") Long matchId,
-            @RequestParam("ballId") Long ballId
-            ) throws IOException, ForbiddenException, TooManyRequestsException, InternalServerException, UnauthorizedException, BadRequestException, UnknownException {
+            @RequestParam("ballId") Long ballId,
+            @RequestParam(value = "comment", required = false) String comment // ✅ NEW
+    ) throws IOException, ForbiddenException, TooManyRequestsException,
+            InternalServerException, UnauthorizedException, BadRequestException, UnknownException {
 
         MediaDTO media = new MediaDTO();
         media.setMatchId(matchId);
         media.setBallId(ballId);
-
-
+        media.setComment(comment); // ✅ NEW
         return mediaService.createMedia(file, media);
     }
 

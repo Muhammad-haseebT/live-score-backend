@@ -21,6 +21,7 @@ public class MatchDTO {
     private String team2Name;
 
     private String scorerId;
+    private String mediaScorerUsername;
     private String status;
     private String venue;
     private LocalDate date;

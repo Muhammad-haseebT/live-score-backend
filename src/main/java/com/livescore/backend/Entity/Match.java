@@ -42,7 +42,10 @@ public class Match {
     @JoinColumn(name = "scorer_id")
     @JsonBackReference("account-scoredMatches")
     private Account scorer;
-
+    @ManyToOne
+    @JoinColumn(name = "media_scorer_id")
+    @JsonIgnore
+    private Account mediaScorer;
     private String status; // UPCOMING / LIVE / FINISHED
     private String venue;
     private LocalDate date;
