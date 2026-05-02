@@ -496,12 +496,17 @@ public class StatsService {
                 });
 
         // MAN OF TOURNAMENT
-        allStats.stream()
-                .filter(s -> s.getPoints() > 0)
-                .max(Comparator.comparingInt(Stats::getPoints))
-                .ifPresent(best -> saveAward(null, tournament, best.getPlayer(),
-                        "MAN_OF_TOURNAMENT", best.getPoints(),
-                        "Highest tournament points: " + best.getPoints()));
+        List<Stats> top3 = allStats.stream()
+                .filter(s -> s.getPoints() != null && s.getPoints() > 0)
+                .sorted(Comparator.comparingInt(Stats::getPoints).reversed())
+                .limit(3)
+                .collect(Collectors.toList());
+        int motRank = 1;
+        for (Stats best : top3) {
+            saveAward(null, tournament, best.getPlayer(),
+                    "MAN_OF_TOURNAMENT", best.getPoints(),
+                    "Rank " + motRank++ + " - Tournament points: " + best.getPoints());
+        }
     }
     // ==================== AWARD HELPER ====================
 

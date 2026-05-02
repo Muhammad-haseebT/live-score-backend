@@ -43,5 +43,7 @@ public interface AwardInterface extends JpaRepository<Award, Long> {
             @Param("playerId") Long playerId,
             @Param("sport") String sport
     );
-
+    @Query("SELECT a FROM Award a WHERE a.tournament.id = :tournamentId AND a.awardType = :type ORDER BY a.id ASC")
+    List<Award> findAllByTournamentIdAndAwardType(@Param("tournamentId") Long tournamentId,
+                                                  @Param("type") String type);
 }

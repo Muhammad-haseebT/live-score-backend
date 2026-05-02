@@ -178,11 +178,17 @@ public class VolleyballStatsService {
                         "BEST_BLOCKER", s.getFouls(), "Most blocks: " + s.getFouls()));
 
         // MAN OF TOURNAMENT
-        allStats.stream()
+        List<Stats> top3 = allStats.stream()
                 .filter(s -> s.getPoints() != null && s.getPoints() > 0)
-                .max(Comparator.comparingInt(Stats::getPoints))
-                .ifPresent(s -> saveAward(null, tournament, s.getPlayer(),
-                        "MAN_OF_TOURNAMENT", s.getPoints(), "Highest points: " + s.getPoints()));
+                .sorted(Comparator.comparingInt(Stats::getPoints).reversed())
+                .limit(3)
+                .collect(Collectors.toList());
+        int motRank = 1;
+        for (Stats s : top3) {
+            saveAward(null, tournament, s.getPlayer(),
+                    "MAN_OF_TOURNAMENT", s.getPoints(),
+                    "Rank " + motRank++ + " - Tournament points: " + s.getPoints());
+        }
     }
 
     private void ensureStats(Long playerId, Long tournamentId, Tournament tournament) {

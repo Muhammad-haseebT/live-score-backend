@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -38,11 +39,20 @@ public class AwardService {
         dto.setSport(sport);
 
         List<Award> awards = awardInterface.findByTournamentId(tournamentId);
+
+        // POM list
         dto.setAllAwards(awards.stream()
                 .filter(a -> "PLAYER_OF_MATCH".equals(a.getAwardType()))
                 .map(this::toAwardDTO).collect(Collectors.toList()));
-        awards.stream().filter(a -> "MAN_OF_TOURNAMENT".equals(a.getAwardType()))
-                .findFirst().ifPresent(a -> dto.setManOfTournament(toAwardDTO(a)));
+
+        // ── NEW: top 3 MAN_OF_TOURNAMENT ─────────────────────────────
+        List<AwardDTO> motList = awards.stream()
+                .filter(a -> "MAN_OF_TOURNAMENT".equals(a.getAwardType()))
+                .limit(3)
+                .map(this::toAwardDTO)
+                .collect(Collectors.toList());
+        dto.setManOfTournament(motList);
+        // ─────────────────────────────────────────────────────────────
 
         List<Stats> allStats = statsInterface.findAllByTournamentId(tournamentId);
 
@@ -50,14 +60,21 @@ public class AwardService {
             case "futsal"                     -> buildFutsalStats(dto, awards, allStats);
             case "volleyball"                 -> buildVolleyballStats(dto, awards, allStats);
             case "badminton"                  -> buildBadmintonStats(dto, awards, allStats);
-            case "table tennis","tabletennis" -> buildTableTennisStats(dto, awards, allStats);
+            case "table tennis", "tabletennis" -> buildTableTennisStats(dto, awards, allStats); // fixes typo warning too
             case "ludo"                       -> buildLudoStats(dto, awards, allStats);
             case "chess"                      -> buildChessStats(dto, awards, allStats);
             default                           -> buildCricketStats(dto, awards, allStats);
         }
+
+        // ── NEW: favourite player — AFTER allStats is declared ────────
+        awards.stream()
+                .filter(a -> "FAVOURITE_PLAYER".equals(a.getAwardType()))
+                .findFirst()
+                .ifPresent(a -> dto.setFavouritePlayer(toAwardDTO(a)));
+        // ─────────────────────────────────────────────────────────────
+
         return dto;
     }
-
     private void buildCricketStats(TournamentAwardsDTO dto, List<Award> awards, List<Stats> s) {
         awards.stream().filter(a->"BEST_BATSMAN".equals(a.getAwardType())).findFirst().ifPresent(a->dto.setBestBatsman(toAwardDTO(a)));
         awards.stream().filter(a->"BEST_BOWLER".equals(a.getAwardType())).findFirst().ifPresent(a->dto.setBestBowler(toAwardDTO(a)));

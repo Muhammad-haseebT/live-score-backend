@@ -1,6 +1,9 @@
 package com.livescore.backend.Controller;
 
+import com.livescore.backend.Entity.Award;
 import com.livescore.backend.Entity.FavouritePlayer;
+import com.livescore.backend.Entity.Player;
+import com.livescore.backend.Entity.Tournament;
 import com.livescore.backend.Interface.AwardInterface;
 import com.livescore.backend.Interface.PlayerInterface;
 import com.livescore.backend.Interface.TournamentInterface;
@@ -10,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -88,36 +92,82 @@ public class FavouritePlayerController {
      * POST /api/favourite-player/set-mot/{tournamentId}/{playerId}
      * Set Man of Tournament
      */
+    // UNCOMMENT and change awardType to FAVOURITE_PLAYER:
     @PostMapping("/set-mot/{tournamentId}/{playerId}")
-    public ResponseEntity<?> setManOfTournament(
+    public ResponseEntity<?> setFavouritePlayer(
             @PathVariable Long tournamentId,
             @PathVariable Long playerId) {
         try {
-            // existing MAN_OF_TOURNAMENT award update ya create karo
             var tournament = tournamentInterface.findById(tournamentId)
                     .orElseThrow(() -> new RuntimeException("Tournament not found"));
             var player = playerInterface.findById(playerId)
                     .orElseThrow(() -> new RuntimeException("Player not found"));
 
-            // existing award dhundo, nahi mila to naya banao
-            com.livescore.backend.Entity.Award award = awardInterface
-                    .findByTournamentId(tournamentId).stream()
-                    .filter(a -> "MAN_OF_TOURNAMENT".equals(a.getAwardType()))
+            // Find existing FAVOURITE_PLAYER award, or create new
+            Award award = awardInterface.findByTournamentId(tournamentId).stream()
+                    .filter(a -> "FAVOURITE_PLAYER".equals(a.getAwardType()))
                     .findFirst()
                     .orElseGet(() -> {
-                        com.livescore.backend.Entity.Award a = new com.livescore.backend.Entity.Award();
+                        Award a = new Award();
                         a.setTournament(tournament);
-                        a.setAwardType("MAN_OF_TOURNAMENT");
+                        a.setAwardType("FAVOURITE_PLAYER");
                         return a;
                     });
 
             award.setPlayer(player);
-            award.setReason("Man of the Tournament");
+            award.setReason("Fan favourite - admin confirmed");
             awardInterface.save(award);
 
-            return ResponseEntity.ok("Man of Tournament set: " + player.getName());
+            return ResponseEntity.ok("Favourite Player set: " + player.getName());
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
+    }
+    @PostMapping("/tournament/{tournamentId}/man-of-tournament")
+    public ResponseEntity<?> setManOfTournament(
+            @PathVariable Long tournamentId,
+            @RequestParam Long playerId,
+            @RequestParam(defaultValue = "1") int rank) {
+
+        List<Award> existing = awardInterface.findAllByTournamentIdAndAwardType(tournamentId, "MAN_OF_TOURNAMENT");
+
+        // ── 1. Delete the slot at this rank ──────────────────────────
+        if (rank - 1 < existing.size()) {
+            awardInterface.delete(existing.get(rank - 1));
+            existing.remove(rank - 1); // local list bhi update karo
+        }
+
+        // ── 2. Remove this player from ANY other rank (dedup) ────────
+        existing.stream()
+                .filter(a -> a.getPlayer().getId().equals(playerId))
+                .forEach(awardInterface::delete);
+
+        Tournament t = tournamentInterface.findById(tournamentId).orElseThrow();
+        Player p = playerInterface.findById(playerId).orElseThrow();
+
+        Award a = new Award();
+        a.setTournament(t);
+        a.setPlayer(p);
+        a.setAwardType("MAN_OF_TOURNAMENT");
+        a.setReason("Admin selected - Rank " + rank);
+        awardInterface.save(a);
+
+        return ResponseEntity.ok().build();
+    }
+    @GetMapping("/top-stats/{tournamentId}")
+    public ResponseEntity<?> topStats(@PathVariable Long tournamentId) {
+        // Return current MAN_OF_TOURNAMENT awards (already top 3 from stats)
+        List<Award> motAwards = awardInterface
+                .findAllByTournamentIdAndAwardType(tournamentId, "MAN_OF_TOURNAMENT");
+
+        List<Map<String, Object>> result = motAwards.stream().map(a -> {
+            Map<String, Object> m = new java.util.HashMap<>();
+            m.put("playerId", a.getPlayer().getId());
+            m.put("playerName", a.getPlayer().getName());
+            m.put("votes", a.getPointsEarned()); // points as "score"
+            return m;
+        }).collect(java.util.stream.Collectors.toList());
+
+        return ResponseEntity.ok(result);
     }
 }

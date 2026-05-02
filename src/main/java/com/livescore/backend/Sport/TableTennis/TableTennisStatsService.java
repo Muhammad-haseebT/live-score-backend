@@ -133,9 +133,19 @@ public class TableTennisStatsService {
         all.stream().filter(s -> s.getAssists() != null && s.getAssists() > 0)
                 .max(Comparator.comparingInt(Stats::getAssists))
                 .ifPresent(s -> save(null, tournament, s.getPlayer(), "TOP_ATTACKER", s.getAssists(), "Most smashes/aces: " + s.getAssists()));
-        all.stream().filter(s -> s.getPoints() != null && s.getPoints() > 0)
-                .max(Comparator.comparingInt(Stats::getPoints))
-                .ifPresent(s -> save(null, tournament, s.getPlayer(), "MAN_OF_TOURNAMENT", s.getPoints(), "Highest fantasy pts: " + s.getPoints()));
+        List<Stats> top3 = all.stream()
+                .filter(s -> s.getPoints() != null && s.getPoints() > 0)
+                .sorted(Comparator.comparingInt(Stats::getPoints).reversed())
+                .limit(3)
+                .collect(Collectors.toList());
+
+            int motRank = 1;
+            for (Stats s : top3) {
+                save(null, tournament, s.getPlayer(),
+                        "MAN_OF_TOURNAMENT", s.getPoints(),
+                        "Rank " + motRank++ + " - Tournament points: " + s.getPoints());
+            }
+
     }
 
     private void ensureStats(Long pid, Long tid, Tournament t) {

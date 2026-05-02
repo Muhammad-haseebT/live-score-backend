@@ -30,8 +30,8 @@ public class CricketInnings {
     @JsonIgnore
     private Team team;
 
-    @Column(name = "is_super_over",nullable = true)
-    private boolean isSuper_Over=false;
+    @Column(name = "is_super_over", nullable = false)
+    private boolean isSuper_Over = false;
 
     @OneToMany(mappedBy = "innings", cascade = CascadeType.ALL)
     @JsonManagedReference("innings-balls")

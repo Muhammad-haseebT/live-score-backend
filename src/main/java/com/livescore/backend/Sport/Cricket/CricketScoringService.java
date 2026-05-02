@@ -484,7 +484,9 @@ public class CricketScoringService implements ScoringServiceInterface {
 
         m = processEvent(score, m, cricketBall, batsman, bowler, ctx);
 
-        // ── End Innings + Super Over both skip ball saving ────────────
+        // ──
+        //
+        // Innings + Super Over both skip ball saving ────────────
         boolean isEndInnings = "End_Innings".equals(score.getEventType())
                 || "Super_Over".equals(score.getEventType());
         // ── Penalty doesn't rotate strikers ──────────────────────────

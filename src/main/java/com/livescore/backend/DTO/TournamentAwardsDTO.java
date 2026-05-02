@@ -11,7 +11,8 @@ public class TournamentAwardsDTO {
     private String sport; // "cricket" / "futsal" — frontend uses this
 
     // ── Awards (work for both sports) ────────────────────────────
-    private AwardDTO manOfTournament;
+    private List<AwardDTO> manOfTournament;       // top 3, admin-set
+    private AwardDTO       favouritePlayer;
     private List<AwardDTO> allAwards; // per-match POMs
 
     // ── Cricket-specific awards ───────────────────────────────────
