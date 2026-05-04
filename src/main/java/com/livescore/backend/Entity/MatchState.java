@@ -47,6 +47,7 @@ public class MatchState {
     private int target;
 
     private double requiredRR=0.0;
-
+    @Column(name = "last_over_bowler_id")
+    private Long lastOverBowlerId;
 
 }

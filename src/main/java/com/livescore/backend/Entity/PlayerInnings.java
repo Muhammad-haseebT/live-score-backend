@@ -36,17 +36,12 @@ public class PlayerInnings {
     private double rr;
     private double eco;
 
-    private Boolean is_Dismissed;
+    @Column(name = "is_dismissed")  // keeps same DB column name
+    private Boolean dismissed;
     private String dismissalType;
     private Boolean isOnCrease = false;
     private Boolean isStriker = false;
     private Boolean isCurrentBowler = false;
 
-    private int overs = 0;  // Bowler ke overs
-
-
-
-
-
-
+    private int overs = 0;
 }

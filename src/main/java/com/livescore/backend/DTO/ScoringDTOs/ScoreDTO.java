@@ -1,6 +1,7 @@
 package com.livescore.backend.DTO.ScoringDTOs;
 
 import com.livescore.backend.DTO.CricketBallsScoringDTO;
+import com.livescore.backend.DTO.PlayerSimpleDTO;
 import com.livescore.backend.DTO.PlayerStatDTO;
 import lombok.Data;
 
@@ -62,6 +63,9 @@ public class ScoreDTO {
     private Long scoringTeamId;          // Kis team ne goal kiya
     private Integer matchMinute;         // Minute of event (e.g. 23')
     private List<FutsalEventDTO> futsalEvents; // Live events list (frontend ke liye)
+
+    private List<PlayerSimpleDTO> availableBatters;
+    private List<PlayerSimpleDTO> availableBowlers;
 }
 
 

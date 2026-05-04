@@ -2,15 +2,13 @@ package com.livescore.backend.Sport.Cricket;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.livescore.backend.DTO.PlayerSimpleDTO;
 import com.livescore.backend.DTO.PlayerStatDTO;
 import com.livescore.backend.DTO.ScoringDTOs.ScoreDTO;
 import com.livescore.backend.Entity.*;
+import com.livescore.backend.Interface.*;
 import com.livescore.backend.Interface.Cricket.MatchStateInterface;
 import com.livescore.backend.Interface.Cricket.PlayerInningsInterface;
-import com.livescore.backend.Interface.CricketBallInterface;
-import com.livescore.backend.Interface.CricketInningsInterface;
-import com.livescore.backend.Interface.MatchInterface;
-import com.livescore.backend.Interface.PlayerInterface;
 import com.livescore.backend.Interface.multisportgeneric.ScoringServiceInterface;
 import com.livescore.backend.Service.MatchService;
 import com.livescore.backend.Service.StatsService;
@@ -24,6 +22,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 
 @RequiredArgsConstructor
@@ -38,6 +38,7 @@ public class CricketScoringService implements ScoringServiceInterface {
     private final MatchInterface matchInterface;
     private final MatchService matchService;
     private final ObjectMapper objectMapper = new ObjectMapper();
+    private final PlayerRequestInterface playerRequestInterface;
 
 
     @Transactional(readOnly = true)
@@ -184,7 +185,50 @@ public class CricketScoringService implements ScoringServiceInterface {
                     cricketBallInterface.getBalls(scoreDTO.getInningsId(), scoreDTO.getMatchId(), isSuperOver)
             );
         }
+        try {
+            Long battingTeamId = state.getInnings().getTeam().getId();
+            Match m2 = state.getInnings().getMatch();
+            Long bowlingTeamId = m2.getTeam1().getId().equals(battingTeamId)
+                    ? m2.getTeam2().getId()
+                    : m2.getTeam1().getId();
 
+            // Players dismissed this innings
+            Set<Long> dismissedIds = playerInningsInterface
+                    .findByInnings_Id(state.getInnings().getId())
+                    .stream()
+                    .filter(pi -> Boolean.TRUE.equals(pi.getDismissed()))
+                    .map(pi -> pi.getPlayer().getId())
+                    .collect(java.util.stream.Collectors.toSet());
+
+            // Current on-crease players — excluded from "new batsman" list
+            Set<Long> onCrease = new java.util.HashSet<>();
+            if (state.getStriker()    != null) onCrease.add(state.getStriker().getId());
+            if (state.getNonStriker() != null) onCrease.add(state.getNonStriker().getId());
+
+            // availableBatters = batting team - dismissed - on crease
+            List<PlayerSimpleDTO> batters = playerRequestInterface
+                    .findApprovedPlayersByTeamId(battingTeamId)
+                    .stream()
+                    .filter(p -> !dismissedIds.contains(p.getId()) && !onCrease.contains(p.getId()))
+                    .map(p -> new PlayerSimpleDTO(p.getId(), p.getName()))
+                    .collect(Collectors.toList());
+            scoreDTO.setAvailableBatters(batters);
+
+            // availableBowlers = bowling team - last over bowler
+            Long lastOverBowlerId = state.getLastOverBowlerId();
+            List<PlayerSimpleDTO> bowlers = playerRequestInterface
+                    .findApprovedPlayersByTeamId(bowlingTeamId)
+                    .stream()
+                    .filter(p -> !p.getId().equals(lastOverBowlerId))
+                    .map(p -> new PlayerSimpleDTO(p.getId(), p.getName()))
+                    .collect(Collectors.toList());
+            scoreDTO.setAvailableBowlers(bowlers);
+
+        } catch (Exception e) {
+            // Non-critical — scoring still works, just no bench data
+            scoreDTO.setAvailableBatters(java.util.Collections.emptyList());
+            scoreDTO.setAvailableBowlers(java.util.Collections.emptyList());
+        }
         return scoreDTO;
     }
 
@@ -225,6 +269,7 @@ public class CricketScoringService implements ScoringServiceInterface {
                 bowler.setEco(bowler.getBallsBowled() > 0
                         ? (double) bowler.getRunsConceded() / bowler.getBallsBowled() : 0);
                 m.setRuns(m.getRuns() - r);
+                if (m.getBalls() == 0) m.setLastOverBowlerId(null);
                 decrementBall(m);
 
                 if(a)
@@ -244,6 +289,7 @@ public class CricketScoringService implements ScoringServiceInterface {
                         ? (double) bowler.getRunsConceded() / bowler.getBallsBowled() : 0);
                 m.setExtras(m.getExtras() - r);
                 m.setRuns(m.getRuns() - r);
+                if (m.getBalls() == 0) m.setLastOverBowlerId(null);
                 decrementBall(m);
                 if(a)
                     m.setTarget(m.getTarget() - r);
@@ -360,6 +406,7 @@ public class CricketScoringService implements ScoringServiceInterface {
             case "lbw":
             case "overthefence":
             case "onehandonebounce":
+                if (m.getBalls() == 0) m.setLastOverBowlerId(null);
                 decrementBall(m);
                 bowler.setWickets(bowler.getWickets() - 1);
                 bowler.setBallsBowled(bowler.getBallsBowled() - 1);
@@ -384,6 +431,16 @@ public class CricketScoringService implements ScoringServiceInterface {
                 bowler.setEco((double) bowler.getRunsConceded() / bowler.getBallsBowled());
                 m.setRuns(m.getRuns() - cb.getRuns());
 
+        }
+        Player undoneOutPlayer = cb.getOutPlayer();
+        if (undoneOutPlayer != null) {
+            PlayerInnings outPI = playerInningsInterface
+                    .findByInnings_IdAndPlayer_Id(
+                            cb.getInnings().getId(), undoneOutPlayer.getId());
+            if (outPI != null) {
+                outPI.setDismissed(false);
+                playerInningsInterface.save(outPI);
+            }
         }
     }
 
@@ -484,7 +541,26 @@ public class CricketScoringService implements ScoringServiceInterface {
 
         m = processEvent(score, m, cricketBall, batsman, bowler, ctx);
 
-        // ──
+        boolean isWideOrNoBall = "wide".equalsIgnoreCase(score.getEventType())
+                || "noball".equalsIgnoreCase(score.getEventType());
+        if (!isWideOrNoBall && m.getBalls() == 0 && m.getOvers() > 0) {
+            m.setLastOverBowlerId(bowlerPlayer.getId());
+        }
+
+// ── Playing bench: mark dismissed player ─────────────────────────
+// When a wicket falls, mark the out player's PlayerInnings as dismissed.
+// convertToScoreDTO will then exclude them from availableBatters.
+        if (outPlayer != null && "wicket".equalsIgnoreCase(score.getEventType())) {
+            PlayerInnings outPI = playerInningsInterface
+                    .findByInnings_IdAndPlayer_Id(score.getInningsId(), outPlayer.getId());
+            if (outPI == null) {
+                outPI = new PlayerInnings();
+                outPI.setPlayer(outPlayer);
+                outPI.setInnings(ci);
+            }
+            outPI.setDismissed(true);
+            playerInningsInterface.save(outPI);
+        }
         //
         // Innings + Super Over both skip ball saving ────────────
         boolean isEndInnings = "End_Innings".equals(score.getEventType())
