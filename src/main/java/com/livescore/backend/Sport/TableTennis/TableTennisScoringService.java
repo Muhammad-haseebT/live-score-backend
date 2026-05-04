@@ -2,6 +2,7 @@ package com.livescore.backend.Sport.TableTennis;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.livescore.backend.DTO.PlayerSimpleDTO;
 import com.livescore.backend.DTO.ScoringDTOs.TableTennisEventDTO;
 import com.livescore.backend.DTO.ScoringDTOs.TableTennisScoreDTO;
 import com.livescore.backend.Entity.*;
@@ -9,6 +10,7 @@ import com.livescore.backend.Entity.TableTennis.TableTennisEvent;
 import com.livescore.backend.Entity.TableTennis.TableTennisMatchState;
 import com.livescore.backend.Interface.MatchInterface;
 import com.livescore.backend.Interface.PlayerInterface;
+import com.livescore.backend.Interface.PlayerRequestInterface;
 import com.livescore.backend.Interface.TeamInterface;
 import com.livescore.backend.Interface.multisportgeneric.ScoringServiceInterface;
 import lombok.RequiredArgsConstructor;
@@ -19,6 +21,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Arrays;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service("TABLETENNIS")
@@ -32,7 +38,7 @@ public class TableTennisScoringService implements ScoringServiceInterface {
     private final TeamInterface                  teamInterface;
     private final TableTennisStatsService        ttStatsService;
     private final TableTennisPtsTableService     ttPtsTableService;
-
+    private final PlayerRequestInterface playerRequestInterface;
     private final ObjectMapper objectMapper = new ObjectMapper();
     private static final int WIN_BY = 2; // must win by 2
 
@@ -245,6 +251,10 @@ public class TableTennisScoringService implements ScoringServiceInterface {
         s.setPointsPerGame(match.getPointsPerSet() != null ? match.getPointsPerSet() : 11);
         // maxPoints: 0 = no cap (true TT deuce); use finalSetPoints if set
         s.setMaxPoints(match.getFinalSetPoints() != null ? match.getFinalSetPoints() : 0);
+        if (match.getTeam1PlayingIds() != null && !match.getTeam1PlayingIds().isBlank())
+            s.setTeam1PlayerIds(match.getTeam1PlayingIds());
+        if (match.getTeam2PlayingIds() != null && !match.getTeam2PlayingIds().isBlank())
+            s.setTeam2PlayerIds(match.getTeam2PlayingIds());
         return ttStateInterface.save(s);
     }
 
@@ -277,6 +287,11 @@ public class TableTennisScoringService implements ScoringServiceInterface {
         dto.setComment(comment);
         dto.setTableTennisEvents(ttEventInterface.findByMatch_IdOrderByIdAsc(state.getMatch().getId())
                 .stream().map(this::toEventDTO).collect(Collectors.toList()));
+        Match m = state.getMatch();
+        List<Player> all1 = playerRequestInterface.findApprovedPlayersByTeamId(m.getTeam1().getId());
+        List<Player> all2 = playerRequestInterface.findApprovedPlayersByTeamId(m.getTeam2().getId());
+        dto.setTeam1Players(resolvePlayingPlayers(all1, state.getTeam1PlayerIds()));
+        dto.setTeam2Players(resolvePlayingPlayers(all2, state.getTeam2PlayerIds()));
         return dto;
     }
 
@@ -289,5 +304,18 @@ public class TableTennisScoringService implements ScoringServiceInterface {
         if (ev.getPlayer() != null) { dto.setPlayerId(ev.getPlayer().getId()); dto.setPlayerName(ev.getPlayer().getName()); }
         if (ev.getTeam()   != null) { dto.setTeamId(ev.getTeam().getId());     dto.setTeamName(ev.getTeam().getName()); }
         return dto;
+    }
+    private Set<Long> parseIds(String ids) {
+        if (ids == null || ids.isBlank()) return new LinkedHashSet<>();
+        return Arrays.stream(ids.split(",")).map(String::trim)
+                .filter(s -> !s.isEmpty()).map(Long::parseLong)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+    }
+    private List<PlayerSimpleDTO> resolvePlayingPlayers(List<Player> squad, String idsStr) {
+        if (idsStr == null || idsStr.isBlank()) return squad.stream()
+                .map(p -> new PlayerSimpleDTO(p.getId(), p.getName())).collect(Collectors.toList());
+        Set<Long> ids = parseIds(idsStr);
+        return squad.stream().filter(p -> ids.contains(p.getId()))
+                .map(p -> new PlayerSimpleDTO(p.getId(), p.getName())).collect(Collectors.toList());
     }
 }

@@ -2,6 +2,7 @@ package com.livescore.backend.Sport.Futsal;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.livescore.backend.DTO.PlayerSimpleDTO;
 import com.livescore.backend.DTO.ScoringDTOs.FutsalEventDTO;
 import com.livescore.backend.DTO.ScoringDTOs.FutsalScoreDTO;
 import com.livescore.backend.Entity.*;
@@ -9,6 +10,7 @@ import com.livescore.backend.Entity.Futsal.FutsalEvent;
 import com.livescore.backend.Entity.Futsal.FutsalMatchState;
 import com.livescore.backend.Interface.MatchInterface;
 import com.livescore.backend.Interface.PlayerInterface;
+import com.livescore.backend.Interface.PlayerRequestInterface;
 import com.livescore.backend.Interface.TeamInterface;
 import com.livescore.backend.Interface.multisportgeneric.ScoringServiceInterface;
 
@@ -20,7 +22,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Arrays;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service("FUTSAL")
@@ -33,6 +38,7 @@ public class FutsalScoringService implements ScoringServiceInterface {
     private final PlayerInterface playerInterface;
     private final TeamInterface teamInterface;
     private final FutsalStatsService futsalStatsService;
+    private final PlayerRequestInterface playerRequestInterface;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -153,6 +159,9 @@ public class FutsalScoringService implements ScoringServiceInterface {
             case "EXTRA_TIME":
                 undoExtraTime(state);
                 break;
+            case "SUBSTITUTION":
+                undoSubstitution(last, state, last.getMatch());
+                break;
             // SUBSTITUTION, TIMEOUT: just delete event, no state rollback
         }
 
@@ -164,7 +173,15 @@ public class FutsalScoringService implements ScoringServiceInterface {
     // ─────────────────────────────────────────
     // HANDLERS
     // ─────────────────────────────────────────
-
+    private void undoSubstitution(FutsalEvent last, FutsalMatchState state, Match match) {
+        if (last.getPlayer() == null || last.getInPlayer() == null) return;
+        Long outId = last.getPlayer().getId();    // was removed from field
+        Long inId  = last.getInPlayer().getId();  // was added to field
+        boolean isTeam1 = last.getTeam().getId().equals(match.getTeam1().getId());
+        // Reverse the swap: remove inPlayer, restore outPlayer
+        if (isTeam1) state.setTeam1OnFieldIds(swapPlayer(state.getTeam1OnFieldIds(), inId, outId));
+        else         state.setTeam2OnFieldIds(swapPlayer(state.getTeam2OnFieldIds(), inId, outId));
+    }
     private void handleGoal(FutsalScoreDTO score, FutsalMatchState state, Match match, boolean forceOwnGoal) {
         Player player = playerInterface.findActiveById(score.getPlayerId()).get();
         Team   team   = teamInterface.findById(score.getTeamId()).get();
@@ -230,19 +247,20 @@ public class FutsalScoringService implements ScoringServiceInterface {
 
     private void handleSubstitution(FutsalScoreDTO score, FutsalMatchState state, Match match) {
         Team team = teamInterface.findById(score.getTeamId()).get();
+        Long outId = score.getOutPlayerId() != null ? score.getOutPlayerId() : score.getPlayerId();
+        Long inId  = score.getInPlayerId();
+        boolean isTeam1 = team.getId().equals(match.getTeam1().getId());
+
+        // ── Update on-field IDs ─────────────────────────────────────
+        if (isTeam1) state.setTeam1OnFieldIds(swapPlayer(state.getTeam1OnFieldIds(), outId, inId));
+        else         state.setTeam2OnFieldIds(swapPlayer(state.getTeam2OnFieldIds(), outId, inId));
 
         FutsalEvent ev = buildEvent(match, team, null, "SUBSTITUTION", state);
-
-        Long outId = score.getOutPlayerId() != null ? score.getOutPlayerId() : score.getPlayerId();
-        if (outId != null)
-            ev.setPlayer(playerInterface.findActiveById(outId).get());
-        if (score.getInPlayerId() != null)
-            ev.setInPlayer(playerInterface.findActiveById(score.getInPlayerId()).get());
-
+        if (outId != null) ev.setPlayer(playerInterface.findActiveById(outId).orElse(null));
+        if (inId  != null) ev.setInPlayer(playerInterface.findActiveById(inId).orElse(null));
         ev.setExtraTime(state.getInExtraTime());
         futsalEventInterface.save(ev);
     }
-
     private void handleTimeout(FutsalScoreDTO score, FutsalMatchState state, Match match) {
         Team team = score.getTeamId() != null
                 ? teamInterface.findById(score.getTeamId()).get() : null;
@@ -396,9 +414,14 @@ public class FutsalScoringService implements ScoringServiceInterface {
         s.setInExtraTime(false);
         s.setHalfStartTime(System.currentTimeMillis());
         s.setHalfDurationMinutes(25);
+        // ── Lineup from match entity ────────────────────────────────
+        if (match.getTeam1PlayingIds() != null && !match.getTeam1PlayingIds().isBlank())
+            s.setTeam1OnFieldIds(match.getTeam1PlayingIds());
+        if (match.getTeam2PlayingIds() != null && !match.getTeam2PlayingIds().isBlank())
+            s.setTeam2OnFieldIds(match.getTeam2PlayingIds());
+        // ───────────────────────────────────────────────────────────
         return futsalMatchStateInterface.save(s);
     }
-
     // ─────────────────────────────────────────
     // DTO CONVERTERS
     // ─────────────────────────────────────────
@@ -424,7 +447,13 @@ public class FutsalScoringService implements ScoringServiceInterface {
         List<FutsalEvent> events = futsalEventInterface
                 .findByMatch_IdOrderByIdAsc(state.getMatch().getId());
         dto.setFutsalEvents(events.stream().map(this::eventToDTO).collect(Collectors.toList()));
-
+        Match match = state.getMatch();
+        List<Player> squad1 = playerRequestInterface.findApprovedPlayersByTeamId(match.getTeam1().getId());
+        List<Player> squad2 = playerRequestInterface.findApprovedPlayersByTeamId(match.getTeam2().getId());
+        dto.setTeam1Players(toSimpleDTOs(squad1));
+        dto.setTeam2Players(toSimpleDTOs(squad2));
+        dto.setTeam1OnField(resolveOnField(squad1, state.getTeam1OnFieldIds()));
+        dto.setTeam2OnField(resolveOnField(squad2, state.getTeam2OnFieldIds()));
         return dto;
     }
 
@@ -456,5 +485,38 @@ public class FutsalScoringService implements ScoringServiceInterface {
         }
 
         return dto;
+    }
+
+
+
+    private Set<Long> parseIds(String ids) {
+        if (ids == null || ids.isBlank()) return new LinkedHashSet<>();
+        return Arrays.stream(ids.split(","))
+                .map(String::trim).filter(s -> !s.isEmpty())
+                .map(Long::parseLong)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+    }
+
+    private String swapPlayer(String current, Long outId, Long inId) {
+        Set<Long> set = new LinkedHashSet<>(parseIds(current));
+        if (outId != null) set.remove(outId);
+        if (inId  != null) set.add(inId);
+        return set.stream().map(String::valueOf).collect(Collectors.joining(","));
+    }
+
+    private List<PlayerSimpleDTO> toSimpleDTOs(List<Player> players) {
+        return players.stream()
+                .map(p -> new PlayerSimpleDTO(p.getId(), p.getName()))
+                .collect(Collectors.toList());
+    }
+
+    private List<PlayerSimpleDTO> resolveOnField(List<Player> squad, String idsStr) {
+        if (idsStr == null || idsStr.isBlank())
+            return toSimpleDTOs(squad); // fallback = full squad
+        Set<Long> ids = parseIds(idsStr);
+        return squad.stream()
+                .filter(p -> ids.contains(p.getId()))
+                .map(p -> new PlayerSimpleDTO(p.getId(), p.getName()))
+                .collect(Collectors.toList());
     }
 }

@@ -39,4 +39,10 @@ public class BadmintonMatchState {
 
     // ── Timer ────────────────────────────────────────────────────
     @Column(name = "game_start_time") private Long gameStartTime;
+    // Singles = 1 ID, Doubles = 2 IDs (no bench concept)
+    @Column(name = "team1_player_ids", length = 200)
+    private String team1PlayerIds;
+
+    @Column(name = "team2_player_ids", length = 200)
+    private String team2PlayerIds;
 }

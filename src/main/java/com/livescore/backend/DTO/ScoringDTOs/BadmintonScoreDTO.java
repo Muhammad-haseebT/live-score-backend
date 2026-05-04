@@ -1,5 +1,6 @@
 package com.livescore.backend.DTO.ScoringDTOs;
 
+import com.livescore.backend.DTO.PlayerSimpleDTO;
 import lombok.Data;
 import java.util.List;
 
@@ -35,4 +36,6 @@ public class BadmintonScoreDTO {
 
     private List<BadmintonEventDTO> badmintonEvents;
     private String comment;
+    private List<PlayerSimpleDTO> team1Players;   // playing players (1 or 2)
+    private List<PlayerSimpleDTO> team2Players;
 }

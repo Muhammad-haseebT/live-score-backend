@@ -62,4 +62,10 @@ public class FutsalMatchState {
     // 25 for regular halves, 5 for extra time
     @Column(name = "half_duration_minutes")
     private Integer halfDurationMinutes = 25;
+
+    @Column(name = "team1_on_field_ids", length = 500)
+    private String team1OnFieldIds;
+
+    @Column(name = "team2_on_field_ids", length = 500)
+    private String team2OnFieldIds;
 }

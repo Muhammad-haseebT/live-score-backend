@@ -19,6 +19,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 public class MatchService {
@@ -263,6 +264,18 @@ public class MatchService {
 
         match.setDecision(m.getDecision());
         match.setTossWinner(teamInterface.findById(m.getTossWinnerId()).orElse(null));
+        if (m.getTeam1PlayingIds() != null && !m.getTeam1PlayingIds().isEmpty()) {
+            match.setTeam1PlayingIds(
+                    m.getTeam1PlayingIds().stream().map(String::valueOf)
+                            .collect(Collectors.joining(","))
+            );
+        }
+        if (m.getTeam2PlayingIds() != null && !m.getTeam2PlayingIds().isEmpty()) {
+            match.setTeam2PlayingIds(
+                    m.getTeam2PlayingIds().stream().map(String::valueOf)
+                            .collect(Collectors.joining(","))
+            );
+        }
         matchInterface.save(match);
         return ResponseEntity.ok().body("Match started successfully");
     }

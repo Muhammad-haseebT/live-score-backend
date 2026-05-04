@@ -42,4 +42,9 @@ public class VolleyballMatchState {
 
     @Column(name = "set_start_time") private Long setStartTime;
     private Integer sets;
+    @Column(name = "team1_on_field_ids", length = 500)
+    private String team1OnFieldIds;
+
+    @Column(name = "team2_on_field_ids", length = 500)
+    private String team2OnFieldIds;
 }

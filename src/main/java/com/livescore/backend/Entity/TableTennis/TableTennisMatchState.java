@@ -38,4 +38,11 @@ public class TableTennisMatchState {
     @Column(name = "status") private String status = "LIVE";
 
     @Column(name = "game_start_time") private Long gameStartTime;
+
+    @Column(name = "team1_player_ids", length = 200)
+    private String team1PlayerIds;
+
+    @Column(name = "team2_player_ids", length = 200)
+    private String team2PlayerIds;
+
 }

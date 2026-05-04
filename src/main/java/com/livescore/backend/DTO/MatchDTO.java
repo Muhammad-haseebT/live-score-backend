@@ -5,6 +5,7 @@ import lombok.Data;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.List;
 
 @Data
 
@@ -37,5 +38,7 @@ public class MatchDTO {
     private Long InningsId;
     private Integer pointsPerSet;   // volleyball: 25, badminton: 21, table tennis: 11
     private Integer finalSetPoints;
+    private List<Long> team1PlayingIds;
+    private List<Long> team2PlayingIds;
 }
 

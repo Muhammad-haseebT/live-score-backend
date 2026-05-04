@@ -1,5 +1,6 @@
 package com.livescore.backend.DTO.ScoringDTOs;
 
+import com.livescore.backend.DTO.PlayerSimpleDTO;
 import lombok.Data;
 import java.util.List;
 
@@ -35,4 +36,8 @@ public class VolleyballScoreDTO {
 
     private List<VolleyballEventDTO> volleyballEvents;
     private String comment;
+    private List<PlayerSimpleDTO> team1Players;   // full approved squad
+    private List<PlayerSimpleDTO> team2Players;
+    private List<PlayerSimpleDTO> team1OnField;   // currently on field
+    private List<PlayerSimpleDTO> team2OnField;
 }

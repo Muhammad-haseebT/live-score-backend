@@ -107,6 +107,11 @@ public class Match {
     @JoinColumn(name = "best_bowler_id")
     @JsonIgnore
     private Player bestBowler;
+    @Column(name = "team1_playing_ids", length = 500)
+    private String team1PlayingIds;   // "1,2,3,4,5"  comma-separated
+
+    @Column(name = "team2_playing_ids", length = 500)
+    private String team2PlayingIds;
 
     // Match -> CricketInnings
     @OneToMany(mappedBy = "match", cascade = CascadeType.ALL)
