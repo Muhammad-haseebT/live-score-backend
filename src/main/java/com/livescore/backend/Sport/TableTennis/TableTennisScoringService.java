@@ -45,6 +45,7 @@ public class TableTennisScoringService implements ScoringServiceInterface {
     // ─────────────────────────────────────────
     @Override
     @Cacheable(value = "ttStates", key = "#matchId")
+    @Transactional(readOnly = true)
     public Object getCurrentMatchState(Long matchId) {
         TableTennisMatchState state = ttStateInterface.findByMatch_Id(matchId)
                 .orElseGet(() -> createInitialState(matchId));

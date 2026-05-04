@@ -48,6 +48,7 @@ public class VolleyballScoringService implements ScoringServiceInterface {
 
     @Override
     @Cacheable(value = "vbStates", key = "#matchId")
+    @Transactional(readOnly = true)
     public Object getCurrentMatchState(Long matchId) {
         VolleyballMatchState state = volleyballMatchStateInterface.findByMatch_Id(matchId)
                 .orElseGet(() -> createInitialState(matchId));

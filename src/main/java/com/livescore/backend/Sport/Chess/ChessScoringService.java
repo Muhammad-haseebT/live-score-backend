@@ -38,6 +38,7 @@ public class ChessScoringService implements ScoringServiceInterface {
     // ─────────────────────────────────────────
     @Override
     @Cacheable(value = "chessStates", key = "#matchId")
+    @Transactional(readOnly = true)
     public Object getCurrentMatchState(Long matchId) {
         ChessMatchState state = chessStateInterface.findByMatch_Id(matchId)
                 .orElseGet(() -> createInitialState(matchId));

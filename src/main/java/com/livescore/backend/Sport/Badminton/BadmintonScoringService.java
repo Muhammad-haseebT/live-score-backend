@@ -49,6 +49,7 @@ public class BadmintonScoringService implements ScoringServiceInterface {
     // ─────────────────────────────────────────
     @Override
     @Cacheable(value = "badmintonStates", key = "#matchId")
+    @Transactional(readOnly = true)
     public Object getCurrentMatchState(Long matchId) {
         BadmintonMatchState state = badmintonMatchStateInterface.findByMatch_Id(matchId)
                 .orElseGet(() -> createInitialState(matchId));
