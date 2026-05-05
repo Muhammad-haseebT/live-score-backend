@@ -196,39 +196,26 @@ public class MatchService {
             @CacheEvict(value = "matches", allEntries = true, beforeInvocation = false),
             @CacheEvict(value = "matchById", allEntries = true, beforeInvocation = false)
     })
-    public ResponseEntity<?> startMatch(Long id, MatchDTO m) {
-        if (m == null) {
-            return ResponseEntity.badRequest().body("Match details are required");
-        }
-        Match match = matchInterface.findById(id).orElse(null);
-        if (match == null) {
-            return ResponseEntity.notFound().build();
-        }
-        match.setStatus("LIVE");
-        if (m.getScorerId() == null || accountInterface.findActiveByUsername(m.getScorerId()).isEmpty()) {
-            return ResponseEntity.badRequest().body("Scorer account not found");
-        }
+    @Transactional
+    public ResponseEntity<?> startMatch(Long matchId, MatchDTO m) {
 
-        match.setScorer(accountInterface.findActiveByUsername(m.getScorerId()).orElse(null));
-        if (m.getMediaScorerUsername() != null && !m.getMediaScorerUsername().isBlank()) {
-            Account mediaAccount = accountInterface.findActiveByUsername(m.getMediaScorerUsername()).orElse(null);
-            if (mediaAccount == null) {
-                return ResponseEntity.badRequest().body("Media scorer account not found");
-            }
-            match.setMediaScorer(mediaAccount);
-        }
-        if (m.getTossWinnerId() == null || teamInterface.findById(m.getTossWinnerId()).isEmpty()) {
-            return ResponseEntity.badRequest().body("Toss winner team not found");
-        }
-        match.setTossWinner(teamInterface.findById(m.getTossWinnerId()).orElse(null));
-        match.setDecision(m.getDecision());
-        if (m.getSportId() == null || sportsInterface.findById(m.getSportId()).isEmpty()) {
-            return ResponseEntity.badRequest().body("Sport not found");
-        }
-        Sports s = sportsInterface.findById(m.getSportId()).orElse(null);
-        if (s.getName().equalsIgnoreCase("cricket")) {
-            match.setOvers(m.getOvers());
-        } else if (s.getName().equalsIgnoreCase("volleyball")
+        Match match = matchInterface.findById(matchId).orElse(null);
+        if (match == null)
+            return ResponseEntity.badRequest().body("Match not found: " + matchId);
+
+        if (match.getStatus() != null
+                && (match.getStatus().equalsIgnoreCase("LIVE")
+                || match.getStatus().equalsIgnoreCase("COMPLETED")))
+            return ResponseEntity.badRequest().body("Match already started");
+
+        Sports s = match.getTournament().getSport();
+        match.setStatus("LIVE");
+
+        // ── Sport-specific config ─────────────────────────────────────
+        if (s.getName().equalsIgnoreCase("Cricket")) {
+            match.setOvers(m.getOvers() > 0 ? m.getOvers() : 5);
+
+        } else if (s.getName().equalsIgnoreCase("Volleyball")
                 || s.getName().equalsIgnoreCase("Badminton")
                 || s.getName().equalsIgnoreCase("Tabletennis")
                 || s.getName().equalsIgnoreCase("Table Tennis")) {
@@ -238,36 +225,46 @@ public class MatchService {
 
         } else if (s.getName().equalsIgnoreCase("Tug Of War")
                 || s.getName().equalsIgnoreCase("TugOfWar")) {
-            // ✅ Only rounds needed (sets = rounds to win)
             match.setSets(m.getSets() != 0 && m.getSets() > 0 ? m.getSets() : 3);
-            // pointsPerSet and finalSetPoints not used in Tug of War
-        } else if (s.getName().equalsIgnoreCase("Futsal")) {
-        match.setHalfDurationMins(m.getHalfDurationMins() != null ? m.getHalfDurationMins() : 20);
-    } else if (s.getName().equalsIgnoreCase("Ludo")) {
-        // nothing extra needed
-    } else if (s.getName().equalsIgnoreCase("Chess")) {
-        // nothing extra needed
-    }
 
-        if(match.getTournament().getSport().getName().equalsIgnoreCase("cricket")){
+        } else if (s.getName().equalsIgnoreCase("Futsal")) {
+            match.setHalfDurationMins(m.getHalfDurationMins() != null ? m.getHalfDurationMins() : 20);
+
+        } else if (s.getName().equalsIgnoreCase("Ludo")) {
+            // FIX: save format so LudoScoringService can set maxHomeRuns correctly
+            // "1v1" → 4 home runs, "2v2" → 8 home runs
+            String fmt = (m.getMatchFormat() != null && !m.getMatchFormat().isBlank())
+                    ? m.getMatchFormat().toLowerCase() : "1v1";
+            match.setMatchFormat(fmt);
+
+        } else if (s.getName().equalsIgnoreCase("Chess")) {
+            // FIX: save chess format as well
+            String fmt = (m.getMatchFormat() != null && !m.getMatchFormat().isBlank())
+                    ? m.getMatchFormat().toLowerCase() : "1v1";
+            match.setMatchFormat(fmt);
+        }
+
+        // ── Cricket innings setup ─────────────────────────────────────
+        if (match.getTournament().getSport().getName().equalsIgnoreCase("cricket")) {
             CricketInnings innings = new CricketInnings();
             innings.setMatch(match);
             innings.setNo(1);
-            if (match.getDecision().equalsIgnoreCase("bat")) {
+            if (m.getDecision() != null && m.getDecision().equalsIgnoreCase("bat")) {
                 innings.setTeam(teamInterface.findById(m.getTossWinnerId()).orElse(null));
             } else {
-                if (m.getTeam1Id() == null || m.getTeam2Id() == null) {
+                if (m.getTeam1Id() == null || m.getTeam2Id() == null)
                     return ResponseEntity.badRequest().body("team1Id and team2Id are required");
-                }
-                Long battingTeamId = m.getTeam1Id().equals(m.getTossWinnerId()) ? m.getTeam2Id() : m.getTeam1Id();
+                Long battingTeamId = m.getTeam1Id().equals(m.getTossWinnerId())
+                        ? m.getTeam2Id() : m.getTeam1Id();
                 innings.setTeam(teamInterface.findById(battingTeamId).orElse(null));
             }
             cricketInningsRepo.save(innings);
-
         }
 
+        // ── Common fields ─────────────────────────────────────────────
         match.setDecision(m.getDecision());
         match.setTossWinner(teamInterface.findById(m.getTossWinnerId()).orElse(null));
+
         if (m.getTeam1PlayingIds() != null && !m.getTeam1PlayingIds().isEmpty()) {
             match.setTeam1PlayingIds(
                     m.getTeam1PlayingIds().stream().map(String::valueOf)
@@ -280,6 +277,7 @@ public class MatchService {
                             .collect(Collectors.joining(","))
             );
         }
+
         matchInterface.save(match);
         return ResponseEntity.ok().body("Match started successfully");
     }
@@ -404,7 +402,8 @@ public class MatchService {
         matchDTO.setTeam1Name(match.getTeam1().getName());
         matchDTO.setTeam2Id(match.getTeam2().getId());
         matchDTO.setTeam2Name(match.getTeam2().getName());
-        matchDTO.setMediaScorerUsername(match.getMediaScorer()!=null?match.getMediaScorer().getUsername():null);
+        matchDTO.setMediaScorerUsername(
+                match.getMediaScorer() != null ? match.getMediaScorer().getUsername() : null);
         matchDTO.setScorerId(match.getScorer().getUsername());
         matchDTO.setStatus(match.getStatus().toUpperCase());
         matchDTO.setVenue(match.getVenue());
@@ -415,23 +414,25 @@ public class MatchService {
         matchDTO.setSets(match.getSets());
         matchDTO.setSportId(match.getTournament().getSport().getId());
         matchDTO.setHalfDurationMins(match.getHalfDurationMins());
-        if (match.getTossWinner() != null) {
+        matchDTO.setPointsPerSet(match.getPointsPerSet());
+        matchDTO.setFinalSetPoints(match.getFinalSetPoints());
+
+        // FIX: include matchFormat so frontend can restore ludoFormat / chessFormat
+        matchDTO.setMatchFormat(match.getMatchFormat());
+
+        if (match.getTossWinner() != null)
             matchDTO.setTossWinnerId(match.getTossWinner().getId());
-        } else {
-            matchDTO.setTossWinnerId(null);
-        }
+
         if (match.getWinnerTeam() != null) {
             matchDTO.setWinnerTeamId(match.getWinnerTeam().getId());
             matchDTO.setWinnerTeamName(match.getWinnerTeam().getName());
         }
-        if (match.getStatus().equalsIgnoreCase("LIVE")) {
 
+        if (match.getStatus().equalsIgnoreCase("LIVE")) {
             if (match.getCricketInnings().size() == 1)
                 matchDTO.setInningsId(match.getCricketInnings().get(0).getId());
             else if (match.getCricketInnings().size() == 2)
-
                 matchDTO.setInningsId(match.getCricketInnings().get(1).getId());
-
         }
 
         return matchDTO;

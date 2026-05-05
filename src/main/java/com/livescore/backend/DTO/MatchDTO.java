@@ -8,7 +8,6 @@ import java.time.LocalTime;
 import java.util.List;
 
 @Data
-
 public class MatchDTO {
     private Long id;
 
@@ -36,10 +35,13 @@ public class MatchDTO {
     private int overs;
     private int sets;
     private Long InningsId;
-    private Integer pointsPerSet;   // volleyball: 25, badminton: 21, table tennis: 11
+    private Integer pointsPerSet;
     private Integer finalSetPoints;
     private List<Long> team1PlayingIds;
     private List<Long> team2PlayingIds;
-    private Integer halfDurationMins;  // Futsal
-}
+    private Integer halfDurationMins;
 
+    // FIX: format for Ludo ("1v1"/"2v2") and Chess ("1v1"/"2v2")
+    // Saved to DB at match start, read back when match is LIVE/COMPLETED
+    private String matchFormat;
+}

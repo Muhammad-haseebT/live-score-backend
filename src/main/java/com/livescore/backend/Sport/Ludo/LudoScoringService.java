@@ -37,6 +37,7 @@ public class LudoScoringService implements ScoringServiceInterface {
 
     @Override
     @Cacheable(value = "ludoStates", key = "#matchId")
+    @Transactional  // FIX: was missing — caused LazyInitializationException on winnerTeam
     public Object getCurrentMatchState(Long matchId) {
         LudoMatchState state = ludoStateInterface.findByMatch_Id(matchId)
                 .orElseGet(() -> createInitialState(matchId));
@@ -80,7 +81,7 @@ public class LudoScoringService implements ScoringServiceInterface {
 
     // ── HOME_RUN: auto-win when maxHomeRuns reached ───────────────
     private LudoEvent handleHomeRun(LudoScoreDTO req, LudoMatchState state, Match match) {
-        // Set maxHomeRuns on first event if frontend sent it
+        // Frontend sends maxHomeRuns on every event as safety net
         if (req.getMaxHomeRuns() != null && req.getMaxHomeRuns() > 0)
             state.setMaxHomeRuns(req.getMaxHomeRuns());
         int max = state.getMaxHomeRuns() != null ? state.getMaxHomeRuns() : 4;
@@ -122,7 +123,6 @@ public class LudoScoringService implements ScoringServiceInterface {
                     && last.getTeam().getId().equals(match.getTeam1().getId());
             if (t1) state.setTeam1HomeRuns(Math.max(0, state.getTeam1HomeRuns() - 1));
             else    state.setTeam2HomeRuns(Math.max(0, state.getTeam2HomeRuns() - 1));
-            // Revert auto-completion if this home run triggered it
             if ("COMPLETED".equals(state.getStatus())) {
                 state.setStatus("LIVE");
                 match.setWinnerTeam(null);
@@ -136,13 +136,18 @@ public class LudoScoringService implements ScoringServiceInterface {
     }
 
     // ── UTIL ─────────────────────────────────────────────────────
+
+    // FIX: reads matchFormat from DB to set correct maxHomeRuns from the start
+    // "2v2" → 8 home runs, default "1v1" → 4 home runs
     private LudoMatchState createInitialState(Long matchId) {
         Match match = matchInterface.findById(matchId).get();
         LudoMatchState s = new LudoMatchState();
         s.setMatch(match);
         s.setTeam1HomeRuns(0);
         s.setTeam2HomeRuns(0);
-        s.setMaxHomeRuns(4); // default 1v1; overridden on first HOME_RUN
+        // FIX: derive maxHomeRuns from saved matchFormat instead of always defaulting to 4
+        int max = "2v2".equalsIgnoreCase(match.getMatchFormat()) ? 8 : 4;
+        s.setMaxHomeRuns(max);
         s.setStatus("LIVE");
         s.setMatchStartTime(System.currentTimeMillis());
         return ludoStateInterface.save(s);
@@ -157,15 +162,25 @@ public class LudoScoringService implements ScoringServiceInterface {
     }
 
     private LudoScoreDTO toDTO(LudoMatchState state, String comment) {
+        // FIX: re-fetch match to avoid LazyInitializationException on winnerTeam
+        // (extra query but safe — only called once per WebSocket message)
+        Match match = matchInterface.findById(state.getMatch().getId()).get();
+
         LudoScoreDTO dto = new LudoScoreDTO();
-        dto.setMatchId(state.getMatch().getId());
+        dto.setMatchId(match.getId());
         dto.setTeam1HomeRuns(state.getTeam1HomeRuns());
         dto.setTeam2HomeRuns(state.getTeam2HomeRuns());
         dto.setMaxHomeRuns(state.getMaxHomeRuns());
         dto.setStatus(state.getStatus());
         dto.setMatchStartTime(state.getMatchStartTime());
         dto.setComment(comment);
-        dto.setLudoEvents(ludoEventInterface.findByMatch_IdOrderByIdAsc(state.getMatch().getId())
+
+        // FIX: set winnerTeamId so frontend shows correct winner/loser banner
+        if (match.getWinnerTeam() != null) {
+            dto.setWinnerTeamId(match.getWinnerTeam().getId());
+        }
+
+        dto.setLudoEvents(ludoEventInterface.findByMatch_IdOrderByIdAsc(match.getId())
                 .stream().map(this::toEventDTO).collect(Collectors.toList()));
         return dto;
     }

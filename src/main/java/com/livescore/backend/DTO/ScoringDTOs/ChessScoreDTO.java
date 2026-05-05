@@ -2,17 +2,18 @@ package com.livescore.backend.DTO.ScoringDTOs;
 
 import lombok.Data;
 import java.util.List;
+
 @Data
 public class ChessScoreDTO {
-    // Request
+    // Request fields
     private Long   matchId;
     private Long   teamId;
     private Long   playerId;
-    // Events: CHECK, CHECKMATE, RESIGN, TIMEOUT, STALEMATE, DRAW_AGREED, END_MATCH
+    // Events: CHECKMATE, RESIGN, TIMEOUT, STALEMATE, DRAW_AGREED, END_MATCH
     private String eventType;
     private boolean undo;
 
-    // Response
+    // Response fields
     private Integer team1Checks;
     private Integer team2Checks;
     private String  status;       // LIVE, COMPLETED
@@ -20,5 +21,8 @@ public class ChessScoreDTO {
     private Boolean isDraw;
     private Long    matchStartTime;
     private List<ChessEventDTO> chessEvents;
-    private String comment;
+    private String  comment;
+
+    // FIX: added so frontend can show winner/loser in completed banner
+    private Long    winnerTeamId;
 }

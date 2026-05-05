@@ -42,19 +42,26 @@ public class Match {
     @JoinColumn(name = "scorer_id")
     @JsonBackReference("account-scoredMatches")
     private Account scorer;
+
     @ManyToOne
     @JoinColumn(name = "media_scorer_id")
     @JsonIgnore
     private Account mediaScorer;
-    private String status; // UPCOMING / LIVE / FINISHED
+
+    private String status; // UPCOMING / LIVE / FINISHED / COMPLETED
     private String venue;
     private LocalDate date;
     private LocalTime time;
+
     @Column(name = "points_per_set")
     private Integer pointsPerSet;   // 25 for volleyball, 21 for badminton
 
     @Column(name = "final_set_points")
     private Integer finalSetPoints;
+
+    // FIX: store match format for Ludo ("1v1"/"2v2") and Chess ("1v1"/"2v2")
+    @Column(name = "match_format")
+    private String matchFormat;
 
     @PrePersist
     public void prePersist() {
@@ -107,33 +114,29 @@ public class Match {
     @JoinColumn(name = "best_bowler_id")
     @JsonIgnore
     private Player bestBowler;
+
     @Column(name = "team1_playing_ids", length = 500)
-    private String team1PlayingIds;   // "1,2,3,4,5"  comma-separated
+    private String team1PlayingIds;
 
     @Column(name = "team2_playing_ids", length = 500)
     private String team2PlayingIds;
 
-    // Match -> CricketInnings
     @OneToMany(mappedBy = "match", cascade = CascadeType.ALL)
     @JsonManagedReference("match-innings")
     private List<CricketInnings> cricketInnings = new ArrayList<>();
 
-    // Match -> GoalsType (football events)
     @OneToMany(mappedBy = "match", cascade = CascadeType.ALL)
     @JsonManagedReference("match-goals")
     private List<GoalsType> footballEvents = new ArrayList<>();
 
-    // Match -> MatchSets (set-based sports)
     @OneToMany(mappedBy = "match", cascade = CascadeType.ALL)
     @JsonManagedReference("match-sets")
     private List<MatchSets> matchSets = new ArrayList<>();
 
-    // Match -> Board (board games)
     @OneToMany(mappedBy = "match", cascade = CascadeType.ALL)
     @JsonManagedReference("match-boards")
     private List<Board> boards = new ArrayList<>();
 
-    // Match -> Media
     @OneToMany(mappedBy = "match", cascade = CascadeType.ALL)
     @JsonManagedReference("match-media")
     @JsonIgnore
@@ -144,14 +147,11 @@ public class Match {
     @JsonIgnore
     private List<CricketBall> cricketBalls = new ArrayList<>();
 
-
     @ManyToOne
     @JoinColumn(name = "fav_player_id")
     @JsonIgnore
-    private  FavouritePlayer favouritePlayer;
+    private FavouritePlayer favouritePlayer;
 
     @Column(name = "half_duration_mins")
     private Integer halfDurationMins;
-
-
 }

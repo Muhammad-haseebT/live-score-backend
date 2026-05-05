@@ -36,7 +36,7 @@ public class ChessScoringService implements ScoringServiceInterface {
 
     @Override
     @Cacheable(value = "chessStates", key = "#matchId")
-    @Transactional
+    @Transactional  // already present — keeps LazyInit safe for Chess too
     public Object getCurrentMatchState(Long matchId) {
         ChessMatchState state = chessStateInterface.findByMatch_Id(matchId)
                 .orElseGet(() -> createInitialState(matchId));
@@ -64,10 +64,19 @@ public class ChessScoringService implements ScoringServiceInterface {
                 .orElseGet(() -> createInitialState(req.getMatchId()));
         Match match = matchInterface.findById(req.getMatchId()).get();
 
-        if (!"CHECKMATE".equalsIgnoreCase(req.getEventType()))
-            throw new IllegalArgumentException("Unknown event: " + req.getEventType());
+        String eventType = req.getEventType() != null ? req.getEventType().toUpperCase() : "";
 
-        handleCheckmate(req, state, match);
+        switch (eventType) {
+            case "CHECKMATE":
+                handleCheckmate(req, state, match);
+                break;
+            case "DRAW_AGREED":
+            case "STALEMATE":
+                handleDraw(req, state, match);
+                break;
+            default:
+                throw new IllegalArgumentException("Unknown chess event: " + req.getEventType());
+        }
 
         chessStateInterface.save(state);
         if ("COMPLETED".equals(state.getStatus())) {
@@ -87,6 +96,15 @@ public class ChessScoringService implements ScoringServiceInterface {
         chessEventInterface.save(build(match, winner, "CHECKMATE", state));
     }
 
+    // ── DRAW_AGREED / STALEMATE ───────────────────────────────────
+    private void handleDraw(ChessScoreDTO req, ChessMatchState state, Match match) {
+        state.setStatus("COMPLETED");
+        state.setResultType(req.getEventType().toUpperCase());
+        match.setWinnerTeam(null); // null = draw in PtsTableService
+        matchInterface.save(match);
+        chessEventInterface.save(build(match, null, req.getEventType().toUpperCase(), state));
+    }
+
     // ── UNDO ─────────────────────────────────────────────────────
     private ChessScoreDTO undoLast(Long matchId) {
         ChessEvent last = chessEventInterface.findTopByMatch_IdOrderByIdDesc(matchId).orElse(null);
@@ -95,7 +113,6 @@ public class ChessScoringService implements ScoringServiceInterface {
         ChessMatchState state = chessStateInterface.findByMatch_Id(matchId).get();
         Match match = last.getMatch();
 
-        // Only CHECKMATE events exist now — always revert to LIVE
         state.setStatus("LIVE");
         state.setResultType(null);
         match.setWinnerTeam(null);
@@ -118,21 +135,35 @@ public class ChessScoringService implements ScoringServiceInterface {
 
     private ChessEvent build(Match match, Team team, String type, ChessMatchState state) {
         ChessEvent ev = new ChessEvent();
-        ev.setMatch(match); ev.setTeam(team); ev.setEventType(type);
+        ev.setMatch(match);
+        ev.setTeam(team); // null for draw events
+        ev.setEventType(type);
         ev.setEventTimeSeconds(state.getMatchStartTime() != null
                 ? (int) ((System.currentTimeMillis() - state.getMatchStartTime()) / 1000) : 0);
         return ev;
     }
 
     private ChessScoreDTO toDTO(ChessMatchState state, String comment) {
+        // FIX: re-fetch match to avoid LazyInitializationException on winnerTeam
+        Match match = matchInterface.findById(state.getMatch().getId()).get();
+
         ChessScoreDTO dto = new ChessScoreDTO();
-        dto.setMatchId(state.getMatch().getId());
+        dto.setMatchId(match.getId());
         dto.setStatus(state.getStatus());
         dto.setResultType(state.getResultType());
         dto.setMatchStartTime(state.getMatchStartTime());
-        dto.setIsDraw(false); // draw removed
         dto.setComment(comment);
-        dto.setChessEvents(chessEventInterface.findByMatch_IdOrderByIdAsc(state.getMatch().getId())
+
+        boolean isDraw = "DRAW_AGREED".equals(state.getResultType())
+                || "STALEMATE".equals(state.getResultType());
+        dto.setIsDraw(isDraw);
+
+        // FIX: set winnerTeamId so frontend shows winner/loser correctly
+        if (match.getWinnerTeam() != null) {
+            dto.setWinnerTeamId(match.getWinnerTeam().getId());
+        }
+
+        dto.setChessEvents(chessEventInterface.findByMatch_IdOrderByIdAsc(match.getId())
                 .stream().map(this::toEventDTO).collect(Collectors.toList()));
         return dto;
     }
@@ -142,7 +173,10 @@ public class ChessScoringService implements ScoringServiceInterface {
         dto.setId(ev.getId());
         dto.setEventType(ev.getEventType());
         dto.setEventTimeSeconds(ev.getEventTimeSeconds());
-        if (ev.getTeam() != null) { dto.setTeamId(ev.getTeam().getId()); dto.setTeamName(ev.getTeam().getName()); }
+        if (ev.getTeam() != null) {
+            dto.setTeamId(ev.getTeam().getId());
+            dto.setTeamName(ev.getTeam().getName());
+        }
         return dto;
     }
 }
