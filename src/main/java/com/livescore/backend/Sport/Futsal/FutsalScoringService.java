@@ -50,7 +50,7 @@ public class FutsalScoringService implements ScoringServiceInterface {
 
 
     @Cacheable(value = "futsalStates", key = "#matchId")
-    @Transactional(readOnly = true)
+    @Transactional
     public Object getCurrentMatchState(Long matchId) {
         FutsalMatchState state = futsalMatchStateInterface
                 .findByMatch_Id(matchId)
