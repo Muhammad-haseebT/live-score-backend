@@ -36,7 +36,7 @@ public class TugOfWarScoringService implements ScoringServiceInterface {
 
     @Override
     @Cacheable(value = "towStates", key = "#matchId")
-    @Transactional(readOnly = true)
+    @Transactional
     public Object getCurrentMatchState(Long matchId) {
         TugOfWarMatchState state = towStateInterface.findByMatch_Id(matchId)
                 .orElseGet(() -> createInitialState(matchId));

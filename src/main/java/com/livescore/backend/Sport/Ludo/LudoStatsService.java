@@ -1,5 +1,3 @@
-// ══ LudoStatsService.java ════════════════════════════════════════
-// Stats mapping: goals=homeRuns, assists=captures
 package com.livescore.backend.Sport.Ludo;
 
 import com.livescore.backend.Entity.*;
@@ -51,6 +49,8 @@ public class LudoStatsService {
             ensureStats(pid, tid, match.getTournament());
             recalculatePlayerStats(pid, tid);
         }
+        match.setStatus("COMPLETED");
+        matchInterface.save(match);
         calculatePOM(matchId, match);
     }
 
@@ -60,23 +60,20 @@ public class LudoStatsService {
         if (stats == null) return;
 
         List<LudoEvent> events = ludoEventInterface.findByPlayerIdAndTournamentId(playerId, tournamentId);
-        int homeRuns = 0, captures = 0;
+        int homeRuns = 0;
 
         for (LudoEvent ev : events) {
             if (ev.getPlayer() == null || !ev.getPlayer().getId().equals(playerId)) continue;
-            switch (ev.getEventType().toUpperCase()) {
-                case "HOME_RUN" -> homeRuns++;
-                case "CAPTURE"  -> captures++;
-            }
+            if ("HOME_RUN".equalsIgnoreCase(ev.getEventType())) homeRuns++;
         }
 
         stats.setGoals(homeRuns);
-        stats.setAssists(captures);
+        stats.setAssists(0);
         stats.setFouls(0); stats.setYellowCards(0); stats.setRedCards(0);
 
         int pom = awardInterface.countPomByPlayerIdAndSport(playerId, "ludo");
         stats.setPlayerOfMatchCount(pom);
-        stats.setPoints((homeRuns * 3) + (captures * 2) + (pom * 25));
+        stats.setPoints((homeRuns * 3) + (pom * 25));
         statsInterface.save(stats);
     }
 
@@ -84,20 +81,20 @@ public class LudoStatsService {
         if (!awardInterface.findByMatchIdAndAwardType(matchId, "PLAYER_OF_MATCH").isEmpty()) return;
         Map<Long, Integer> scoreMap = new HashMap<>();
         Map<Long, Player>  playerMap = new HashMap<>();
+
         ludoEventInterface.findByMatch_IdOrderByIdAsc(matchId).forEach(ev -> {
             if (ev.getPlayer() == null) return;
+            if (!"HOME_RUN".equalsIgnoreCase(ev.getEventType())) return;
             Long pid = ev.getPlayer().getId();
             playerMap.put(pid, ev.getPlayer());
-            int pts = switch (ev.getEventType().toUpperCase()) {
-                case "HOME_RUN" -> 3;
-                case "CAPTURE"  -> 2;
-                default         -> 0;
-            };
-            scoreMap.merge(pid, pts, Integer::sum);
+            scoreMap.merge(pid, 3, Integer::sum);
         });
+
         if (scoreMap.isEmpty()) return;
-        Long bestPid = scoreMap.entrySet().stream().max(Map.Entry.comparingByValue()).map(Map.Entry::getKey).orElse(null);
+        Long bestPid = scoreMap.entrySet().stream()
+                .max(Map.Entry.comparingByValue()).map(Map.Entry::getKey).orElse(null);
         if (bestPid == null) return;
+
         Award a = new Award();
         a.setMatch(match); a.setTournament(match.getTournament());
         a.setPlayer(playerMap.get(bestPid)); a.setAwardType("PLAYER_OF_MATCH");

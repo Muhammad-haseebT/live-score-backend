@@ -150,5 +150,8 @@ public class Match {
     @JsonIgnore
     private  FavouritePlayer favouritePlayer;
 
+    @Column(name = "half_duration_mins")
+    private Integer halfDurationMins;
+
 
 }

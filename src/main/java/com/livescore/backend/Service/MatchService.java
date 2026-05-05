@@ -241,9 +241,13 @@ public class MatchService {
             // ✅ Only rounds needed (sets = rounds to win)
             match.setSets(m.getSets() != 0 && m.getSets() > 0 ? m.getSets() : 3);
             // pointsPerSet and finalSetPoints not used in Tug of War
-        } else if (s.getName().equalsIgnoreCase("Ludo")) {
-
-    }else if (s.getName().equalsIgnoreCase("Chess")) {}
+        } else if (s.getName().equalsIgnoreCase("Futsal")) {
+        match.setHalfDurationMins(m.getHalfDurationMins() != null ? m.getHalfDurationMins() : 20);
+    } else if (s.getName().equalsIgnoreCase("Ludo")) {
+        // nothing extra needed
+    } else if (s.getName().equalsIgnoreCase("Chess")) {
+        // nothing extra needed
+    }
 
         if(match.getTournament().getSport().getName().equalsIgnoreCase("cricket")){
             CricketInnings innings = new CricketInnings();
@@ -410,6 +414,7 @@ public class MatchService {
         matchDTO.setOvers(match.getOvers());
         matchDTO.setSets(match.getSets());
         matchDTO.setSportId(match.getTournament().getSport().getId());
+        matchDTO.setHalfDurationMins(match.getHalfDurationMins());
         if (match.getTossWinner() != null) {
             matchDTO.setTossWinnerId(match.getTossWinner().getId());
         } else {

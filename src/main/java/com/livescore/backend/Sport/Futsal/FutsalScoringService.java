@@ -50,7 +50,7 @@ public class FutsalScoringService implements ScoringServiceInterface {
 
 
     @Cacheable(value = "futsalStates", key = "#matchId")
-    @Transactional(readOnly = true)
+    @Transactional
     public Object getCurrentMatchState(Long matchId) {
         FutsalMatchState state = futsalMatchStateInterface
                 .findByMatch_Id(matchId)
@@ -367,7 +367,7 @@ public class FutsalScoringService implements ScoringServiceInterface {
         state.setCurrentHalf(2);
         state.setStatus("EXTRA_TIME"); // back to showing draw screen
         state.setInExtraTime(false);
-        state.setHalfDurationMinutes(25);
+        state.setHalfDurationMinutes(state.getHalfDurationMinutes());
     }
 
     // ─────────────────────────────────────────
@@ -414,7 +414,7 @@ public class FutsalScoringService implements ScoringServiceInterface {
         s.setStatus("LIVE");
         s.setInExtraTime(false);
         s.setHalfStartTime(System.currentTimeMillis());
-        s.setHalfDurationMinutes(25);
+        s.setHalfDurationMinutes(match.getHalfDurationMins() != null ? match.getHalfDurationMins() : 25);
         // ── Lineup from match entity ────────────────────────────────
         if (match.getTeam1PlayingIds() != null && !match.getTeam1PlayingIds().isBlank())
             s.setTeam1OnFieldIds(match.getTeam1PlayingIds());
@@ -442,7 +442,7 @@ public class FutsalScoringService implements ScoringServiceInterface {
         dto.setStatus(state.getStatus());
         dto.setInExtraTime(state.getInExtraTime() != null && state.getInExtraTime());
         dto.setHalfStartTime(state.getHalfStartTime());
-        dto.setHalfDurationMinutes(state.getHalfDurationMinutes());
+        dto.setHalfDurationMinutes(state.getHalfDurationMinutes() != null ? state.getHalfDurationMinutes() : 25);
         dto.setComment(comment);
 
         List<FutsalEvent> events = futsalEventInterface

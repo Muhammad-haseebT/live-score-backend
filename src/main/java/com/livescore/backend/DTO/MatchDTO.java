@@ -40,5 +40,6 @@ public class MatchDTO {
     private Integer finalSetPoints;
     private List<Long> team1PlayingIds;
     private List<Long> team2PlayingIds;
+    private Integer halfDurationMins;  // Futsal
 }
 

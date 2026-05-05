@@ -12,14 +12,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.*;
 import java.util.stream.Collectors;
 
-/**
- * Chess stats mapping:
- *   goals       = wins (match level)
- *   assists     = checks delivered
- *   fouls       = 0
- *   yellowCards = 0
- *   points      = fantasy score
- */
 @Service
 @RequiredArgsConstructor
 public class ChessStatsService {
@@ -31,15 +23,6 @@ public class ChessStatsService {
     private final ChessEventInterface  chessEventInterface;
 
     @Transactional
-    public void onEventSaved(ChessEvent event) {
-        if (event == null || event.getMatch() == null
-                || event.getMatch().getTournament() == null || event.getPlayer() == null) return;
-        Long tid = event.getMatch().getTournament().getId();
-        ensureStats(event.getPlayer().getId(), tid, event.getMatch().getTournament());
-        recalculatePlayerStats(event.getPlayer().getId(), tid);
-    }
-
-    @Transactional
     @Caching(evict = {
             @CacheEvict(value = "matches", allEntries = true, beforeInvocation = false),
             @CacheEvict(value = "matchById", allEntries = true, beforeInvocation = false)
@@ -49,74 +32,40 @@ public class ChessStatsService {
         if (match == null || match.getTournament() == null) return;
         Long tid = match.getTournament().getId();
 
-        // Get all players who had events
-        Set<Long> pids = chessEventInterface.findByMatch_IdOrderByIdAsc(matchId)
-                .stream().filter(e -> e.getPlayer() != null)
-                .map(e -> e.getPlayer().getId()).collect(Collectors.toSet());
-
-        // Also include players from both teams
+        // Ensure stats exist for both teams' players
         if (match.getTeam1() != null && match.getTeam1().getPlayers() != null)
-            match.getTeam1().getPlayers().forEach(p -> pids.add(p.getId()));
+            match.getTeam1().getPlayers().forEach(p -> ensureStats(p.getId(), tid, match.getTournament()));
         if (match.getTeam2() != null && match.getTeam2().getPlayers() != null)
-            match.getTeam2().getPlayers().forEach(p -> pids.add(p.getId()));
+            match.getTeam2().getPlayers().forEach(p -> ensureStats(p.getId(), tid, match.getTournament()));
 
-        for (Long pid : pids) {
-            ensureStats(pid, tid, match.getTournament());
-            recalculatePlayerStats(pid, tid);
+        // Increment wins (goals) for winning team players
+        if (match.getWinnerTeam() != null && match.getWinnerTeam().getPlayers() != null) {
+            match.getWinnerTeam().getPlayers().forEach(p -> {
+                statsInterface.findByPlayerIdAndTournamentId(p.getId(), tid).ifPresent(s -> {
+                    s.setGoals(safe(s.getGoals()) + 1);
+                    int pom = awardInterface.countPomByPlayerIdAndSport(p.getId(), "chess");
+                    s.setPlayerOfMatchCount(pom);
+                    s.setPoints((safe(s.getGoals()) * 10) + (pom * 25));
+                    statsInterface.save(s);
+                });
+            });
         }
+        match.setStatus("COMPLETED");
+        matchInterface.save(match);
+
         calculatePOM(matchId, match);
         updateTournamentAwards(match.getTournament());
     }
 
-    @Transactional
-    public void recalculatePlayerStats(Long playerId, Long tournamentId) {
-        Stats stats = statsInterface.findByPlayerIdAndTournamentId(playerId, tournamentId).orElse(null);
-        if (stats == null) return;
-
-        List<ChessEvent> events = chessEventInterface.findByPlayerIdAndTournamentId(playerId, tournamentId);
-        int checks = 0;
-
-        for (ChessEvent ev : events) {
-            if (ev.getPlayer() == null || !ev.getPlayer().getId().equals(playerId)) continue;
-            if ("CHECK".equals(ev.getEventType())) checks++;
-        }
-
-        stats.setAssists(checks);  // checks delivered
-        stats.setFouls(0); stats.setYellowCards(0); stats.setRedCards(0);
-
-        int pom = awardInterface.countPomByPlayerIdAndSport(playerId, "chess");
-        stats.setPlayerOfMatchCount(pom);
-        // goals = total wins (set separately in tournament awards)
-        stats.setPoints((safe(stats.getGoals()) * 10) + (checks * 3) + (pom * 25));
-        statsInterface.save(stats);
-    }
-
     private void calculatePOM(Long matchId, Match match) {
         if (!awardInterface.findByMatchIdAndAwardType(matchId, "PLAYER_OF_MATCH").isEmpty()) return;
-        if (match.getWinnerTeam() == null) return; // draw — no POM
+        if (match.getWinnerTeam() == null) return;
 
-        // POM = first player of winning team (chess is often 1v1 anyway)
         Team winner = match.getWinnerTeam();
         if (winner.getPlayers() == null || winner.getPlayers().isEmpty()) return;
 
-        // Try to find player with most checks
-        Map<Long, Integer> checkMap = new HashMap<>();
-        Map<Long, Player>  playerMap = new HashMap<>();
-        chessEventInterface.findByMatch_IdOrderByIdAsc(matchId).forEach(ev -> {
-            if (ev.getPlayer() == null || !"CHECK".equals(ev.getEventType())) return;
-            Long pid = ev.getPlayer().getId();
-            playerMap.put(pid, ev.getPlayer());
-            checkMap.merge(pid, 1, Integer::sum);
-        });
-
-        Player pom;
-        if (!checkMap.isEmpty()) {
-            Long bestPid = checkMap.entrySet().stream().max(Map.Entry.comparingByValue())
-                    .map(Map.Entry::getKey).orElse(null);
-            pom = bestPid != null ? playerMap.get(bestPid) : winner.getPlayers().iterator().next();
-        } else {
-            pom = winner.getPlayers().iterator().next();
-        }
+        // POM = first player of winning team (chess 1v1 typically)
+        Player pom = winner.getPlayers().iterator().next();
 
         Award a = new Award();
         a.setMatch(match); a.setTournament(match.getTournament());
@@ -124,16 +73,7 @@ public class ChessStatsService {
         a.setPointsEarned(10); a.setReason("Winner of chess match");
         awardInterface.save(a);
         match.setManOfMatch(pom);
-        match.setStatus("COMPLETED");
         matchInterface.save(match);
-
-        // Increment wins (goals) for winning team players
-        if (match.getWinnerTeam().getPlayers() != null) {
-            match.getWinnerTeam().getPlayers().forEach(p -> {
-                statsInterface.findByPlayerIdAndTournamentId(p.getId(), match.getTournament().getId())
-                        .ifPresent(s -> { s.setGoals(safe(s.getGoals()) + 1); statsInterface.save(s); });
-            });
-        }
     }
 
     @Transactional
@@ -146,14 +86,10 @@ public class ChessStatsService {
                 .max(Comparator.comparingInt(Stats::getGoals))
                 .ifPresent(s -> saveAward(null, tournament, s.getPlayer(),
                         "TOP_SCORER", s.getGoals(), "Most wins: " + s.getGoals()));
-        all.stream().filter(s -> s.getAssists() != null && s.getAssists() > 0)
-                .max(Comparator.comparingInt(Stats::getAssists))
-                .ifPresent(s -> saveAward(null, tournament, s.getPlayer(),
-                        "TOP_ATTACKER", s.getAssists(), "Most checks: " + s.getAssists()));
         all.stream().filter(s -> s.getPoints() != null && s.getPoints() > 0)
                 .max(Comparator.comparingInt(Stats::getPoints))
                 .ifPresent(s -> saveAward(null, tournament, s.getPlayer(),
-                        "MAN_OF_TOURNAMENT", s.getPoints(), "Highest fantasy pts: " + s.getPoints()));
+                        "MAN_OF_TOURNAMENT", s.getPoints(), "Highest pts: " + s.getPoints()));
     }
 
     private void ensureStats(Long pid, Long tid, Tournament t) {
