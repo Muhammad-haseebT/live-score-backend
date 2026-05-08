@@ -697,6 +697,7 @@ public class CricketScoringService implements ScoringServiceInterface {
                     soState2.setCrr(0.0);
                     soState2.setExtras(0);
                     soState2.setStatus("LIVE");
+                    soState2.setTarget(score.getRuns()+1);
                     m = matchStateInterface.save(soState2);
                     score.setComment("");
 

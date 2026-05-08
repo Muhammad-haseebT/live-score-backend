@@ -90,6 +90,7 @@ public class VolleyballScoringService implements ScoringServiceInterface {
             case "SUBSTITUTION" -> saved = handleSub(req, state, match);
             case "TIMEOUT" -> saved = handleTimeout(req, state, match);
             case "END_SET" -> handleEndSet(state, match);
+            case "UNDO" -> { return undoLast(req.getMatchId()); }
             default -> throw new IllegalArgumentException("Unknown event: " + req.getEventType());
         }
 
