@@ -723,6 +723,7 @@ public class CricketScoringService implements ScoringServiceInterface {
                     }
                     match.setWinnerTeam(winnerTeam);
                     score.setComment(winnerTeam.getName());
+                    score.setMatchEnd(true);
                     matchInterface.save(match);
                     matchService.endMatch(match.getId());
                 }

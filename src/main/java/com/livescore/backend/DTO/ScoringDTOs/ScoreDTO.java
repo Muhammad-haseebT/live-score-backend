@@ -66,6 +66,7 @@ public class ScoreDTO {
 
     private List<PlayerSimpleDTO> availableBatters;
     private List<PlayerSimpleDTO> availableBowlers;
+    private boolean matchEnd = false;
 }
 
 

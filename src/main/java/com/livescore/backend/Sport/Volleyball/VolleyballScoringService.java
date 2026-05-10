@@ -24,6 +24,9 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
+// ADD to imports
+import org.springframework.cache.CacheManager;
+import org.springframework.cache.annotation.CacheEvict;
 
 @Service("VOLLEYBALL")
 @RequiredArgsConstructor
@@ -38,7 +41,8 @@ public class VolleyballScoringService implements ScoringServiceInterface {
     private final VolleyballPtsTableService volleyballPtsTableService;
     private final PlayerRequestInterface playerRequestInterface;
     private final ObjectMapper objectMapper = new ObjectMapper();
-
+    // ADD field alongside other finals
+    private final CacheManager cacheManager;
     private static final int WIN_BY = 2;
     private static final int MAX_TIMEOUTS = 2;
 
@@ -57,17 +61,24 @@ public class VolleyballScoringService implements ScoringServiceInterface {
 
     @Override
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-
     public Object scoring(JsonNode rawPayload) {
         VolleyballScoreDTO req = objectMapper.convertValue(rawPayload, VolleyballScoreDTO.class);
-        return process(req);
-    }
-
+        VolleyballScoreDTO result = process(req);
+        evictState(result.getMatchId());
+        return result;
+}
+    // WITH
     @Override
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-
     public Object undoLastBall(Long matchId, Long unused) {
-        return undoLast(matchId);
+        VolleyballScoreDTO result = undoLast(matchId);
+        evictState(matchId);
+        return result;
+    }
+
+    private void evictState(Long matchId) {
+        var cache = cacheManager.getCache("vbStates");
+        if (cache != null) cache.evict(matchId);
     }
 
     // ─────────────────────────────────────────
