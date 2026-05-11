@@ -57,7 +57,7 @@ public interface MatchInterface extends JpaRepository<Match,Long> {
     @Query("SELECT m FROM Match m WHERE m.tournament.sport.name = :name")
     List<Match> findByTournament_SportName(@Param("name") String name);
 
-    @Query("Select m from Match m where m.scorer.id=:id and m.status in ('LIVE','UPCOMING')")
+    @Query("Select m from Match m where (m.scorer.id=:id or m.mediaScorer.id=:id) and m.status in ('LIVE','UPCOMING')")
     List<Match> findByScorerID(@Param("id") Long id);
 
     @Query("""

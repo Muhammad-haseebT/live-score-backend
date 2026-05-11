@@ -319,34 +319,43 @@ public class MatchService {
         return ResponseEntity.ok("Match ended successfully and stats updated");
     }
 
+
     @Caching(evict = {
             @CacheEvict(value = "matches", allEntries = true, beforeInvocation = false),
             @CacheEvict(value = "matchById", allEntries = true, beforeInvocation = false)
     })
+    @Transactional
     public ResponseEntity<?> abandonMatch(Long id) {
         Match match = matchInterface.findById(id).orElse(null);
-        Long i1,i2;
-
         if (match == null) {
             return ResponseEntity.badRequest().body("Match with id " + id + " does not exist");
         }
-        i1=match.getCricketInnings().get(0).getId();
-        i2=match.getCricketInnings().get(1).getId();
-        MatchState m1=matchStateInterface.findByInnings_Id(i1);
-        MatchState m2=matchStateInterface.findByInnings_Id(i2);
 
-        PtsTable p1=ptsTableInterface.findByTeamIdAndTournamentId(match.getTeam1().getId(), match.getTournament().getId());
-        PtsTable p2=ptsTableInterface.findByTeamIdAndTournamentId(match.getTeam2().getId(), match.getTournament().getId());
-        if(match.getStatus()=="Live"){
-            if(m1!=null&&m1.getOvers()>=5){
-             endMatch(id);
-            }
-
+        // Already abandoned ya completed — kuch mat karo
+        if (Constants.STATUS_ABANDONED.equalsIgnoreCase(match.getStatus())
+                || "COMPLETED".equalsIgnoreCase(match.getStatus())) {
+            return ResponseEntity.ok().body("Match already ended");
         }
-        p1.setPoints(p1.getPoints()+1);
-        p2.setPoints(p2.getPoints()+1);
-        ptsTableInterface.save(p1);
-        ptsTableInterface.save(p2);
+
+        // ✅ Dono teams ko 1-1 point — sab sports ke liye
+        if (match.getTeam1() != null && match.getTeam2() != null
+                && match.getTournament() != null) {
+
+            PtsTable p1 = ptsTableInterface.findByTeamIdAndTournamentId(
+                    match.getTeam1().getId(), match.getTournament().getId());
+            PtsTable p2 = ptsTableInterface.findByTeamIdAndTournamentId(
+                    match.getTeam2().getId(), match.getTournament().getId());
+
+            if (p1 != null) {
+                p1.setPoints(p1.getPoints() + 1);
+                ptsTableInterface.save(p1);
+            }
+            if (p2 != null) {
+                p2.setPoints(p2.getPoints() + 1);
+                ptsTableInterface.save(p2);
+            }
+        }
+
         match.setStatus(Constants.STATUS_ABANDONED);
         matchInterface.save(match);
 
