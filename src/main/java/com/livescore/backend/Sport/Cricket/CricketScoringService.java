@@ -229,6 +229,7 @@ public class CricketScoringService implements ScoringServiceInterface {
             scoreDTO.setAvailableBatters(java.util.Collections.emptyList());
             scoreDTO.setAvailableBowlers(java.util.Collections.emptyList());
         }
+        scoreDTO.setMatchEnd(state.getMatchEnd());
         return scoreDTO;
     }
 
@@ -392,9 +393,7 @@ public class CricketScoringService implements ScoringServiceInterface {
         return s;
     }
 
-    private void handlePenalty(MatchState m, PlayerInnings batsman, PlayerInnings bowler, PlayerInnings nonStriker, CricketBall cb) {
 
-    }
 
     private void handleUndoWicket(MatchState m, PlayerInnings batsman, PlayerInnings bowler, PlayerInnings nonStriker, CricketBall cb) {
         switch (cb.getDismissalType().toLowerCase()) {
@@ -724,6 +723,7 @@ public class CricketScoringService implements ScoringServiceInterface {
                     match.setWinnerTeam(winnerTeam);
                     score.setComment(winnerTeam.getName());
                     score.setMatchEnd(true);
+                    m.setMatchEnd(true);
                     matchInterface.save(match);
                     matchService.endMatch(match.getId());
                 }
